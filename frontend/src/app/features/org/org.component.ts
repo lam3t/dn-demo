@@ -37,7 +37,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
           </div>
           <h1 class="page-title">Sơ Đồ Tổ Chức & 3 Điểm Trường</h1>
           <p class="page-subtitle">
-            Mô hình sáp nhập: THCS Phước Tân gồm 3 điểm trường (Trung tâm, Phân hiệu 1, Phân hiệu 2) và 8 tổ chuyên môn.
+            Mô hình sáp nhập: TH và THCS Phước Tân gồm 3 điểm trường (Trung tâm, Phân hiệu 1, Phân hiệu 2) và 8 tổ chuyên môn.
           </p>
         </div>
       </header>
@@ -63,7 +63,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
             <h3 class="campus-name">{{ loc.name }}</h3>
             <p class="campus-address">
               <span class="material-symbols-outlined">place</span>
-              <span>{{ loc.address || 'Khu vực trường THCS Phước Tân' }}</span>
+              <span>{{ loc.address || 'Khu vực trường TH và THCS Phước Tân' }}</span>
             </p>
 
             <div class="campus-footer-metrics">

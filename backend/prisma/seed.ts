@@ -25,19 +25,19 @@ async function main() {
   // 1. TẠO TRƯỜNG HỌC
   const school = await prisma.school.create({
     data: {
-      name: 'Trường THCS Phước Tân',
-      code: 'THCS_PHUOC_TAN',
+      name: 'Trường TH và THCS Phước Tân',
+      code: 'TH_THCS_PHUOC_TAN',
       address: 'Phường Phước Tân, TP. Biên Hòa, Tỉnh Đồng Nai',
       phone: '02513888999',
-      email: 'thcsphuoctan@dongnai.edu.vn',
-      website: 'https://thcsphuoctan.dongnai.edu.vn',
+      email: 'th_thcs_phuoctan@dongnai.edu.vn',
+      website: 'https://th-thcsphuoctan.dongnai.edu.vn',
       principalName: 'Phạm Thị Nam',
       totalStudents: 5669,
       totalFemaleStudents: 2736,
       totalClasses: 122,
       totalStaff: 218,
       schoolYear: '2026 - 2027',
-      description: 'Trường THCS Phước Tân được thành lập sau khi sáp nhập 3 trường THCS trên địa bàn phường Phước Tân. Nhà trường quản lý đồng bộ 3 điểm trường với 122 lớp, 5.669 học sinh và 218 cán bộ, giáo viên, nhân viên.',
+      description: 'Trường TH và THCS Phước Tân được thành lập sau khi sắp xếp, sáp nhập trên địa bàn phường Phước Tân. Nhà trường quản lý đồng bộ 3 điểm trường với 122 lớp, 5.669 học sinh và 218 cán bộ, giáo viên, nhân viên.',
       statsJson: JSON.stringify({
         grades: {
           g6: { classes: 31, students: 1438, female: 702 },
@@ -388,7 +388,7 @@ async function main() {
     data: {
       schoolId: school.id,
       title: 'Kế hoạch Chiến lược & Hoạt động Năm học 2026 - 2027',
-      description: 'Kế hoạch tổng thể vận hành trường THCS Phước Tân sau sáp nhập 3 điểm trường',
+      description: 'Kế hoạch tổng thể vận hành trường TH và THCS Phước Tân sau sáp nhập 3 điểm trường',
       level: PlanLevel.NAM,
       startDate: new Date('2026-08-01'),
       endDate: new Date('2027-05-31'),

@@ -21,7 +21,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
             <span class="active">Năm học 2026 - 2027</span>
           </div>
           <h1 class="page-title">
-            {{ school()?.name || 'Trường THCS Phước Tân' }}
+            {{ school()?.name || 'Trường TH và THCS Phước Tân' }}
             <span class="status-badge live-badge">Mô hình sáp nhập 3 điểm trường</span>
           </h1>
           <p class="page-subtitle">
@@ -339,7 +339,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
             <div class="form-row">
               <div class="form-group full-width">
                 <label class="form-label">Tên trường <span class="req">*</span></label>
-                <input type="text" formControlName="name" class="form-input" placeholder="Ví dụ: Trường THCS Phước Tân" />
+                <input type="text" formControlName="name" class="form-input" placeholder="Ví dụ: Trường TH và THCS Phước Tân" />
               </div>
             </div>
 
@@ -1223,8 +1223,8 @@ export class SchoolInfoComponent implements OnInit {
       totalClasses: [122, [Validators.required, Validators.min(1)]],
       totalStaff: [218, [Validators.min(1)]],
       phone: ['02513888999'],
-      email: ['thcsphuoctan@dongnai.edu.vn'],
-      website: ['https://thcsphuoctan.dongnai.edu.vn'],
+      email: ['th_thcs_phuoctan@dongnai.edu.vn'],
+      website: ['https://th-thcsphuoctan.dongnai.edu.vn'],
       address: ['Phường Phước Tân, TP. Biên Hòa, Tỉnh Đồng Nai'],
       description: [''],
     });

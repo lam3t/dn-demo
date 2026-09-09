@@ -32,7 +32,7 @@ import { LocationItem } from '../../core/models/user.models';
             <div class="banner-text-box">
               <div class="banner-role-badge">
                 <span class="role-tag">{{ authService.activeRole()?.roleTitle || user.title }}</span>
-                <span class="scope-tag">{{ authService.activeRole()?.scopeName || 'THCS Phước Tân' }}</span>
+                <span class="scope-tag">{{ authService.activeRole()?.scopeName || 'TH & THCS Phước Tân' }}</span>
               </div>
               <h2 class="banner-welcome-title">
                 Xin chào, {{ user.fullName }}
@@ -91,7 +91,7 @@ import { LocationItem } from '../../core/models/user.models';
         <div class="header-title-box">
           <h1 class="page-title">Tổng Quan Điều Hành</h1>
           <p class="page-subtitle">
-            Theo dõi tiến độ công việc và kế hoạch toàn trường THCS Phước Tân sau sáp nhập
+            Theo dõi tiến độ công việc và kế hoạch toàn trường TH và THCS Phước Tân sau sáp nhập
           </p>
         </div>
 

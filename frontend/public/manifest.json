@@ -1,7 +1,7 @@
 {
-  "name": "TN EDU – Quản lý Kế hoạch & Công việc THCS Phước Tân",
+  "name": "TN EDU – Quản lý Kế hoạch & Công việc TH và THCS Phước Tân",
   "short_name": "TN EDU",
-  "description": "Hệ thống quản lý kế hoạch, phân công công việc RACI và kết nối 3 điểm trường THCS Phước Tân sau sáp nhập",
+  "description": "Hệ thống quản lý kế hoạch, phân công công việc RACI và kết nối 3 điểm trường TH và THCS Phước Tân sau sáp nhập",
   "start_url": "/",
   "id": "/",
   "display": "standalone",

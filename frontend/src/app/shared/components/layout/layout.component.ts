@@ -24,7 +24,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
               <h1 class="app-name">TN EDU</h1>
               <span class="version-tag">2026-2027</span>
             </div>
-            <span class="school-name">THCS PHƯỚC TÂN</span>
+            <span class="school-name">TH & THCS PHƯỚC TÂN</span>
           </div>
         </div>
 
@@ -132,7 +132,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
           <div class="nav-bar-left">
             <div class="header-brand-title hide-on-mobile">
               <span class="material-symbols-outlined brand-star-icon">school</span>
-              <span class="brand-school">Trường THCS Phước Tân</span>
+              <span class="brand-school">Trường TH và THCS Phước Tân</span>
               <span class="brand-scale-badge">122 Lớp • 5.669 Học sinh</span>
             </div>
           </div>
@@ -193,7 +193,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
             </button>
             <div class="mobile-brand" routerLink="/dashboard">
               <span class="material-symbols-outlined brand-icon">school</span>
-              <span class="mobile-title">THCS Phước Tân</span>
+              <span class="mobile-title">TH & THCS Phước Tân</span>
             </div>
           </div>
 
@@ -388,7 +388,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
                 <span class="material-symbols-outlined">logout</span>
                 <span>Đăng xuất</span>
               </button>
-              <span class="drawer-version">TN EDU • THCS Phước Tân 2026-2027</span>
+              <span class="drawer-version">TN EDU • TH & THCS Phước Tân 2026-2027</span>
             </div>
           </div>
         </div>

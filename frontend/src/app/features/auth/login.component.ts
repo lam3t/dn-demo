@@ -28,7 +28,7 @@ interface DemoAccount {
           <p class="system-subtitle">Quản lý Kế hoạch & Công việc Trường Phổ thông</p>
           <div class="school-badge">
             <span class="material-symbols-outlined">location_on</span>
-            <span>Trường THCS Phước Tân (3 Điểm trường)</span>
+            <span>Trường TH và THCS Phước Tân (3 Điểm trường)</span>
           </div>
         </div>
 
