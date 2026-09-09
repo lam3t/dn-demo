@@ -1150,6 +1150,50 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       opacity: 0.6;
       cursor: not-allowed;
     }
+
+    @media (max-width: 768px) {
+      .school-info-container {
+        padding: 1rem 0.75rem 2.5rem;
+      }
+      .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+      }
+      .header-actions {
+        width: 100%;
+        .btn-primary, .btn-secondary {
+          flex: 1;
+          justify-content: center;
+        }
+      }
+      .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+      }
+      .stat-card {
+        padding: 0.9rem;
+        gap: 0.75rem;
+      }
+      .locations-grid {
+        grid-template-columns: 1fr;
+      }
+      .legal-info-grid {
+        grid-template-columns: 1fr;
+      }
+      .table-responsive {
+        overflow-x: auto;
+      }
+      .form-row.two-col,
+      .form-row.three-col {
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+      .modal-card {
+        max-height: 85vh;
+        margin: 0.5rem;
+      }
+    }
   `]
 })
 export class SchoolInfoComponent implements OnInit {

@@ -1295,6 +1295,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc';
         border-radius: 12px;
         overflow-x: auto;
         scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
 
         .nav-tab-btn {
           display: inline-flex;
@@ -1309,6 +1310,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc';
           font-weight: 600;
           cursor: pointer;
           white-space: nowrap;
+          flex-shrink: 0;
           transition: all 0.2s ease;
 
           .material-symbols-outlined {

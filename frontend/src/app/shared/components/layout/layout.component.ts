@@ -187,25 +187,32 @@ import { UserPickerItem } from '../../../core/models/user.models';
 
         <!-- MOBILE TOP BAR (Small screens only) -->
         <header class="mobile-header hide-on-desktop">
-          <div class="mobile-brand">
-            <span class="material-symbols-outlined brand-icon">school</span>
-            <span class="mobile-title">TN EDU - THCS Phước Tân</span>
+          <div class="mobile-header-left">
+            <button type="button" class="mobile-menu-btn tap-target" (click)="toggleMobileDrawer()" title="Mở menu điều hướng">
+              <span class="material-symbols-outlined">menu</span>
+            </button>
+            <div class="mobile-brand" routerLink="/dashboard">
+              <span class="material-symbols-outlined brand-icon">school</span>
+              <span class="mobile-title">THCS Phước Tân</span>
+            </div>
           </div>
 
           <div class="mobile-actions">
             @if (authService.isHieuTruong()) {
-              <a routerLink="/admin-settings" class="mobile-icon-btn admin-mobile-btn" title="Cấu hình hệ thống">
+              <a routerLink="/admin-settings" routerLinkActive="admin-active" class="mobile-icon-btn admin-mobile-btn" title="Cấu hình hệ thống">
                 <span class="material-symbols-outlined">admin_panel_settings</span>
               </a>
             }
-            <a routerLink="/notifications" class="mobile-icon-btn" title="Thông báo">
+            <a routerLink="/notifications" routerLinkActive="active" class="mobile-icon-btn" title="Thông báo">
               <span class="material-symbols-outlined">notifications</span>
               @if (notifService.unreadCount() > 0) {
                 <span class="mobile-notif-dot"></span>
               }
             </a>
             @if (authService.currentUser(); as user) {
-              <img [src]="user.avatarUrl" [alt]="user.fullName" class="mobile-avatar" (click)="logout()" title="Bấm để đăng xuất" />
+              <button type="button" class="mobile-avatar-btn tap-target" (click)="toggleMobileDrawer()" title="Hồ sơ & Menu">
+                <img [src]="user.avatarUrl" [alt]="user.fullName" class="mobile-avatar" />
+              </button>
             }
           </div>
         </header>
@@ -215,16 +222,16 @@ import { UserPickerItem } from '../../../core/models/user.models';
           <router-outlet></router-outlet>
         </main>
 
-        <!-- MOBILE BOTTOM NAVIGATION (4 Tabs) -->
+        <!-- MOBILE BOTTOM NAVIGATION (5 Primary Tabs) -->
         <nav class="mobile-bottom-nav hide-on-desktop">
           <a routerLink="/dashboard" routerLinkActive="active" class="bottom-tab tap-target">
             <span class="material-symbols-outlined tab-icon">dashboard</span>
             <span class="tab-label">Tổng quan</span>
           </a>
 
-          <a routerLink="/school-info" routerLinkActive="active" class="bottom-tab tap-target">
-            <span class="material-symbols-outlined tab-icon">domain</span>
-            <span class="tab-label">Quy mô</span>
+          <a routerLink="/tasks" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="bottom-tab tap-target">
+            <span class="material-symbols-outlined tab-icon">assignment</span>
+            <span class="tab-label">Công việc</span>
           </a>
 
           <a routerLink="/plans" routerLinkActive="active" class="bottom-tab tap-target">
@@ -234,22 +241,160 @@ import { UserPickerItem } from '../../../core/models/user.models';
 
           <a routerLink="/my-tasks" routerLinkActive="active" class="bottom-tab tap-target">
             <span class="material-symbols-outlined tab-icon">task_alt</span>
-            <span class="tab-label">Việc của tôi</span>
+            <span class="tab-label">Của tôi</span>
           </a>
 
-          <a routerLink="/notifications" routerLinkActive="active" class="bottom-tab tap-target">
+          <button type="button" class="bottom-tab bottom-tab-btn tap-target" [class.active]="isMobileDrawerOpen" (click)="toggleMobileDrawer()">
             <div class="tab-icon-wrapper">
-              <span class="material-symbols-outlined tab-icon">notifications</span>
+              <span class="material-symbols-outlined tab-icon">menu</span>
               @if (notifService.unreadCount() > 0) {
                 <span class="bottom-notif-badge">{{ notifService.unreadCount() }}</span>
               }
             </div>
-            <span class="tab-label">Thông báo</span>
-          </a>
+            <span class="tab-label">Menu</span>
+          </button>
         </nav>
       </div>
 
-      <!-- 3. GLOBAL CONTACT MINI CARD POPOVER -->
+      <!-- 3. MOBILE SLIDE-OUT DRAWER / NAVIGATION SHEET -->
+      @if (isMobileDrawerOpen) {
+        <div class="mobile-drawer-overlay hide-on-desktop" (click)="closeMobileDrawer()">
+          <div class="mobile-drawer-sheet" (click)="$event.stopPropagation()">
+            <!-- Drawer Header: User info & close btn -->
+            <div class="drawer-header">
+              <div class="drawer-user-info">
+                @if (authService.currentUser(); as user) {
+                  <img [src]="user.avatarUrl" [alt]="user.fullName" class="drawer-avatar" />
+                  <div class="drawer-user-text">
+                    <span class="drawer-user-name">{{ user.fullName }}</span>
+                    <span class="drawer-user-title">{{ user.title || 'Cán bộ giáo viên' }}</span>
+                    <span class="drawer-user-phone">📞 {{ user.phone }}</span>
+                  </div>
+                }
+              </div>
+              <button type="button" class="drawer-close-btn tap-target" (click)="closeMobileDrawer()" title="Đóng menu">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <!-- Active Context Pill in Drawer -->
+            @if (authService.activeRole(); as role) {
+              <div class="drawer-context-pill" [ngClass]="getRolePillClass()">
+                <span class="material-symbols-outlined pill-icon">{{ getRoleIcon() }}</span>
+                <div class="pill-meta">
+                  <span class="pill-role-title">{{ role.roleTitle }}</span>
+                  <span class="pill-scope-title">{{ role.scopeName || 'Toàn trường (122 Lớp • 5.669 HS)' }}</span>
+                </div>
+              </div>
+            }
+
+            <!-- Quick Demo Accounts Switcher on Mobile Drawer -->
+            <div class="drawer-section">
+              <div class="drawer-section-title">
+                <span class="material-symbols-outlined title-icon">swap_horiz</span>
+                <span>Chuyển nhanh 4 vai trò demo:</span>
+              </div>
+              <div class="drawer-demo-grid">
+                @for (acc of authService.demoAccounts; track acc.identifier) {
+                  <button
+                    type="button"
+                    class="drawer-demo-btn tap-target"
+                    [class.active]="isCurrentAccount(acc.identifier)"
+                    [ngClass]="'role-' + acc.role.toLowerCase()"
+                    (click)="switchAccountFromDrawer(acc)"
+                  >
+                    <span class="material-symbols-outlined btn-icon">{{ acc.icon }}</span>
+                    <div class="demo-btn-text">
+                      <span class="demo-name">{{ acc.name }}</span>
+                      <span class="demo-role">{{ acc.roleTitle }}</span>
+                    </div>
+                  </button>
+                }
+              </div>
+            </div>
+
+            <!-- Full Navigation Links in Drawer -->
+            <div class="drawer-section">
+              <div class="drawer-section-title">
+                <span class="material-symbols-outlined title-icon">grid_view</span>
+                <span>Phân hệ hệ thống:</span>
+              </div>
+              <nav class="drawer-nav-list">
+                <a routerLink="/dashboard" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                  <span class="material-symbols-outlined nav-icon">dashboard</span>
+                  <span class="nav-label">Tổng quan Dashboard</span>
+                </a>
+
+                <a routerLink="/school-info" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                  <span class="material-symbols-outlined nav-icon">domain</span>
+                  <span class="nav-label">Hồ sơ & Quy mô trường</span>
+                </a>
+
+                <a routerLink="/plans" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                  <span class="material-symbols-outlined nav-icon">calendar_month</span>
+                  <span class="nav-label">Lập kế hoạch & Phê duyệt</span>
+                </a>
+
+                <a routerLink="/tasks" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                  <span class="material-symbols-outlined nav-icon">assignment</span>
+                  <span class="nav-label">Quản lý công việc (RACI)</span>
+                </a>
+
+                <a routerLink="/my-tasks" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                  <span class="material-symbols-outlined nav-icon">task_alt</span>
+                  <span class="nav-label">Việc của tôi</span>
+                </a>
+
+                <a routerLink="/org" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                  <span class="material-symbols-outlined nav-icon">apartment</span>
+                  <span class="nav-label">Cơ cấu & Điểm trường</span>
+                </a>
+
+                <a routerLink="/notifications" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                  <span class="material-symbols-outlined nav-icon">notifications</span>
+                  <span class="nav-label">Thông báo hệ thống</span>
+                  @if (notifService.unreadCount() > 0) {
+                    <span class="drawer-unread-badge">{{ notifService.unreadCount() }}</span>
+                  }
+                </a>
+
+                @if (authService.isHieuTruong()) {
+                  <a routerLink="/admin-settings" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item admin-item">
+                    <span class="material-symbols-outlined nav-icon admin-icon">admin_panel_settings</span>
+                    <span class="nav-label">Cấu hình hệ thống (Prompt 18B)</span>
+                    <span class="drawer-admin-tag">Admin</span>
+                  </a>
+                } @else {
+                  <a (click)="switchAndGoToAdminFromDrawer()" class="drawer-nav-item locked-item">
+                    <span class="material-symbols-outlined nav-icon">admin_panel_settings</span>
+                    <span class="nav-label">Cấu hình hệ thống (Prompt 18B)</span>
+                    <span class="drawer-lock-tag">Hiệu trưởng</span>
+                  </a>
+                }
+              </nav>
+            </div>
+
+            <!-- Quick Action button -->
+            <div class="drawer-action-box">
+              <button type="button" class="drawer-create-btn tap-target" routerLink="/tasks" [queryParams]="{ create: 'true' }" (click)="closeMobileDrawer()">
+                <span class="material-symbols-outlined">add_circle</span>
+                <span>{{ authService.isGiaoVien() ? 'Đề xuất việc mới' : 'Giao việc mới (RACI)' }}</span>
+              </button>
+            </div>
+
+            <!-- Drawer Footer: Logout & Version info -->
+            <div class="drawer-footer">
+              <button type="button" class="drawer-logout-btn tap-target" (click)="logout()">
+                <span class="material-symbols-outlined">logout</span>
+                <span>Đăng xuất</span>
+              </button>
+              <span class="drawer-version">TN EDU • THCS Phước Tân 2026-2027</span>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- 4. GLOBAL CONTACT MINI CARD POPOVER -->
       @if (contactCardService.isOpen()) {
         <app-contact-mini-card
           [visible]="contactCardService.isOpen()"
@@ -816,27 +961,64 @@ import { UserPickerItem } from '../../../core/models/user.models';
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 10px 16px;
+        padding: 8px 14px;
         background: #FFFFFF;
         border-bottom: 1px solid #E2E8F0;
+        z-index: 80;
+        height: 52px;
 
-        .mobile-brand {
+        .mobile-header-left {
           display: flex;
           align-items: center;
-          gap: 8px;
-          color: #1E40AF;
-          font-weight: 800;
-          font-size: 0.95rem;
+          gap: 10px;
 
-          .brand-icon {
-            font-size: 22px;
+          .mobile-menu-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            background: #F8FAFC;
+            border: 1px solid #CBD5E1;
+            border-radius: 8px;
+            color: #1E293B;
+            cursor: pointer;
+            transition: all 0.15s ease;
+
+            .material-symbols-outlined {
+              font-size: 24px;
+            }
+
+            &:active {
+              background: #E2E8F0;
+              transform: scale(0.96);
+            }
+          }
+
+          .mobile-brand {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #1E40AF;
+            font-weight: 800;
+            font-size: 0.95rem;
+            cursor: pointer;
+
+            .brand-icon {
+              font-size: 20px;
+              color: #2563EB;
+            }
+
+            .mobile-title {
+              white-space: nowrap;
+            }
           }
         }
 
         .mobile-actions {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 8px;
 
           .mobile-icon-btn {
             position: relative;
@@ -844,22 +1026,56 @@ import { UserPickerItem } from '../../../core/models/user.models';
             text-decoration: none;
             display: flex;
             align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+
+            &:active {
+              background: #F1F5F9;
+            }
+
+            &.admin-mobile-btn {
+              color: #1E40AF;
+              background: #EFF6FF;
+              border: 1px solid #BFDBFE;
+            }
+
+            &.admin-active {
+              background: #1E40AF;
+              color: #FFFFFF;
+            }
           }
 
           .mobile-notif-dot {
             position: absolute;
-            top: 0;
-            right: 0;
+            top: 6px;
+            right: 6px;
             width: 8px;
             height: 8px;
             background: #EF4444;
             border-radius: 50%;
+            border: 1.5px solid #FFFFFF;
           }
 
-          .mobile-avatar {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
+          .mobile-avatar-btn {
+            background: transparent;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+
+            .mobile-avatar {
+              width: 32px;
+              height: 32px;
+              border-radius: 50%;
+              border: 1.5px solid #3B82F6;
+              object-fit: cover;
+            }
           }
         }
       }
@@ -875,38 +1091,57 @@ import { UserPickerItem } from '../../../core/models/user.models';
         display: flex;
         background: #FFFFFF;
         border-top: 1px solid #E2E8F0;
-        height: 56px;
+        height: 58px;
         align-items: center;
         justify-content: space-around;
         z-index: 100;
+        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
 
         .bottom-tab {
+          flex: 1;
           display: flex;
           flex-direction: column;
           align-items: center;
+          justify-content: center;
           gap: 2px;
+          height: 100%;
           color: #64748B;
           text-decoration: none;
-          font-size: 0.7rem;
+          font-size: 0.68rem;
           font-weight: 500;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          transition: color 0.15s ease;
 
           .tab-icon {
-            font-size: 20px;
+            font-size: 22px;
+          }
+
+          &:active {
+            transform: scale(0.95);
           }
 
           &.active {
-            color: #2563EB;
+            color: #1D4ED8;
             font-weight: 700;
+
+            .tab-icon {
+              color: #2563EB;
+            }
           }
 
           .tab-icon-wrapper {
             position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
           }
 
           .bottom-notif-badge {
             position: absolute;
-            top: -3px;
-            right: -6px;
+            top: -4px;
+            right: -8px;
             background: #EF4444;
             color: #FFFFFF;
             font-size: 0.6rem;
@@ -915,6 +1150,378 @@ import { UserPickerItem } from '../../../core/models/user.models';
             font-weight: 700;
           }
         }
+      }
+
+      /* MOBILE SLIDE-OUT DRAWER STYLES */
+      .mobile-drawer-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.55);
+        backdrop-filter: blur(4px);
+        z-index: 9999;
+        display: flex;
+        animation: fadeIn 0.2s ease-out;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      .mobile-drawer-sheet {
+        width: 320px;
+        max-width: 86vw;
+        height: 100%;
+        background: #FFFFFF;
+        box-shadow: 4px 0 25px rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        animation: slideInLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+
+        .drawer-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 16px 14px;
+          background: #F8FAFC;
+          border-bottom: 1px solid #E2E8F0;
+
+          .drawer-user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            overflow: hidden;
+
+            .drawer-avatar {
+              width: 44px;
+              height: 44px;
+              border-radius: 50%;
+              border: 2px solid #3B82F6;
+              flex-shrink: 0;
+            }
+
+            .drawer-user-text {
+              display: flex;
+              flex-direction: column;
+              overflow: hidden;
+
+              .drawer-user-name {
+                font-size: 0.92rem;
+                font-weight: 800;
+                color: #0F172A;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              }
+
+              .drawer-user-title {
+                font-size: 0.75rem;
+                color: #475569;
+                font-weight: 600;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              }
+
+              .drawer-user-phone {
+                font-size: 0.7rem;
+                color: #64748B;
+              }
+            }
+          }
+
+          .drawer-close-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            background: #FFFFFF;
+            border: 1px solid #CBD5E1;
+            border-radius: 8px;
+            color: #64748B;
+            cursor: pointer;
+            flex-shrink: 0;
+
+            &:active {
+              background: #F1F5F9;
+              color: #0F172A;
+            }
+          }
+        }
+
+        .drawer-context-pill {
+          margin: 10px 12px 0;
+          padding: 8px 10px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          border: 1px solid #E2E8F0;
+
+          .pill-icon {
+            font-size: 18px;
+          }
+
+          .pill-meta {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+
+            .pill-role-title {
+              font-size: 0.78rem;
+              font-weight: 700;
+              color: #0F172A;
+            }
+
+            .pill-scope-title {
+              font-size: 0.7rem;
+              color: #64748B;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+          }
+        }
+
+        .drawer-section {
+          padding: 12px 14px 4px;
+
+          .drawer-section-title {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #64748B;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-bottom: 8px;
+
+            .title-icon {
+              font-size: 15px;
+              color: #3B82F6;
+            }
+          }
+
+          .drawer-demo-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 6px;
+
+            .drawer-demo-btn {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              padding: 8px;
+              background: #F8FAFC;
+              border: 1px solid #E2E8F0;
+              border-radius: 8px;
+              text-align: left;
+              cursor: pointer;
+              min-height: 44px;
+
+              .btn-icon {
+                font-size: 16px;
+                color: #64748B;
+                flex-shrink: 0;
+              }
+
+              .demo-btn-text {
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+
+                .demo-name {
+                  font-size: 0.72rem;
+                  font-weight: 700;
+                  color: #0F172A;
+                  white-space: nowrap;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                }
+
+                .demo-role {
+                  font-size: 0.62rem;
+                  color: #64748B;
+                  white-space: nowrap;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                }
+              }
+
+              &.active {
+                background: #EFF6FF;
+                border-color: #3B82F6;
+
+                .btn-icon {
+                  color: #2563EB;
+                }
+
+                .demo-name {
+                  color: #1D4ED8;
+                }
+              }
+
+              &:active {
+                transform: scale(0.97);
+              }
+            }
+          }
+
+          .drawer-nav-list {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+
+            .drawer-nav-item {
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              padding: 10px 12px;
+              min-height: 44px;
+              border-radius: 8px;
+              color: #334155;
+              text-decoration: none;
+              font-size: 0.86rem;
+              font-weight: 600;
+              transition: all 0.15s ease;
+              cursor: pointer;
+
+              .nav-icon {
+                font-size: 20px;
+                color: #64748B;
+                flex-shrink: 0;
+              }
+
+              .nav-label {
+                flex: 1;
+              }
+
+              &:active {
+                background: #F1F5F9;
+              }
+
+              &.active {
+                background: #EFF6FF;
+                color: #1D4ED8;
+                font-weight: 700;
+
+                .nav-icon {
+                  color: #2563EB;
+                }
+              }
+
+              .drawer-unread-badge {
+                background: #EF4444;
+                color: #FFFFFF;
+                font-size: 0.68rem;
+                font-weight: 700;
+                padding: 1px 6px;
+                border-radius: 999px;
+              }
+
+              .drawer-admin-tag {
+                background: #EEF2FF;
+                color: #3730A3;
+                border: 1px solid #C7D2FE;
+                font-size: 0.68rem;
+                font-weight: 700;
+                padding: 1px 6px;
+                border-radius: 4px;
+              }
+
+              .drawer-lock-tag {
+                background: #F1F5F9;
+                color: #64748B;
+                font-size: 0.65rem;
+                font-weight: 600;
+                padding: 1px 5px;
+                border-radius: 4px;
+              }
+
+              &.admin-item {
+                color: #1E3A8A;
+                .admin-icon {
+                  color: #1E40AF;
+                }
+              }
+
+              &.locked-item {
+                opacity: 0.85;
+                &:hover, &:active {
+                  background: #FFFBEB;
+                }
+              }
+            }
+          }
+        }
+
+        .drawer-action-box {
+          padding: 8px 14px;
+          margin-top: auto;
+
+          .drawer-create-btn {
+            width: 100%;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: #1F3864;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+
+            &:active {
+              background: #16294A;
+            }
+          }
+        }
+
+        .drawer-footer {
+          padding: 10px 14px 16px;
+          border-top: 1px solid #F1F5F9;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+
+          .drawer-logout-btn {
+            width: 100%;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            color: #EF4444;
+            font-size: 0.84rem;
+            font-weight: 700;
+            cursor: pointer;
+
+            &:active {
+              background: #FEF2F2;
+            }
+          }
+
+          .drawer-version {
+            font-size: 0.68rem;
+            color: #94A3B8;
+            text-align: center;
+          }
+        }
+      }
+
+      @keyframes slideInLeft {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(0); }
       }
 
       @media (min-width: 1024px) {
@@ -937,13 +1544,39 @@ export class LayoutComponent implements OnInit, OnDestroy {
   notifService = inject(NotificationService);
   private router = inject(Router);
 
+  isMobileDrawerOpen = false;
+
   ngOnInit(): void {
     this.notifService.getNotifications({ unreadOnly: true }).subscribe({ error: () => {} });
+
+    // Auto-close mobile drawer when route changes
+    this.router.events.subscribe(() => {
+      this.isMobileDrawerOpen = false;
+    });
   }
 
   ngOnDestroy(): void {}
 
+  toggleMobileDrawer(): void {
+    this.isMobileDrawerOpen = !this.isMobileDrawerOpen;
+  }
+
+  closeMobileDrawer(): void {
+    this.isMobileDrawerOpen = false;
+  }
+
+  switchAccountFromDrawer(account: DemoAccountInfo): void {
+    this.switchAccount(account);
+    this.closeMobileDrawer();
+  }
+
+  switchAndGoToAdminFromDrawer(): void {
+    this.switchAndGoToAdmin();
+    this.closeMobileDrawer();
+  }
+
   logout(): void {
+    this.closeMobileDrawer();
     this.authService.logout();
     this.router.navigate(['/auth/login']);
   }
