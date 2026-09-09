@@ -236,14 +236,17 @@ import { TaskDetailModalComponent } from '../../shared/components/task-detail-mo
                             <span class="holder-name">{{ holder.fullName }}</span>
                             <span class="holder-role">{{ holder.roleLabel }}</span>
                           </div>
-                          <a
-                            [href]="'tel:' + holder.phone"
-                            class="call-btn-mini"
-                            (click)="$event.stopPropagation()"
-                            title="Gọi điện ngay"
-                          >
-                            <span class="material-symbols-outlined">call</span>
-                          </a>
+                          @if (holder.phone) {
+                            <a
+                              [href]="'tel:' + holder.phone"
+                              class="call-btn-mini"
+                              (click)="$event.stopPropagation()"
+                              [title]="'Gọi ngay: ' + holder.phone"
+                            >
+                              <span class="material-symbols-outlined">call</span>
+                              <span class="call-phone-text">{{ holder.phone }}</span>
+                            </a>
+                          }
                         </div>
                       } @else {
                         <span class="unassigned-text">Chưa rõ</span>
@@ -321,9 +324,12 @@ import { TaskDetailModalComponent } from '../../shared/components/task-detail-mo
                     <div class="holder-chip-mini" (click)="openUserContact(holder, $event)">
                       <img [src]="holder.avatarUrl || 'assets/images/default-avatar.svg'" class="avatar-tiny" alt="" />
                       <span class="name">{{ holder.fullName }}</span>
-                      <a [href]="'tel:' + holder.phone" class="call-link" (click)="$event.stopPropagation()">
-                        <span class="material-symbols-outlined">call</span>
-                      </a>
+                      @if (holder.phone) {
+                        <a [href]="'tel:' + holder.phone" class="call-link" (click)="$event.stopPropagation()" [title]="'Gọi ngay: ' + holder.phone">
+                          <span class="material-symbols-outlined">call</span>
+                          <span class="call-phone-text">{{ holder.phone }}</span>
+                        </a>
+                      }
                     </div>
                   } @else {
                     <span class="unassigned-text">Chưa phân công</span>
@@ -704,22 +710,34 @@ import { TaskDetailModalComponent } from '../../shared/components/task-detail-mo
             }
 
             .call-btn-mini {
-              width: 22px;
-              height: 22px;
-              border-radius: 50%;
-              background: #2E7D32;
-              color: #FFFFFF;
-              display: flex;
+              display: inline-flex;
               align-items: center;
-              justify-content: center;
+              gap: 4px;
+              padding: 2px 7px;
+              border-radius: 6px;
+              background: #EEF4FC;
+              border: 1px solid #BFDBFE;
+              color: #1F3864;
               text-decoration: none;
+              font-size: 0.72rem;
+              font-weight: 600;
+              white-space: nowrap;
+              transition: all 0.15s ease;
 
               .material-symbols-outlined {
                 font-size: 13px;
+                color: #1F3864;
+              }
+
+              .call-phone-text {
+                letter-spacing: 0.2px;
               }
 
               &:hover {
-                background: #1B5E20;
+                background: #1F3864;
+                border-color: #1F3864;
+                color: #FFFFFF;
+                .material-symbols-outlined { color: #FFFFFF; }
               }
             }
           }
@@ -918,9 +936,28 @@ import { TaskDetailModalComponent } from '../../shared/components/task-detail-mo
               }
 
               .call-link {
-                color: #2E7D32;
-                display: flex;
-                .material-symbols-outlined { font-size: 14px; }
+                display: inline-flex;
+                align-items: center;
+                gap: 3px;
+                padding: 2px 6px;
+                border-radius: 4px;
+                background: #EEF4FC;
+                color: #1F3864;
+                text-decoration: none;
+                font-size: 0.72rem;
+                font-weight: 600;
+                margin-left: 4px;
+
+                .material-symbols-outlined {
+                  font-size: 13px;
+                  color: #1F3864;
+                }
+
+                &:hover {
+                  background: #1F3864;
+                  color: #FFFFFF;
+                  .material-symbols-outlined { color: #FFFFFF; }
+                }
               }
             }
           }

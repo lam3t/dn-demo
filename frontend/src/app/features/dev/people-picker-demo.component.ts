@@ -170,14 +170,17 @@ import { UserPickerItem } from '../../core/models/user.models';
                         <span class="mini-name">{{ user.fullName }}</span>
                         <span class="mini-sub">{{ user.title || 'Giáo viên' }} • {{ user.primaryLocation?.name }}</span>
                       </div>
-                      <a
-                        [href]="'tel:' + user.phone"
-                        class="mini-call-btn"
-                        (click)="$event.stopPropagation()"
-                        title="Gọi điện thoại"
-                      >
-                        <span class="material-symbols-outlined">call</span>
-                      </a>
+                      @if (user.phone) {
+                        <a
+                          [href]="'tel:' + user.phone"
+                          class="mini-call-btn"
+                          (click)="$event.stopPropagation()"
+                          [title]="'Gọi điện: ' + user.phone"
+                        >
+                          <span class="material-symbols-outlined">call</span>
+                          <span class="call-phone-text">{{ user.phone }}</span>
+                        </a>
+                      }
                     </div>
                   }
                 </div>
@@ -669,18 +672,34 @@ import { UserPickerItem } from '../../core/models/user.models';
             }
 
             .mini-call-btn {
-              width: 28px;
-              height: 28px;
-              border-radius: 50%;
-              background: #EEF4FC;
-              color: #1F3864;
-              display: flex;
+              display: inline-flex;
               align-items: center;
-              justify-content: center;
+              gap: 4px;
+              padding: 3px 8px;
+              border-radius: 6px;
+              background: #EEF4FC;
+              border: 1px solid #BFDBFE;
+              color: #1F3864;
               text-decoration: none;
+              font-size: 0.74rem;
+              font-weight: 600;
+              white-space: nowrap;
+              transition: all 0.15s ease;
 
               .material-symbols-outlined {
-                font-size: 16px;
+                font-size: 14px;
+                color: #1F3864;
+              }
+
+              .call-phone-text {
+                letter-spacing: 0.2px;
+              }
+
+              &:hover {
+                background: #1F3864;
+                border-color: #1F3864;
+                color: #FFFFFF;
+                .material-symbols-outlined { color: #FFFFFF; }
               }
             }
           }

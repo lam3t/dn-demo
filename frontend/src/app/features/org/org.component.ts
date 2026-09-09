@@ -180,14 +180,17 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
                           <span class="leader-role">Phụ trách:</span>
                           <span class="leader-name">{{ node.leader.fullName }}</span>
                         </div>
-                        <a
-                          [href]="'tel:' + node.leader.phone"
-                          class="leader-call-btn"
-                          (click)="$event.stopPropagation()"
-                          title="Gọi điện ngay"
-                        >
-                          <span class="material-symbols-outlined">call</span>
-                        </a>
+                        @if (node.leader.phone) {
+                          <a
+                            [href]="'tel:' + node.leader.phone"
+                            class="leader-call-btn"
+                            (click)="$event.stopPropagation()"
+                            [title]="'Gọi ngay: ' + node.leader.phone"
+                          >
+                            <span class="material-symbols-outlined">call</span>
+                            <span class="call-phone-text">{{ node.leader.phone }}</span>
+                          </a>
+                        }
                       </div>
                     }
                   </div>
@@ -227,14 +230,17 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
                                 </span>
                               </div>
 
-                              <a
-                                [href]="'tel:' + user.phone"
-                                class="btn-call-member tap-target"
-                                (click)="$event.stopPropagation()"
-                                title="Gọi ngay"
-                              >
-                                <span class="material-symbols-outlined">call</span>
-                              </a>
+                              @if (user.phone) {
+                                <a
+                                  [href]="'tel:' + user.phone"
+                                  class="btn-call-member tap-target"
+                                  (click)="$event.stopPropagation()"
+                                  [title]="'Gọi ngay: ' + user.phone"
+                                >
+                                  <span class="material-symbols-outlined">call</span>
+                                  <span class="call-phone-text">{{ user.phone }}</span>
+                                </a>
+                              }
                             </div>
                           }
                         </div>
@@ -314,9 +320,12 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
                       <span class="user-org">{{ u.primaryOrgUnit?.name }}</span>
                     </div>
 
-                    <a [href]="'tel:' + u.phone" class="btn-call-circle" (click)="$event.stopPropagation()" title="Gọi ngay">
-                      <span class="material-symbols-outlined">call</span>
-                    </a>
+                    @if (u.phone) {
+                      <a [href]="'tel:' + u.phone" class="btn-call-circle" (click)="$event.stopPropagation()" [title]="'Gọi ngay: ' + u.phone">
+                        <span class="material-symbols-outlined">call</span>
+                        <span class="call-phone-text">{{ u.phone }}</span>
+                      </a>
+                    }
                   </div>
                 }
               </div>
@@ -730,18 +739,34 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
               }
 
               .leader-call-btn {
-                width: 22px;
-                height: 22px;
-                border-radius: 50%;
-                background: #2E7D32;
-                color: #FFFFFF;
-                display: flex;
+                display: inline-flex;
                 align-items: center;
-                justify-content: center;
+                gap: 4px;
+                padding: 2px 7px;
+                border-radius: 6px;
+                background: #EEF4FC;
+                border: 1px solid #BFDBFE;
+                color: #1F3864;
                 text-decoration: none;
+                font-size: 0.72rem;
+                font-weight: 600;
+                white-space: nowrap;
+                transition: all 0.15s ease;
 
                 .material-symbols-outlined {
                   font-size: 13px;
+                  color: #1F3864;
+                }
+
+                .call-phone-text {
+                  letter-spacing: 0.2px;
+                }
+
+                &:hover {
+                  background: #1F3864;
+                  border-color: #1F3864;
+                  color: #FFFFFF;
+                  .material-symbols-outlined { color: #FFFFFF; }
                 }
               }
             }
@@ -856,18 +881,34 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
                 }
 
                 .btn-call-member {
-                  width: 26px;
-                  height: 26px;
-                  border-radius: 50%;
-                  background: #2E7D32;
-                  color: #FFFFFF;
-                  display: flex;
+                  display: inline-flex;
                   align-items: center;
-                  justify-content: center;
+                  gap: 4px;
+                  padding: 2px 7px;
+                  border-radius: 6px;
+                  background: #EEF4FC;
+                  border: 1px solid #BFDBFE;
+                  color: #1F3864;
                   text-decoration: none;
+                  font-size: 0.72rem;
+                  font-weight: 600;
+                  white-space: nowrap;
+                  transition: all 0.15s ease;
 
                   .material-symbols-outlined {
-                    font-size: 14px;
+                    font-size: 13px;
+                    color: #1F3864;
+                  }
+
+                  .call-phone-text {
+                    letter-spacing: 0.2px;
+                  }
+
+                  &:hover {
+                    background: #1F3864;
+                    border-color: #1F3864;
+                    color: #FFFFFF;
+                    .material-symbols-outlined { color: #FFFFFF; }
                   }
                 }
               }
@@ -1070,18 +1111,34 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
                 }
 
                 .btn-call-circle {
-                  width: 26px;
-                  height: 26px;
-                  border-radius: 50%;
-                  background: #2E7D32;
-                  color: #FFFFFF;
-                  display: flex;
+                  display: inline-flex;
                   align-items: center;
-                  justify-content: center;
+                  gap: 4px;
+                  padding: 2px 7px;
+                  border-radius: 6px;
+                  background: #EEF4FC;
+                  border: 1px solid #BFDBFE;
+                  color: #1F3864;
                   text-decoration: none;
+                  font-size: 0.72rem;
+                  font-weight: 600;
+                  white-space: nowrap;
+                  transition: all 0.15s ease;
 
                   .material-symbols-outlined {
-                    font-size: 14px;
+                    font-size: 13px;
+                    color: #1F3864;
+                  }
+
+                  .call-phone-text {
+                    letter-spacing: 0.2px;
+                  }
+
+                  &:hover {
+                    background: #1F3864;
+                    border-color: #1F3864;
+                    color: #FFFFFF;
+                    .material-symbols-outlined { color: #FFFFFF; }
                   }
                 }
               }

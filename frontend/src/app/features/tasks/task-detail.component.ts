@@ -529,14 +529,17 @@ import { FileDropzoneComponent } from '../../shared/components/file-dropzone/fil
                       <span class="u-title">{{ asgn.user.title || 'Giáo viên' }}</span>
                       <span class="u-loc">{{ asgn.user.primaryLocation?.name }}</span>
                     </div>
-                    <a
-                      [href]="'tel:' + asgn.user.phone"
-                      class="btn-call-circle tap-target"
-                      (click)="$event.stopPropagation()"
-                      title="Gọi điện ngay"
-                    >
-                      <span class="material-symbols-outlined">call</span>
-                    </a>
+                    @if (asgn.user.phone) {
+                      <a
+                        [href]="'tel:' + asgn.user.phone"
+                        class="btn-call-circle tap-target"
+                        (click)="$event.stopPropagation()"
+                        [title]="'Gọi ngay: ' + asgn.user.phone"
+                      >
+                        <span class="material-symbols-outlined">call</span>
+                        <span class="call-phone-text">{{ asgn.user.phone }}</span>
+                      </a>
+                    }
                   </div>
                 }
               </div>
@@ -557,14 +560,17 @@ import { FileDropzoneComponent } from '../../shared/components/file-dropzone/fil
                           <strong class="u-name">{{ asgn.user.fullName }}</strong>
                           <span class="u-title">{{ asgn.user.title }}</span>
                         </div>
-                        <a
-                          [href]="'tel:' + asgn.user.phone"
-                          class="btn-call-circle tap-target"
-                          (click)="$event.stopPropagation()"
-                          title="Gọi điện ngay"
-                        >
-                          <span class="material-symbols-outlined">call</span>
-                        </a>
+                        @if (asgn.user.phone) {
+                          <a
+                            [href]="'tel:' + asgn.user.phone"
+                            class="btn-call-circle tap-target"
+                            (click)="$event.stopPropagation()"
+                            [title]="'Gọi ngay: ' + asgn.user.phone"
+                          >
+                            <span class="material-symbols-outlined">call</span>
+                            <span class="call-phone-text">{{ asgn.user.phone }}</span>
+                          </a>
+                        }
                       </div>
                     }
                   </div>
@@ -585,14 +591,17 @@ import { FileDropzoneComponent } from '../../shared/components/file-dropzone/fil
                       <strong class="u-name">{{ asgn.user.fullName }}</strong>
                       <span class="u-title">{{ asgn.user.title }}</span>
                     </div>
-                    <a
-                      [href]="'tel:' + asgn.user.phone"
-                      class="btn-call-circle tap-target"
-                      (click)="$event.stopPropagation()"
-                      title="Gọi điện ngay"
-                    >
-                      <span class="material-symbols-outlined">call</span>
-                    </a>
+                    @if (asgn.user.phone) {
+                      <a
+                        [href]="'tel:' + asgn.user.phone"
+                        class="btn-call-circle tap-target"
+                        (click)="$event.stopPropagation()"
+                        [title]="'Gọi ngay: ' + asgn.user.phone"
+                      >
+                        <span class="material-symbols-outlined">call</span>
+                        <span class="call-phone-text">{{ asgn.user.phone }}</span>
+                      </a>
+                    }
                   </div>
                 </div>
               }
@@ -1557,18 +1566,38 @@ import { FileDropzoneComponent } from '../../shared/components/file-dropzone/fil
             }
 
             .btn-call-circle {
-              width: 26px;
-              height: 26px;
-              border-radius: 50%;
-              background: #2E7D32;
-              color: #FFFFFF;
-              display: flex;
+              display: inline-flex;
               align-items: center;
-              justify-content: center;
+              gap: 4px;
+              padding: 3px 8px;
+              border-radius: 6px;
+              background: #EEF4FC;
+              border: 1px solid #BFDBFE;
+              color: #1F3864;
               text-decoration: none;
+              font-size: 0.74rem;
+              font-weight: 600;
+              white-space: nowrap;
+              flex-shrink: 0;
+              transition: all 0.15s ease;
 
-              .material-symbols-outlined { font-size: 14px; }
-              &:hover { background: #1B5E20; }
+              .material-symbols-outlined {
+                font-size: 14px;
+                color: #1F3864;
+              }
+
+              .call-phone-text {
+                letter-spacing: 0.2px;
+              }
+
+              &:hover {
+                background: #1F3864;
+                border-color: #1F3864;
+                color: #FFFFFF;
+                .material-symbols-outlined {
+                  color: #FFFFFF;
+                }
+              }
             }
           }
         }

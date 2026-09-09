@@ -208,14 +208,17 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
                                         [alt]="chuTri.fullName"
                                       />
                                       <span class="user-name">{{ chuTri.fullName }}</span>
-                                      <a
-                                        [href]="'tel:' + chuTri.phone"
-                                        class="quick-call-link"
-                                        title="Gọi ngay"
-                                        (click)="$event.stopPropagation()"
-                                      >
-                                        <span class="material-symbols-outlined">call</span>
-                                      </a>
+                                      @if (chuTri.phone) {
+                                        <a
+                                          [href]="'tel:' + chuTri.phone"
+                                          class="quick-call-link"
+                                          [title]="'Gọi ngay: ' + chuTri.phone"
+                                          (click)="$event.stopPropagation()"
+                                        >
+                                          <span class="material-symbols-outlined">call</span>
+                                          <span class="call-phone-text">{{ chuTri.phone }}</span>
+                                        </a>
+                                      }
                                     </div>
                                   } @else {
                                     <span class="unassigned-text">Chưa phân công</span>
@@ -275,9 +278,12 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
                                 <div class="m-holder-chip" (click)="openUserContact(chuTri, $event)">
                                   <img [src]="chuTri.avatarUrl || 'assets/images/default-avatar.svg'" class="m-avatar" alt="" />
                                   <span class="m-name">{{ chuTri.fullName }}</span>
-                                  <a [href]="'tel:' + chuTri.phone" class="m-call" (click)="$event.stopPropagation()" title="Gọi ngay">
-                                    <span class="material-symbols-outlined">call</span>
-                                  </a>
+                                  @if (chuTri.phone) {
+                                    <a [href]="'tel:' + chuTri.phone" class="m-call" (click)="$event.stopPropagation()" [title]="'Gọi ngay: ' + chuTri.phone">
+                                      <span class="material-symbols-outlined">call</span>
+                                      <span class="call-phone-text">{{ chuTri.phone }}</span>
+                                    </a>
+                                  }
                                 </div>
                               </div>
                             }
@@ -801,20 +807,32 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
             .quick-call-link {
               display: inline-flex;
               align-items: center;
-              justify-content: center;
-              width: 20px;
-              height: 20px;
-              border-radius: 50%;
-              background: #2E7D32;
-              color: #FFFFFF;
+              gap: 3px;
+              padding: 2px 6px;
+              border-radius: 4px;
+              background: #EEF4FC;
+              border: 1px solid #BFDBFE;
+              color: #1F3864;
               text-decoration: none;
+              font-size: 0.72rem;
+              font-weight: 600;
+              white-space: nowrap;
+              transition: all 0.15s ease;
 
               .material-symbols-outlined {
                 font-size: 13px;
+                color: #1F3864;
+              }
+
+              .call-phone-text {
+                letter-spacing: 0.2px;
               }
 
               &:hover {
-                background: #1B5E20;
+                background: #1F3864;
+                border-color: #1F3864;
+                color: #FFFFFF;
+                .material-symbols-outlined { color: #FFFFFF; }
               }
             }
           }
@@ -981,9 +999,29 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
               }
 
               .m-call {
-                color: #2E7D32;
-                display: flex;
-                .material-symbols-outlined { font-size: 13px; }
+                display: inline-flex;
+                align-items: center;
+                gap: 3px;
+                padding: 1px 6px;
+                border-radius: 4px;
+                background: #FFFFFF;
+                border: 1px solid #BFDBFE;
+                color: #1F3864;
+                text-decoration: none;
+                font-size: 0.72rem;
+                font-weight: 600;
+                margin-left: 4px;
+
+                .material-symbols-outlined {
+                  font-size: 13px;
+                  color: #1F3864;
+                }
+
+                &:hover {
+                  background: #1F3864;
+                  color: #FFFFFF;
+                  .material-symbols-outlined { color: #FFFFFF; }
+                }
               }
             }
           }

@@ -419,9 +419,12 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                         <span class="raci-sub">{{ a.user.title || 'Giáo viên' }}</span>
                         <span class="raci-loc">{{ a.user.primaryLocation?.name }}</span>
                       </div>
-                      <a [href]="'tel:' + a.user.phone" class="btn-call-mini" (click)="$event.stopPropagation()" title="Gọi ngay">
-                        <span class="material-symbols-outlined">call</span>
-                      </a>
+                      @if (a.user.phone) {
+                        <a [href]="'tel:' + a.user.phone" class="btn-call-mini" (click)="$event.stopPropagation()" [title]="'Gọi ngay: ' + a.user.phone">
+                          <span class="material-symbols-outlined">call</span>
+                          <span class="call-phone-text">{{ a.user.phone }}</span>
+                        </a>
+                      }
                     </div>
                   } @else {
                     <p class="unassigned-text">Chưa phân công</p>
@@ -444,9 +447,12 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                             <strong class="raci-name">{{ a.user.fullName }}</strong>
                             <span class="raci-sub">{{ a.user.title }}</span>
                           </div>
-                          <a [href]="'tel:' + a.user.phone" class="btn-call-mini" (click)="$event.stopPropagation()" title="Gọi ngay">
-                            <span class="material-symbols-outlined">call</span>
-                          </a>
+                          @if (a.user.phone) {
+                            <a [href]="'tel:' + a.user.phone" class="btn-call-mini" (click)="$event.stopPropagation()" [title]="'Gọi ngay: ' + a.user.phone">
+                              <span class="material-symbols-outlined">call</span>
+                              <span class="call-phone-text">{{ a.user.phone }}</span>
+                            </a>
+                          }
                         </div>
                       }
                     </div>
@@ -467,9 +473,12 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                         <strong class="raci-name">{{ a.user.fullName }}</strong>
                         <span class="raci-sub">{{ a.user.title }}</span>
                       </div>
-                      <a [href]="'tel:' + a.user.phone" class="btn-call-mini" (click)="$event.stopPropagation()" title="Gọi ngay">
-                        <span class="material-symbols-outlined">call</span>
-                      </a>
+                      @if (a.user.phone) {
+                        <a [href]="'tel:' + a.user.phone" class="btn-call-mini" (click)="$event.stopPropagation()" [title]="'Gọi ngay: ' + a.user.phone">
+                          <span class="material-symbols-outlined">call</span>
+                          <span class="call-phone-text">{{ a.user.phone }}</span>
+                        </a>
+                      }
                     </div>
                   </div>
                 }
@@ -1239,22 +1248,37 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
             }
 
             .btn-call-mini {
-              width: 26px;
-              height: 26px;
-              border-radius: 50%;
-              background: #2E7D32;
-              color: #FFFFFF;
-              display: flex;
+              display: inline-flex;
               align-items: center;
-              justify-content: center;
+              gap: 4px;
+              padding: 3px 8px;
+              border-radius: 6px;
+              background: #EEF4FC;
+              border: 1px solid #BFDBFE;
+              color: #1F3864;
               text-decoration: none;
+              font-size: 0.74rem;
+              font-weight: 600;
+              white-space: nowrap;
+              flex-shrink: 0;
+              transition: all 0.15s ease;
 
               .material-symbols-outlined {
                 font-size: 14px;
+                color: #1F3864;
+              }
+
+              .call-phone-text {
+                letter-spacing: 0.2px;
               }
 
               &:hover {
-                background: #1B5E20;
+                background: #1F3864;
+                border-color: #1F3864;
+                color: #FFFFFF;
+                .material-symbols-outlined {
+                  color: #FFFFFF;
+                }
               }
             }
           }

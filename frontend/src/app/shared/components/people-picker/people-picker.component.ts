@@ -6,7 +6,7 @@ import {
   OnInit,
   OnDestroy,
   ElementRef,
-  HostListener,
+  ViewChild,
   inject,
   signal,
   computed,
@@ -18,6 +18,7 @@ import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs'
 import { UserService } from '../../../core/services/user.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/user.models';
+import { calculateMatchScore } from '../../../core/utils/vietnamese.utils';
 
 @Component({
   selector: 'app-people-picker',
@@ -41,14 +42,14 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
         </label>
       }
 
-      <!-- DESKTOP / MAIN TRIGGER BOX -->
+      <!-- MAIN TRIGGER BOX -->
       <div
         class="picker-box tap-target"
         [class.focused]="isOpen()"
         [class.has-selection]="selectedUsers().length > 0"
         (click)="onBoxClick($event)"
       >
-        <!-- SELECTED CHIPS LIST -->
+        <!-- SELECTED CHIPS & INLINE INPUT -->
         <div class="chips-list">
           @for (user of selectedUsers(); track user.id) {
             <div class="user-chip" (click)="$event.stopPropagation()">
@@ -67,43 +68,67 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
             </div>
           }
 
-          <!-- INPUT SEARCH FIELD -->
-          @if (mode === 'multi' || selectedUsers().length === 0) {
-            <input
-              #searchInput
-              type="text"
-              class="search-input"
-              [placeholder]="selectedUsers().length === 0 ? placeholder : 'Thêm người khác...'"
-              [(ngModel)]="searchQuery"
-              (ngModelChange)="onSearchInputChange($event)"
-              (focus)="openDropdown()"
-              (keydown)="onKeyDown($event)"
-              [disabled]="disabled"
-            />
-          }
+          <!-- INPUT SEARCH FIELD (Luôn cho phép nhập tìm kiếm để lọc nhanh) -->
+          <input
+            #boxSearchInput
+            type="text"
+            class="search-input"
+            [placeholder]="selectedUsers().length === 0 ? placeholder : (mode === 'multi' ? 'Thêm người khác...' : 'Đổi nhân sự khác...')"
+            [(ngModel)]="searchQuery"
+            (ngModelChange)="onSearchInputChange($event)"
+            (focus)="openDropdown()"
+            (keydown)="onKeyDown($event)"
+            [disabled]="disabled"
+          />
         </div>
 
         <div class="picker-actions">
+          @if (searchQuery) {
+            <button type="button" class="clear-query-btn" (click)="clearSearch($event)" title="Xóa từ khóa">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          }
           @if (selectedUsers().length > 0 && !disabled) {
             <button type="button" class="clear-all-btn" (click)="clearAll($event)" title="Xóa tất cả đã chọn">
               <span class="material-symbols-outlined">backspace</span>
             </button>
           }
-          <span class="material-symbols-outlined dropdown-arrow" [class.rotated]="isOpen()">
-            arrow_drop_down
-          </span>
+          <button type="button" class="toggle-dropdown-btn" (click)="toggleDropdown($event)" title="Mở danh sách">
+            <span class="material-symbols-outlined dropdown-arrow" [class.rotated]="isOpen()">
+              arrow_drop_down
+            </span>
+          </button>
         </div>
       </div>
 
-      <!-- DESKTOP DROPDOWN (Shown on screens >= 768px) -->
+      <!-- DESKTOP DROPDOWN (>= 768px) -->
       @if (isOpen() && !isMobileView()) {
         <div class="desktop-dropdown" (click)="$event.stopPropagation()">
+          <!-- TOP SEARCH BAR IN DROPDOWN -->
+          <div class="dropdown-search-bar">
+            <span class="material-symbols-outlined search-icon">search</span>
+            <input
+              #dropdownSearchInput
+              type="text"
+              class="dropdown-search-input"
+              placeholder="Gõ tên tiếng Việt không dấu, SĐT, chức vụ, tổ..."
+              [(ngModel)]="searchQuery"
+              (ngModelChange)="onSearchInputChange($event)"
+              (keydown)="onKeyDown($event)"
+            />
+            @if (searchQuery) {
+              <button type="button" class="clear-search-btn" (click)="clearSearch($event)" title="Xóa từ khóa">
+                <span class="material-symbols-outlined">cancel</span>
+              </button>
+            }
+          </div>
+
           <!-- QUICK FILTER CHIPS -->
           <div class="filter-chips-bar">
             <button
               type="button"
               class="filter-chip"
-              [class.active]="activeFilterType() === 'ALL'"
+              [class.active]="activeFilterType() === 'ALL' && !searchQuery"
               (click)="setFilter('ALL', '')"
             >
               Tất cả
@@ -113,7 +138,7 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
             <button
               type="button"
               class="filter-chip"
-              [class.active]="activeFilterType() === 'RECENT'"
+              [class.active]="activeFilterType() === 'RECENT' && !searchQuery"
               (click)="setFilter('RECENT', '')"
             >
               <span class="material-symbols-outlined chip-icon">history</span>
@@ -162,13 +187,13 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
             @if (isLoading() && userList().length === 0) {
               <div class="loading-state">
                 <span class="material-symbols-outlined spin">progress_activity</span>
-                <span>Đang tải danh sách nhân sự...</span>
+                <span>Đang tìm kiếm nhân sự...</span>
               </div>
             } @else if (userList().length === 0) {
               <div class="empty-state">
                 <span class="material-symbols-outlined empty-icon">person_search</span>
-                <p>Không tìm thấy nhân sự phù hợp.</p>
-                <small>Thử tìm theo tên, số điện thoại hoặc chọn tổ khác</small>
+                <p>Không tìm thấy nhân sự phù hợp với "{{ searchQuery }}".</p>
+                <small>Thử tìm theo tên không dấu (ví dụ "dung", "mai"), số điện thoại hoặc chọn tổ khác</small>
               </div>
             } @else {
               @for (user of userList(); track user.id; let i = $index) {
@@ -222,7 +247,7 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
                       <span>{{ user.currentTaskLoad }} việc</span>
                     </div>
 
-                    <!-- Direct Call Action -->
+                    <!-- Direct Call Action with Phone Number Text -->
                     @if (user.phone) {
                       <a
                         [href]="'tel:' + user.phone"
@@ -231,13 +256,14 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
                         [title]="'Gọi ngay cho ' + user.fullName + ' (' + user.phone + ')'"
                       >
                         <span class="material-symbols-outlined">call</span>
+                        <span class="phone-number-text">{{ user.phone }}</span>
                       </a>
                     }
 
-                    <!-- Checkbox state -->
+                    <!-- Checkbox / Radio state -->
                     <div class="selection-checkbox" [class.checked]="isUserSelected(user.id)">
                       <span class="material-symbols-outlined">
-                        {{ isUserSelected(user.id) ? 'check_box' : 'check_box_outline_blank' }}
+                        {{ mode === 'single' ? (isUserSelected(user.id) ? 'radio_button_checked' : 'radio_button_unchecked') : (isUserSelected(user.id) ? 'check_box' : 'check_box_outline_blank') }}
                       </span>
                     </div>
                   </div>
@@ -248,7 +274,7 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
         </div>
       }
 
-      <!-- MOBILE FULL-SCREEN MODAL (Shown when opened on < 768px) -->
+      <!-- MOBILE FULL-SCREEN MODAL (< 768px) -->
       @if (isOpen() && isMobileView()) {
         <div class="mobile-modal-overlay" (click)="closeDropdown()">
           <div class="mobile-modal-sheet" (click)="$event.stopPropagation()">
@@ -272,15 +298,15 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
             <div class="mobile-search-bar">
               <span class="material-symbols-outlined search-icon">search</span>
               <input
+                #mobileSearchInput
                 type="text"
                 class="mobile-search-input tap-target"
                 placeholder="Tìm tên, chức vụ, tổ, SĐT..."
                 [(ngModel)]="searchQuery"
                 (ngModelChange)="onSearchInputChange($event)"
-                autofocus
               />
               @if (searchQuery) {
-                <button type="button" class="clear-search-btn" (click)="clearSearch()">
+                <button type="button" class="clear-search-btn" (click)="clearSearch($event)">
                   <span class="material-symbols-outlined">cancel</span>
                 </button>
               }
@@ -291,7 +317,7 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
               <button
                 type="button"
                 class="filter-chip"
-                [class.active]="activeFilterType() === 'ALL'"
+                [class.active]="activeFilterType() === 'ALL' && !searchQuery"
                 (click)="setFilter('ALL', '')"
               >
                 Tất cả
@@ -299,7 +325,7 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
               <button
                 type="button"
                 class="filter-chip"
-                [class.active]="activeFilterType() === 'RECENT'"
+                [class.active]="activeFilterType() === 'RECENT' && !searchQuery"
                 (click)="setFilter('RECENT', '')"
               >
                 <span class="material-symbols-outlined chip-icon">history</span>
@@ -327,7 +353,7 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
               }
             </div>
 
-            <!-- MOBILE SELECTED CHIPS SUMMARY BAR (IF ANY) -->
+            <!-- MOBILE SELECTED CHIPS SUMMARY BAR -->
             @if (selectedUsers().length > 0) {
               <div class="mobile-selected-bar">
                 <span class="selected-label">Đã chọn ({{ selectedUsers().length }}):</span>
@@ -349,7 +375,7 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
               @if (isLoading() && userList().length === 0) {
                 <div class="loading-state">
                   <span class="material-symbols-outlined spin">progress_activity</span>
-                  <span>Đang tải dữ liệu nhân sự...</span>
+                  <span>Đang tìm kiếm nhân sự...</span>
                 </div>
               } @else if (userList().length === 0) {
                 <div class="empty-state">
@@ -399,14 +425,15 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
                           [href]="'tel:' + user.phone"
                           class="mobile-call-btn"
                           (click)="$event.stopPropagation()"
-                          title="Gọi điện thoại"
+                          [title]="'Gọi ngay: ' + user.phone"
                         >
                           <span class="material-symbols-outlined">call</span>
+                          <span class="mobile-call-phone">{{ user.phone }}</span>
                         </a>
                       }
                       <div class="mobile-checkbox" [class.checked]="isUserSelected(user.id)">
                         <span class="material-symbols-outlined">
-                          {{ isUserSelected(user.id) ? 'check_circle' : 'radio_button_unchecked' }}
+                          {{ mode === 'single' ? (isUserSelected(user.id) ? 'radio_button_checked' : 'radio_button_unchecked') : (isUserSelected(user.id) ? 'check_circle' : 'radio_button_unchecked') }}
                         </span>
                       </div>
                     </div>
@@ -418,7 +445,7 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
             <!-- MOBILE BOTTOM CONFIRM BUTTON -->
             <div class="mobile-bottom-bar">
               <button type="button" class="confirm-btn tap-target" (click)="closeDropdown()">
-                <span>Xác nhận đã chọn ({{ selectedUsers().length }})</span>
+                <span>Xác nhận (Đã chọn {{ selectedUsers().length }})</span>
               </button>
             </div>
           </div>
@@ -471,7 +498,7 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
         align-items: center;
         justify-content: space-between;
         gap: 8px;
-        cursor: pointer;
+        cursor: text;
         transition: all 0.2s ease;
 
         &:hover {
@@ -549,7 +576,7 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
 
           .search-input {
             flex: 1;
-            min-width: 140px;
+            min-width: 120px;
             border: none;
             outline: none;
             background: transparent;
@@ -569,22 +596,32 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
           align-items: center;
           gap: 4px;
 
-          .clear-all-btn {
+          .clear-query-btn,
+          .clear-all-btn,
+          .toggle-dropdown-btn {
             background: transparent;
             border: none;
             color: #94A3B8;
             cursor: pointer;
-            padding: 2px;
+            padding: 4px;
             display: flex;
             align-items: center;
+            justify-content: center;
+            border-radius: 4px;
 
             &:hover {
-              color: #EF4444;
+              color: #1F3864;
+              background: #F1F5F9;
             }
 
             .material-symbols-outlined {
               font-size: 18px;
             }
+          }
+
+          .clear-query-btn:hover,
+          .clear-all-btn:hover {
+            color: #EF4444;
           }
 
           .dropdown-arrow {
@@ -608,13 +645,61 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
         background: #FFFFFF;
         border: 1px solid #CBD5E1;
         border-radius: 12px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
         z-index: 1000;
-        max-height: 380px;
+        max-height: 420px;
         display: flex;
         flex-direction: column;
         overflow: hidden;
         animation: fadeIn 0.15s ease-out;
+
+        /* DEDICATED SEARCH BAR AT TOP OF DROPDOWN */
+        .dropdown-search-bar {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          background: #F8FAFC;
+          border-bottom: 1px solid #E2E8F0;
+
+          .search-icon {
+            color: #1F3864;
+            font-size: 20px;
+          }
+
+          .dropdown-search-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-size: 0.88rem;
+            color: #1E293B;
+            outline: none;
+            font-weight: 500;
+
+            &::placeholder {
+              color: #94A3B8;
+              font-weight: 400;
+            }
+          }
+
+          .clear-search-btn {
+            background: transparent;
+            border: none;
+            color: #94A3B8;
+            cursor: pointer;
+            padding: 2px;
+            display: flex;
+            align-items: center;
+
+            &:hover {
+              color: #EF4444;
+            }
+
+            .material-symbols-outlined {
+              font-size: 18px;
+            }
+          }
+        }
 
         .filter-chips-bar {
           display: flex;
@@ -623,7 +708,7 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
           padding: 8px 10px;
           border-bottom: 1px solid #F1F5F9;
           overflow-x: auto;
-          background: #F8FAFC;
+          background: #FFFFFF;
           scrollbar-width: thin;
 
           .filter-chip {
@@ -633,7 +718,7 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
             padding: 4px 10px;
             border-radius: 9999px;
             border: 1px solid #E2E8F0;
-            background: #FFFFFF;
+            background: #F8FAFC;
             color: #475569;
             font-size: 0.76rem;
             font-weight: 500;
@@ -672,11 +757,12 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
           color: #64748B;
           text-transform: uppercase;
           letter-spacing: 0.5px;
-          background: #FFFFFF;
-          border-bottom: 1px solid #F8FAFC;
+          background: #F8FAFC;
+          border-bottom: 1px solid #E2E8F0;
 
           .results-count {
-            font-weight: 500;
+            font-weight: 600;
+            color: #1F3864;
             text-transform: none;
           }
 
@@ -690,7 +776,7 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
           flex: 1;
           overflow-y: auto;
           padding: 4px 0;
-          max-height: 280px;
+          max-height: 290px;
 
           .loading-state,
           .empty-state {
@@ -712,6 +798,7 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
             small {
               font-size: 0.76rem;
               color: #94A3B8;
+              max-width: 320px;
             }
           }
 
@@ -818,6 +905,7 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
                 border-radius: 9999px;
                 font-size: 0.72rem;
                 font-weight: 600;
+                white-space: nowrap;
 
                 .dot {
                   width: 6px;
@@ -842,30 +930,44 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
                 }
               }
 
+              /* DIRECT CALL BUTTON WITH PHONE NUMBER */
               .quick-call-btn {
-                width: 28px;
-                height: 28px;
-                border-radius: 50%;
-                background: #EEF4FC;
-                color: #1F3864;
-                display: flex;
+                display: inline-flex;
                 align-items: center;
-                justify-content: center;
+                gap: 4px;
+                padding: 4px 8px;
+                border-radius: 6px;
+                background: #EEF4FC;
+                border: 1px solid #BFDBFE;
+                color: #1F3864;
                 text-decoration: none;
                 transition: all 0.15s ease;
-
-                &:hover {
-                  background: #1F3864;
-                  color: #FFFFFF;
-                }
+                font-size: 0.76rem;
+                font-weight: 600;
+                white-space: nowrap;
 
                 .material-symbols-outlined {
                   font-size: 15px;
+                  color: #1F3864;
+                }
+
+                .phone-number-text {
+                  letter-spacing: 0.2px;
+                }
+
+                &:hover {
+                  background: #1F3864;
+                  border-color: #1F3864;
+                  color: #FFFFFF;
+
+                  .material-symbols-outlined {
+                    color: #FFFFFF;
+                  }
                 }
               }
 
               .selection-checkbox {
-                color: #CBD5E1;
+                color: #94A3B8;
                 display: flex;
                 align-items: center;
 
@@ -889,7 +991,7 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.55);
         z-index: 2000;
         display: flex;
         flex-direction: column;
@@ -961,7 +1063,7 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
           border: 1px solid #CBD5E1;
 
           .search-icon {
-            color: #64748B;
+            color: #1F3864;
             font-size: 20px;
           }
 
@@ -1152,21 +1254,23 @@ import { UserPickerItem, LocationItem, OrgUnitItem } from '../../../core/models/
             .mobile-item-actions {
               display: flex;
               align-items: center;
-              gap: 10px;
+              gap: 8px;
 
               .mobile-call-btn {
-                width: 36px;
-                height: 36px;
-                border-radius: 50%;
-                background: #EEF4FC;
-                color: #1F3864;
-                display: flex;
+                display: inline-flex;
                 align-items: center;
-                justify-content: center;
+                gap: 4px;
+                padding: 6px 10px;
+                border-radius: 6px;
+                background: #EEF4FC;
+                border: 1px solid #BFDBFE;
+                color: #1F3864;
                 text-decoration: none;
+                font-size: 0.78rem;
+                font-weight: 600;
 
                 .material-symbols-outlined {
-                  font-size: 20px;
+                  font-size: 16px;
                 }
               }
 
@@ -1231,6 +1335,9 @@ export class PeoplePickerComponent implements OnInit, OnDestroy, ControlValueAcc
   private authService = inject(AuthService);
   private elementRef = inject(ElementRef);
 
+  @ViewChild('boxSearchInput') boxSearchInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('dropdownSearchInput') dropdownSearchInput?: ElementRef<HTMLInputElement>;
+
   @Input() mode: 'single' | 'multi' = 'multi';
   @Input() label?: string;
   @Input() placeholder = 'Tìm kiếm và chọn nhân sự...';
@@ -1262,6 +1369,10 @@ export class PeoplePickerComponent implements OnInit, OnDestroy, ControlValueAcc
   userList = signal<UserPickerItem[]>([]);
   selectedUsers = signal<UserPickerItem[]>([]);
   highlightedIndex = signal<number>(-1);
+
+  // Cached pool of users for instant 0ms unaccented Vietnamese search
+  private allUsersPool: UserPickerItem[] = [];
+  private recentUsersPool: UserPickerItem[] = [];
 
   locations = signal<LocationItem[]>([]);
   orgUnits = signal<OrgUnitItem[]>([]);
@@ -1295,28 +1406,41 @@ export class PeoplePickerComponent implements OnInit, OnDestroy, ControlValueAcc
     return window.innerWidth < 768;
   }
 
+  /**
+   * CAPTURE-PHASE Click Listener:
+   * By using capture: true, this listener receives pointer events at window/document level
+   * BEFORE any child modal dialog or wizard container can call $event.stopPropagation().
+   * This guarantees that clicking outside the people picker dropdown always closes it reliably.
+   */
+  private handleGlobalPointerDown = (event: PointerEvent | MouseEvent) => {
+    if (!this.isOpen()) return;
+    const target = event.target as Node;
+    if (this.elementRef?.nativeElement && !this.elementRef.nativeElement.contains(target)) {
+      this.closeDropdown();
+    }
+  };
+
   ngOnInit() {
+    // Add capture phase listeners for reliable click-outside closing
+    window.addEventListener('pointerdown', this.handleGlobalPointerDown, true);
+    window.addEventListener('click', this.handleGlobalPointerDown, true);
+
     this.loadFilterOptions();
+    this.preloadAllUsers();
 
     this.searchSub = this.searchSubject
-      .pipe(debounceTime(250), distinctUntilChanged())
+      .pipe(debounceTime(200), distinctUntilChanged())
       .subscribe((query) => {
         this.executeSearch(query);
       });
 
-    // Tải danh sách mặc định (recent collaborators hoặc top users)
     this.loadDefaultList();
   }
 
   ngOnDestroy() {
+    window.removeEventListener('pointerdown', this.handleGlobalPointerDown, true);
+    window.removeEventListener('click', this.handleGlobalPointerDown, true);
     this.searchSub?.unsubscribe();
-  }
-
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: MouseEvent) {
-    if (!this.elementRef.nativeElement.contains(event.target)) {
-      this.closeDropdown();
-    }
   }
 
   // ControlValueAccessor methods
@@ -1354,9 +1478,31 @@ export class PeoplePickerComponent implements OnInit, OnDestroy, ControlValueAcc
     });
   }
 
+  private preloadAllUsers() {
+    this.userService.searchUsers({ pageSize: 100 }).subscribe({
+      next: (res) => {
+        this.allUsersPool = res.items || [];
+      },
+      error: () => {},
+    });
+  }
+
   onBoxClick(event: MouseEvent) {
     if (this.disabled) return;
     this.openDropdown();
+    // Focus search input on click
+    setTimeout(() => {
+      this.boxSearchInput?.nativeElement?.focus();
+    }, 50);
+  }
+
+  toggleDropdown(event: MouseEvent) {
+    event.stopPropagation();
+    if (this.isOpen()) {
+      this.closeDropdown();
+    } else {
+      this.openDropdown();
+    }
   }
 
   openDropdown() {
@@ -1369,18 +1515,52 @@ export class PeoplePickerComponent implements OnInit, OnDestroy, ControlValueAcc
 
   closeDropdown() {
     this.isOpen.set(false);
+    this.highlightedIndex.set(-1);
     this.touched = true;
     this.onTouched();
   }
 
   onSearchInputChange(value: string) {
-    if (value.trim().length > 0) {
-      this.activeFilterType.set('ALL');
+    this.searchQuery = value;
+    const query = value.trim();
+
+    if (query.length > 0) {
+      // 1. Instant local 0ms search across preloaded users
+      if (this.allUsersPool.length > 0) {
+        const localMatches = this.filterUsersLocally(this.allUsersPool, query);
+        this.userList.set(this.filterExcluded(localMatches));
+      }
     }
-    this.searchSubject.next(value);
+
+    // 2. Debounced API search for server-backed consistency
+    this.searchSubject.next(query);
   }
 
-  clearSearch() {
+  private filterUsersLocally(users: UserPickerItem[], query: string): UserPickerItem[] {
+    if (!query) return users;
+
+    const scored = users.map((u) => {
+      const nameScore = calculateMatchScore(u.fullName, query);
+      const titleScore = calculateMatchScore(u.title, query);
+      const phoneScore = calculateMatchScore(u.phone, query);
+      const orgScore = calculateMatchScore(u.primaryOrgUnit?.name, query);
+      const locScore = calculateMatchScore(u.primaryLocation?.name, query);
+
+      const maxScore = Math.max(nameScore * 4, phoneScore * 3, titleScore * 2, orgScore * 2, locScore);
+      return { user: u, score: maxScore };
+    });
+
+    return scored
+      .filter((item) => item.score > 0)
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return a.user.currentTaskLoad - b.user.currentTaskLoad;
+      })
+      .map((item) => item.user);
+  }
+
+  clearSearch(event?: MouseEvent) {
+    if (event) event.stopPropagation();
     this.searchQuery = '';
     this.activeFilterType.set('RECENT');
     this.loadDefaultList();
@@ -1415,9 +1595,10 @@ export class PeoplePickerComponent implements OnInit, OnDestroy, ControlValueAcc
     }
 
     this.isLoading.set(true);
-    this.userService.getRecentCollaborators(currentUser.id, 12).subscribe({
+    this.userService.getRecentCollaborators(currentUser.id, 15).subscribe({
       next: (users) => {
         this.isLoading.set(false);
+        this.recentUsersPool = users;
         const filtered = this.filterExcluded(users);
         this.userList.set(filtered);
       },
@@ -1432,7 +1613,7 @@ export class PeoplePickerComponent implements OnInit, OnDestroy, ControlValueAcc
     this.isLoading.set(true);
     const params: any = {
       search: query,
-      pageSize: 45,
+      pageSize: 50,
     };
 
     if (this.activeFilterType() === 'LOCATION' && this.activeFilterValue()) {
@@ -1450,12 +1631,22 @@ export class PeoplePickerComponent implements OnInit, OnDestroy, ControlValueAcc
     this.userService.searchUsers(params).subscribe({
       next: (res) => {
         this.isLoading.set(false);
-        const filtered = this.filterExcluded(res.items);
+        const filtered = this.filterExcluded(res.items || []);
         this.userList.set(filtered);
+        // Also update local cache pool if searching all
+        if (!query && !params.locationId && !params.orgUnitId && filtered.length > 0) {
+          this.allUsersPool = res.items;
+        }
       },
       error: () => {
         this.isLoading.set(false);
-        this.userList.set([]);
+        // Fallback to local pool if network error
+        if (query && this.allUsersPool.length > 0) {
+          const local = this.filterUsersLocally(this.allUsersPool, query);
+          this.userList.set(this.filterExcluded(local));
+        } else {
+          this.userList.set([]);
+        }
       },
     });
   }
@@ -1468,18 +1659,28 @@ export class PeoplePickerComponent implements OnInit, OnDestroy, ControlValueAcc
   }
 
   private loadUsersByIds(ids: string[]) {
-    // Tìm trong userList hiện tại trước
-    const existing = this.userList().filter((u) => ids.includes(u.id));
-    if (existing.length === ids.length) {
-      this.selectedUsers.set(existing);
+    if (!ids || ids.length === 0) {
+      this.selectedUsers.set([]);
       return;
     }
 
-    // Tải từ API search
+    // Check in existing list or allUsersPool first
+    const pool = [...this.allUsersPool, ...this.userList(), ...this.selectedUsers()];
+    const existing = pool.filter((u) => ids.includes(u.id));
+    const uniqueMap = new Map<string, UserPickerItem>();
+    existing.forEach((u) => uniqueMap.set(u.id, u));
+
+    if (uniqueMap.size === ids.length) {
+      this.selectedUsers.set(Array.from(uniqueMap.values()));
+      return;
+    }
+
+    // Fetch from API
     this.userService.searchUsers({ pageSize: 100 }).subscribe({
       next: (res) => {
-        const found = res.items.filter((u) => ids.includes(u.id));
+        const found = (res.items || []).filter((u) => ids.includes(u.id));
         this.selectedUsers.set(found);
+        this.allUsersPool = res.items || [];
       },
       error: () => {},
     });
@@ -1526,6 +1727,7 @@ export class PeoplePickerComponent implements OnInit, OnDestroy, ControlValueAcc
   clearAll(event: MouseEvent) {
     event.stopPropagation();
     this.selectedUsers.set([]);
+    this.searchQuery = '';
     this.emitChanges();
   }
 
