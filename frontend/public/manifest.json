@@ -1,0 +1,46 @@
+{
+  "name": "TN EDU – Quản lý Kế hoạch & Công việc THCS Phước Tân",
+  "short_name": "TN EDU",
+  "description": "Hệ thống quản lý kế hoạch, phân công công việc RACI và kết nối 3 điểm trường THCS Phước Tân sau sáp nhập",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "background_color": "#F5F7FA",
+  "theme_color": "#1F3864",
+  "orientation": "portrait-primary",
+  "lang": "vi",
+  "categories": ["education", "productivity", "management"],
+  "icons": [
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Việc của tôi",
+      "short_name": "Việc của tôi",
+      "url": "/my-tasks",
+      "icons": [{ "src": "/icons/icon-512.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Cây kế hoạch",
+      "short_name": "Kế hoạch",
+      "url": "/plans",
+      "icons": [{ "src": "/icons/icon-512.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Phê duyệt công việc",
+      "short_name": "Phê duyệt",
+      "url": "/tasks",
+      "icons": [{ "src": "/icons/icon-512.svg", "sizes": "any" }]
+    }
+  ]
+}

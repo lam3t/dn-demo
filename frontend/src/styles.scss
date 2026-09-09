@@ -1,0 +1,262 @@
+/* Angular Material Themes & TN EDU Core Styles */
+@use '@angular/material' as mat;
+
+@include mat.core();
+
+// Custom CSS Variables for TN EDU Brand & Task Status Palette
+:root {
+  /* Brand colors */
+  --tn-primary: #1F3864;
+  --tn-primary-light: #2E5EAA;
+  --tn-primary-dark: #142544;
+  --tn-primary-contrast: #FFFFFF;
+  
+  --tn-accent: #2E7D32;
+  --tn-accent-light: #4CAF50;
+  --tn-accent-dark: #1B5E20;
+
+  /* Status Colors (Đúng chuẩn Prompt 8) */
+  --status-new: #2E5EAA;        /* Xanh dương */
+  --status-doing: #1F3864;      /* Xanh dương đậm */
+  --status-waiting: #F0A500;    /* Vàng cam */
+  --status-revise: #D9622B;     /* Cam đậm */
+  --status-done: #2E7D32;       /* Xanh lá */
+  --status-overdue: #C62828;    /* Đỏ */
+
+  /* Status Backgrounds & Borders */
+  --status-new-bg: #EBF2FA;
+  --status-new-border: #BCD4F5;
+
+  --status-doing-bg: #EAEFF7;
+  --status-doing-border: #B4C6E7;
+
+  --status-waiting-bg: #FEF6E6;
+  --status-waiting-border: #FCE0A6;
+
+  --status-revise-bg: #FDF0EB;
+  --status-revise-border: #F7C6B2;
+
+  --status-done-bg: #EAF4EB;
+  --status-done-border: #BCE0BF;
+
+  --status-overdue-bg: #FDECEC;
+  --status-overdue-border: #F9BDBD;
+
+  /* Neutral tones */
+  --tn-bg-app: #F5F7FA;
+  --tn-surface: #FFFFFF;
+  --tn-border: #E2E8F0;
+  --tn-text-main: #1E293B;
+  --tn-text-muted: #64748B;
+  --tn-text-light: #94A3B8;
+
+  /* Layout dimensions */
+  --sidebar-width: 260px;
+  --bottom-nav-height: 64px;
+  --top-header-height: 60px;
+
+  /* Shadows */
+  --tn-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --tn-shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
+  --tn-shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+}
+
+/* Global resets & typography */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+  font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  background-color: var(--tn-bg-app);
+  color: var(--tn-text-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tel / Call Button Utility */
+a.call-btn, button.call-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--tn-primary-light);
+  text-decoration: none;
+  font-weight: 500;
+  padding: 6px 10px;
+  min-height: 36px;
+  border-radius: 8px;
+  background: #EEF4FC;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: 1px solid #D2E3FC;
+
+  &:hover {
+    background: var(--tn-primary);
+    color: #FFFFFF;
+    border-color: var(--tn-primary);
+  }
+
+  .material-icons, .material-symbols-outlined {
+    font-size: 18px;
+  }
+}
+
+/* SHIMMER SKELETON LOADING */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+
+.skeleton-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+
+  &.w-30 { width: 30%; }
+  &.w-50 { width: 50%; }
+  &.w-70 { width: 70%; }
+  &.w-90 { width: 90%; }
+  &.w-100 { width: 100%; }
+  &.h-20 { height: 20px; }
+  &.h-28 { height: 28px; }
+}
+
+.skeleton-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  width: 100%;
+}
+
+/* REUSABLE FRIENDLY EMPTY STATE */
+.friendly-empty-state {
+  background: #FFFFFF;
+  border: 1.5px dashed #CBD5E1;
+  border-radius: 16px;
+  padding: 42px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 12px;
+  margin: 12px 0;
+  animation: fadeIn 0.2s ease-out;
+
+  .empty-svg-illustration {
+    width: 90px;
+    height: 90px;
+    margin-bottom: 2px;
+    color: #94A3B8;
+  }
+
+  .empty-state-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #1E293B;
+    margin: 0;
+  }
+
+  .empty-state-desc {
+    font-size: 0.88rem;
+    color: #64748B;
+    max-width: 440px;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .empty-state-action-btn {
+    margin-top: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #1F3864;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(31, 56, 100, 0.2);
+    transition: all 0.15s ease;
+
+    &:hover {
+      background: #152644;
+      transform: translateY(-1px);
+    }
+  }
+}
+
+/* Animations */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Mobile tap target & accessibility standards */
+@media (max-width: 768px) {
+  html, body {
+    font-size: 14px;
+  }
+
+  button, a, input, select, textarea, .tap-target {
+    min-height: 44px;
+  }
+
+  .hide-on-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .hide-on-desktop {
+    display: none !important;
+  }
+}

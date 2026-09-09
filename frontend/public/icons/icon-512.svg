@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1F3864;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2E5EAA;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F0A500;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FDBA74;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="110" fill="url(#grad)"/>
+  <!-- Graduation cap / school icon -->
+  <path d="M256 120 L420 200 L256 280 L92 200 Z" fill="#FFFFFF"/>
+  <path d="M140 240 L140 330 C140 370 200 400 256 400 C312 400 372 370 372 330 L372 240 L256 295 Z" fill="#E2E8F0"/>
+  <!-- Tassel / Ribbon -->
+  <path d="M400 220 L400 340 L385 360 L400 380 L415 360 L400 340 Z" fill="url(#gold)"/>
+  <!-- Checkmark / RACI star badge -->
+  <circle cx="360" cy="360" r="48" fill="#2E7D32" stroke="#FFFFFF" stroke-width="6"/>
+  <path d="M342 360 L354 372 L378 348" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

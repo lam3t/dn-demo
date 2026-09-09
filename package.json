@@ -1,0 +1,17 @@
+{
+  "name": "tn-edu-school-management",
+  "version": "1.0.0",
+  "description": "TN EDU – Quản lý Kế hoạch & Công việc Trường Phổ thông (Monorepo)",
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend start",
+    "install:all": "npm install && npm --prefix backend install && npm --prefix frontend install",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "prisma:migrate": "npm --prefix backend run prisma:migrate",
+    "prisma:seed": "npm --prefix backend run prisma:seed"
+  },
+  "keywords": ["education", "management", "angular", "nodejs", "express", "prisma"],
+  "author": "",
+  "license": "ISC"
+}

@@ -1,0 +1,296 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --------------------------------------------------------
+// ENUMS
+// --------------------------------------------------------
+
+enum Role {
+  HIEU_TRUONG
+  PHO_HIEU_TRUONG
+  TO_TRUONG
+  GIAO_VIEN
+  NHAN_VIEN
+  ADMIN
+}
+
+enum PlanLevel {
+  NAM
+  HOC_KY
+  QUY
+  THANG
+  TUAN
+}
+
+enum TaskStatus {
+  NHAP
+  DA_GIAO
+  DA_TIEP_NHAN
+  DANG_THUC_HIEN
+  CHO_KIEM_TRA
+  BO_SUNG
+  HOAN_THANH
+  XAC_NHAN
+  DONG
+  TAM_DUNG
+  HUY
+}
+
+enum TaskPriority {
+  THAP
+  TRUNG_BINH
+  CAO
+  KHAN_CAP
+}
+
+enum TaskAssignmentRole {
+  CHU_TRI
+  PHOI_HOP
+  KIEM_TRA
+  PHE_DUYET
+  THEO_DOI
+}
+
+enum NotificationType {
+  GIAO_VIEC
+  NHAC_VIEC
+  CAN_BO_SUNG
+  DA_HOAN_THANH
+  HET_HAN
+  HE_THONG
+}
+
+// --------------------------------------------------------
+// MODELS
+// --------------------------------------------------------
+
+model School {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  address   String?
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  locations Location[]
+  orgUnits  OrgUnit[]
+  users     User[]
+  plans     Plan[]
+  tasks     Task[]
+}
+
+model Location {
+  id        String   @id @default(uuid())
+  schoolId  String
+  name      String
+  code      String
+  address   String?
+  phone     String?
+  isMain    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school        School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  users         User[]         @relation("PrimaryLocation")
+  userRoles     UserRole[]     @relation("ScopedLocation")
+  tasks         Task[]
+
+  @@unique([schoolId, code])
+}
+
+model OrgUnit {
+  id          String    @id @default(uuid())
+  schoolId    String
+  name        String
+  code        String
+  parentId    String?
+  orderIndex  Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  school      School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  parent      OrgUnit?   @relation("OrgHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    OrgUnit[]  @relation("OrgHierarchy")
+  users       User[]     @relation("PrimaryOrgUnit")
+  userRoles   UserRole[] @relation("ScopedOrgUnit")
+  tasks       Task[]
+
+  @@unique([schoolId, code])
+}
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  phone             String    @unique
+  passwordHash      String
+  fullName          String
+  title             String?   // Chức vụ / môn giảng dạy chính
+  avatarUrl         String?
+  schoolId          String
+  primaryLocationId String?
+  primaryOrgUnitId  String?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  school            School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  primaryLocation   Location?       @relation("PrimaryLocation", fields: [primaryLocationId], references: [id], onDelete: SetNull)
+  primaryOrgUnit    OrgUnit?        @relation("PrimaryOrgUnit", fields: [primaryOrgUnitId], references: [id], onDelete: SetNull)
+  
+  roles             UserRole[]
+  createdPlans      Plan[]          @relation("PlanCreatedBy")
+  createdTasks      Task[]          @relation("TaskCreatedBy")
+  taskAssignments   TaskAssignment[]
+  taskLogs          TaskLog[]
+  comments          Comment[]
+  attachments       Attachment[]
+  notifications     Notification[]
+}
+
+model UserRole {
+  id              String    @id @default(uuid())
+  userId          String
+  role            Role
+  scopeLocationId String?
+  scopeOrgUnitId  String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scopeLocation   Location? @relation("ScopedLocation", fields: [scopeLocationId], references: [id], onDelete: SetNull)
+  scopeOrgUnit    OrgUnit?  @relation("ScopedOrgUnit", fields: [scopeOrgUnitId], references: [id], onDelete: SetNull)
+}
+
+model Plan {
+  id              String      @id @default(uuid())
+  schoolId        String
+  title           String
+  description     String?
+  level           PlanLevel
+  parentPlanId    String?
+  startDate       DateTime
+  endDate         DateTime
+  progressPercent Float       @default(0)
+  createdById     String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  school          School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  parentPlan      Plan?       @relation("PlanHierarchy", fields: [parentPlanId], references: [id], onDelete: SetNull)
+  childrenPlans   Plan[]      @relation("PlanHierarchy")
+  createdBy       User        @relation("PlanCreatedBy", fields: [createdById], references: [id])
+  tasks           Task[]
+}
+
+model Task {
+  id              String        @id @default(uuid())
+  schoolId        String
+  code            String?
+  title           String
+  description     String?
+  planId          String?
+  locationId      String?
+  orgUnitId       String?
+  priority        TaskPriority  @default(TRUNG_BINH)
+  status          TaskStatus    @default(DA_GIAO)
+  progressPercent Int           @default(0)
+  requireAttachment Boolean     @default(false)
+  startDate       DateTime?
+  dueDate         DateTime?
+  completedAt     DateTime?
+  createdById     String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  school          School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  plan            Plan?         @relation(fields: [planId], references: [id], onDelete: SetNull)
+  location        Location?     @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  orgUnit         OrgUnit?      @relation(fields: [orgUnitId], references: [id], onDelete: SetNull)
+  createdBy       User          @relation("TaskCreatedBy", fields: [createdById], references: [id])
+
+  assignments     TaskAssignment[]
+  logs            TaskLog[]
+  attachments     Attachment[]
+  comments        Comment[]
+}
+
+model TaskAssignment {
+  id          String              @id @default(uuid())
+  taskId      String
+  userId      String
+  role        TaskAssignmentRole
+  note        String?
+  assignedAt  DateTime            @default(now())
+
+  task        Task                @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId, role])
+}
+
+model TaskLog {
+  id          String      @id @default(uuid())
+  taskId      String
+  userId      String
+  action      String      // TAO_MOI, CAP_NHAT_TIEN_DO, NOP_MINH_CHUNG, YEU_CAU_BO_SUNG, KIEM_TRA_DAT, PHE_DUYET, DONG, ...
+  oldStatus   TaskStatus?
+  newStatus   TaskStatus?
+  oldProgress Int?
+  newProgress Int?
+  note        String?
+  createdAt   DateTime    @default(now())
+
+  task        Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+}
+
+model Attachment {
+  id           String    @id @default(uuid())
+  taskId       String?
+  taskLogId    String?
+  uploadedById String
+  fileName     String
+  originalName String
+  fileUrl      String
+  fileSize     Int
+  mimeType     String
+  createdAt    DateTime  @default(now())
+
+  task         Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskLog      TaskLog?  @relation(fields: [taskLogId], references: [id], onDelete: SetNull)
+  uploadedBy   User      @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType @default(HE_THONG)
+  title     String
+  content   String
+  link      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  taskId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

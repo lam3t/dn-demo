@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.pg_data/
+.env
+uploads/*
+!uploads/.gitkeep
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
