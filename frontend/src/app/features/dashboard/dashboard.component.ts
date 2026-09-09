@@ -1,9 +1,11 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { DashboardService } from '../../core/services/dashboard.service';
 import { UserService } from '../../core/services/user.service';
+import { AuthService } from '../../core/services/auth.service';
 import { ContactCardService } from '../../core/services/contact-card.service';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import {
@@ -20,6 +22,70 @@ import { LocationItem } from '../../core/models/user.models';
   imports: [CommonModule, FormsModule, RouterModule, StatusBadgeComponent],
   template: `
     <div class="dashboard-page">
+      <!-- ROLE-TAILORED BANNER & WORKSPACE CONTEXT -->
+      @if (authService.currentUser(); as user) {
+        <div class="role-workspace-banner" [ngClass]="getRoleBannerClass()">
+          <div class="banner-left">
+            <div class="banner-icon-box">
+              <span class="material-symbols-outlined">{{ getRoleBannerIcon() }}</span>
+            </div>
+            <div class="banner-text-box">
+              <div class="banner-role-badge">
+                <span class="role-tag">{{ authService.activeRole()?.roleTitle || user.title }}</span>
+                <span class="scope-tag">{{ authService.activeRole()?.scopeName || 'THCS Phước Tân' }}</span>
+              </div>
+              <h2 class="banner-welcome-title">
+                Xin chào, {{ user.fullName }}
+                <span class="greeting-subtitle">({{ getRoleDescription() }})</span>
+              </h2>
+              <p class="banner-directive">
+                {{ getRoleDirective() }}
+              </p>
+            </div>
+          </div>
+
+          <div class="banner-right-actions">
+            @if (authService.isToTruong()) {
+              <a
+                routerLink="/my-tasks"
+                class="banner-cta-btn cta-amber tap-target"
+                title="Xem việc chờ nghiệm thu"
+              >
+                <span class="material-symbols-outlined">verified_user</span>
+                <span>Kiểm tra việc chờ duyệt</span>
+              </a>
+            } @else if (authService.isGiaoVien()) {
+              <a
+                routerLink="/my-tasks"
+                class="banner-cta-btn cta-emerald tap-target"
+                title="Xem công việc cá nhân"
+              >
+                <span class="material-symbols-outlined">task_alt</span>
+                <span>Việc của tôi</span>
+              </a>
+            } @else if (authService.isHieuTruong()) {
+              <a
+                routerLink="/plans"
+                class="banner-cta-btn cta-blue tap-target"
+                title="Quản trị kế hoạch toàn trường"
+              >
+                <span class="material-symbols-outlined">account_tree</span>
+                <span>Kế hoạch toàn trường</span>
+              </a>
+            } @else if (authService.isPHT()) {
+              <a
+                routerLink="/tasks"
+                class="banner-cta-btn cta-indigo tap-target"
+                title="Theo dõi việc Phân hiệu 1"
+              >
+                <span class="material-symbols-outlined">assignment</span>
+                <span>Công việc Phân hiệu 1</span>
+              </a>
+            }
+          </div>
+        </div>
+      }
+
       <!-- TOP FILTER & TITLE BAR -->
       <div class="dashboard-header">
         <div class="header-title-box">
@@ -953,6 +1019,190 @@ import { LocationItem } from '../../core/models/user.models';
         }
       }
 
+      /* ROLE WORKSPACE BANNER */
+      .role-workspace-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 16px 20px;
+        border-radius: 16px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+        border: 1.5px solid #E2E8F0;
+        background: #FFFFFF;
+        flex-wrap: wrap;
+
+        &.role-hieu-truong {
+          background: linear-gradient(135deg, #1F3864 0%, #152847 100%);
+          border-color: #3B5B91;
+          color: #FFFFFF;
+
+          .banner-icon-box { background: rgba(255, 255, 255, 0.15); color: #FCD34D; }
+          .role-tag { background: #FCD34D; color: #1E293B; }
+          .scope-tag { background: rgba(255, 255, 255, 0.2); color: #E2E8F0; }
+          .banner-welcome-title { color: #FFFFFF; }
+          .greeting-subtitle { color: #94A3B8; }
+          .banner-directive { color: #CBD5E1; }
+        }
+
+        &.role-pht {
+          background: linear-gradient(135deg, #2E5EAA 0%, #1F3864 100%);
+          border-color: #60A5FA;
+          color: #FFFFFF;
+
+          .banner-icon-box { background: rgba(255, 255, 255, 0.18); color: #93C5FD; }
+          .role-tag { background: #93C5FD; color: #1E293B; }
+          .scope-tag { background: rgba(255, 255, 255, 0.2); color: #E2E8F0; }
+          .banner-welcome-title { color: #FFFFFF; }
+          .greeting-subtitle { color: #BFDBFE; }
+          .banner-directive { color: #E2E8F0; }
+        }
+
+        &.role-to-truong {
+          background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+          border-color: #FCD34D;
+          color: #78350F;
+
+          .banner-icon-box { background: #F59E0B; color: #FFFFFF; }
+          .role-tag { background: #D97706; color: #FFFFFF; }
+          .scope-tag { background: #FDE68A; color: #92400E; }
+          .banner-welcome-title { color: #78350F; }
+          .greeting-subtitle { color: #B45309; }
+          .banner-directive { color: #92400E; }
+        }
+
+        &.role-giao-vien {
+          background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
+          border-color: #86EFAC;
+          color: #14532D;
+
+          .banner-icon-box { background: #10B981; color: #FFFFFF; }
+          .role-tag { background: #059669; color: #FFFFFF; }
+          .scope-tag { background: #BBF7D0; color: #166534; }
+          .banner-welcome-title { color: #14532D; }
+          .greeting-subtitle { color: #047857; }
+          .banner-directive { color: #166534; }
+        }
+
+        .banner-left {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          flex: 1;
+          min-width: 280px;
+
+          .banner-icon-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+
+            .material-symbols-outlined {
+              font-size: 28px;
+            }
+          }
+
+          .banner-text-box {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+
+            .banner-role-badge {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+
+              .role-tag {
+                font-size: 0.72rem;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                padding: 2px 8px;
+                border-radius: 9999px;
+              }
+
+              .scope-tag {
+                font-size: 0.74rem;
+                font-weight: 600;
+                padding: 2px 8px;
+                border-radius: 9999px;
+              }
+            }
+
+            .banner-welcome-title {
+              font-size: 1.15rem;
+              font-weight: 800;
+              margin: 0;
+              display: flex;
+              align-items: baseline;
+              gap: 8px;
+              flex-wrap: wrap;
+
+              .greeting-subtitle {
+                font-size: 0.82rem;
+                font-weight: 500;
+              }
+            }
+
+            .banner-directive {
+              font-size: 0.84rem;
+              margin: 0;
+              line-height: 1.4;
+            }
+          }
+        }
+
+        .banner-right-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+
+          .banner-cta-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+
+            .material-symbols-outlined {
+              font-size: 20px;
+            }
+
+            &.cta-amber {
+              background: #F59E0B;
+              color: #FFFFFF;
+              &:hover { background: #D97706; transform: translateY(-1px); }
+            }
+
+            &.cta-emerald {
+              background: #059669;
+              color: #FFFFFF;
+              &:hover { background: #047857; transform: translateY(-1px); }
+            }
+
+            &.cta-blue {
+              background: #FFFFFF;
+              color: #1F3864;
+              &:hover { background: #EEF4FC; transform: translateY(-1px); }
+            }
+
+            &.cta-indigo {
+              background: #FFFFFF;
+              color: #2E5EAA;
+              &:hover { background: #EFF6FF; transform: translateY(-1px); }
+            }
+          }
+        }
+      }
+
       /* SKELETON LOADING */
       .page-loading-skeleton {
         display: flex;
@@ -991,9 +1241,10 @@ import { LocationItem } from '../../core/models/user.models';
     `,
   ],
 })
-export class DashboardComponent implements OnInit {
-  private dashboardService = inject(DashboardService);
-  private userService = inject(UserService);
+export class DashboardComponent implements OnInit, OnDestroy {
+  dashboardService = inject(DashboardService);
+  userService = inject(UserService);
+  authService = inject(AuthService);
   private contactCardService = inject(ContactCardService);
   private router = inject(Router);
 
@@ -1003,9 +1254,71 @@ export class DashboardComponent implements OnInit {
   isLoading = signal(true);
   overviewData = signal<DashboardOverviewData | null>(null);
 
+  private accountSub?: Subscription;
+
   ngOnInit() {
     this.loadLocations();
+    this.applyUserDefaultLocation();
     this.loadDashboardData();
+
+    // Subscribe to switchDemoAccount to re-filter and reload instantly
+    this.accountSub = this.authService.accountSwitched$.subscribe(() => {
+      this.applyUserDefaultLocation();
+      this.loadDashboardData();
+    });
+  }
+
+  ngOnDestroy() {
+    this.accountSub?.unsubscribe();
+  }
+
+  applyUserDefaultLocation() {
+    const user = this.authService.currentUser();
+    if (!user) return;
+
+    if (this.authService.isHieuTruong()) {
+      // Hiệu trưởng xem toàn trường mặc định
+      this.selectedLocationId = '';
+    } else if (this.authService.isPHT() || this.authService.isToTruong() || this.authService.isGiaoVien()) {
+      // PHT/Tổ trưởng/GV nếu có primaryLocationId thì focus vào phân hiệu của mình
+      if (user.primaryLocationId) {
+        this.selectedLocationId = user.primaryLocationId;
+      }
+    }
+  }
+
+  getRoleBannerClass(): string {
+    if (this.authService.isHieuTruong()) return 'role-hieu-truong';
+    if (this.authService.isPHT()) return 'role-pht';
+    if (this.authService.isToTruong()) return 'role-to-truong';
+    return 'role-giao-vien';
+  }
+
+  getRoleBannerIcon(): string {
+    if (this.authService.isHieuTruong()) return 'stars';
+    if (this.authService.isPHT()) return 'shield_person';
+    if (this.authService.isToTruong()) return 'supervisor_account';
+    return 'school';
+  }
+
+  getRoleDescription(): string {
+    if (this.authService.isHieuTruong()) return 'Quản trị điều hành toàn trường';
+    if (this.authService.isPHT()) return 'Phụ trách Phân hiệu 1 - Tân Lập';
+    if (this.authService.isToTruong()) return 'Quản lý Tổ chuyên môn Toán - Tin';
+    return 'Không gian làm việc & thực thi cá nhân';
+  }
+
+  getRoleDirective(): string {
+    if (this.authService.isHieuTruong()) {
+      return 'Theo dõi chỉ số KPI 3 điểm trường, phát hiện điểm nghẽn tiến độ và phê duyệt đóng các công việc hoàn tất cấp trường.';
+    }
+    if (this.authService.isPHT()) {
+      return 'Đã tập trung theo dõi công việc và phân công giáo viên tại Phân hiệu 1 Tân Lập. Kiểm soát tiến độ các tổ chuyên môn.';
+    }
+    if (this.authService.isToTruong()) {
+      return '⚡ Đang có công việc CV-DEMO-01 đã nộp minh chứng và đang CHỜ BẠN KIỂM TRA NGHIỆM THU. Hãy bấm nút bên cạnh để duyệt ngay!';
+    }
+    return '📌 Đôn đốc hoàn thành công việc quá hạn [CV-DEMO-02] và theo dõi tiến độ công việc [CV-DEMO-01] đã gửi duyệt.';
   }
 
   loadLocations() {

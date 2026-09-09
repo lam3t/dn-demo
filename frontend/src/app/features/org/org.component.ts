@@ -1,6 +1,7 @@
 import {
   Component,
   OnInit,
+  OnDestroy,
   inject,
   signal,
   computed,
@@ -8,8 +9,10 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { UserService } from '../../core/services/user.service';
 import { TaskService } from '../../core/services/task.service';
+import { AuthService } from '../../core/services/auth.service';
 import { ContactCardService } from '../../core/services/contact-card.service';
 import {
   LocationItem,
@@ -168,6 +171,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
                     @if (node.leader) {
                       <div
                         class="leader-chip tap-target"
+                        [class.is-current-user]="isCurrentUser(node.leader.id)"
                         (click)="openUserContact(node.leader, $event)"
                         title="Tổ trưởng / Trưởng đơn vị"
                       >
@@ -177,7 +181,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
                           [alt]="node.leader.fullName"
                         />
                         <div class="leader-info">
-                          <span class="leader-role">Phụ trách:</span>
+                          <span class="leader-role">{{ isCurrentUser(node.leader.id) ? '⭐ Bạn phụ trách:' : 'Phụ trách:' }}</span>
                           <span class="leader-name">{{ node.leader.fullName }}</span>
                         </div>
                         @if (node.leader.phone) {
@@ -208,7 +212,11 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
                       } @else {
                         <div class="org-members-grid">
                           @for (user of node.users || []; track user.id) {
-                            <div class="member-mini-card tap-target" (click)="openUserContact(user, $event)">
+                            <div
+                              class="member-mini-card tap-target"
+                              [class.is-current-user]="isCurrentUser(user.id)"
+                              (click)="openUserContact(user, $event)"
+                            >
                               <div class="member-avatar-wrapper">
                                 <img
                                   [src]="user.avatarUrl || 'assets/images/default-avatar.svg'"
@@ -223,7 +231,12 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
                               </div>
 
                               <div class="member-info">
-                                <strong class="member-name">{{ user.fullName }}</strong>
+                                <div class="member-name-line">
+                                  <strong class="member-name">{{ user.fullName }}</strong>
+                                  @if (isCurrentUser(user.id)) {
+                                    <span class="current-user-tag">⭐ Bạn</span>
+                                  }
+                                </div>
                                 <span class="member-title">{{ user.title || 'Giáo viên' }}</span>
                                 <span class="member-loc-pill" [ngClass]="getLocationBadgeClass(user.primaryLocation?.name)">
                                   {{ user.primaryLocation?.name || 'Điểm chính' }}
@@ -299,7 +312,11 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
 
               <div class="roster-list">
                 @for (u of campusUsers(); track u.id) {
-                  <div class="roster-item tap-target" (click)="openUserContact(u, $event)">
+                  <div
+                    class="roster-item tap-target"
+                    [class.is-current-user]="isCurrentUser(u.id)"
+                    (click)="openUserContact(u, $event)"
+                  >
                     <div class="user-avatar-box">
                       <img [src]="u.avatarUrl || 'assets/images/default-avatar.svg'" class="avatar-img" alt="" />
                       <span
@@ -312,6 +329,9 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
                     <div class="user-meta-box">
                       <div class="name-row">
                         <strong class="user-name">{{ u.fullName }}</strong>
+                        @if (isCurrentUser(u.id)) {
+                          <span class="current-user-tag">⭐ Vị trí của bạn</span>
+                        }
                         <span class="task-load-badge" [ngClass]="getWorkloadClass(u.currentTaskLoad)">
                           {{ u.currentTaskLoad }} việc
                         </span>
@@ -1236,6 +1256,32 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
         }
       }
 
+      /* CURRENT USER HIGHLIGHT */
+      .is-current-user {
+        border-color: #F59E0B !important;
+        background: linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%) !important;
+        box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.4), 0 6px 16px rgba(245, 158, 11, 0.15) !important;
+      }
+
+      .current-user-tag {
+        font-size: 0.68rem;
+        font-weight: 800;
+        background: #F59E0B;
+        color: #FFFFFF;
+        padding: 2px 6px;
+        border-radius: 9999px;
+        letter-spacing: 0.3px;
+        margin-left: 4px;
+        display: inline-block;
+      }
+
+      .member-name-line {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
+
       .loading-box {
         display: flex;
         align-items: center;
@@ -1252,9 +1298,10 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
     `,
   ],
 })
-export class OrgComponent implements OnInit {
-  private userService = inject(UserService);
-  private taskService = inject(TaskService);
+export class OrgComponent implements OnInit, OnDestroy {
+  userService = inject(UserService);
+  taskService = inject(TaskService);
+  authService = inject(AuthService);
   private contactCardService = inject(ContactCardService);
   private router = inject(Router);
 
@@ -1273,10 +1320,26 @@ export class OrgComponent implements OnInit {
   // Expanded state for org nodes
   expandedOrgIds = signal<Set<string>>(new Set<string>());
 
+  private accountSub?: Subscription;
+
   ngOnInit() {
     this.loadLocations();
     this.loadOrgTree();
     this.loadAllData();
+
+    // Subscribe to switchDemoAccount to re-expand and highlight reactively
+    this.accountSub = this.authService.accountSwitched$.subscribe(() => {
+      this.loadAllData();
+      this.loadOrgTree();
+    });
+  }
+
+  ngOnDestroy() {
+    this.accountSub?.unsubscribe();
+  }
+
+  isCurrentUser(userId: string): boolean {
+    return this.authService.currentUser()?.id === userId;
   }
 
   loadLocations() {

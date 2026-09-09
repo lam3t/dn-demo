@@ -1,6 +1,7 @@
 import {
   Component,
   OnInit,
+  OnDestroy,
   inject,
   signal,
   computed,
@@ -8,6 +9,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { PlanService } from '../../core/services/plan.service';
 import { UserService } from '../../core/services/user.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -1383,10 +1385,10 @@ interface PaperPlanRow {
     `,
   ],
 })
-export class PlansComponent implements OnInit {
-  private planService = inject(PlanService);
-  private userService = inject(UserService);
-  private authService = inject(AuthService);
+export class PlansComponent implements OnInit, OnDestroy {
+  planService = inject(PlanService);
+  userService = inject(UserService);
+  authService = inject(AuthService);
 
   @ViewChild('treeComponent') treeComponent?: PlanTreeComponent;
   @ViewChild('taskWizard') taskWizard?: TaskCreateWizardComponent;
@@ -1461,9 +1463,20 @@ export class PlansComponent implements OnInit {
   isSubmittingDuplicate = signal(false);
   duplicateModalError = signal<string | null>(null);
 
+  private accountSub?: Subscription;
+
   ngOnInit() {
     this.loadAllPlans();
     this.loadTree();
+
+    this.accountSub = this.authService.accountSwitched$.subscribe(() => {
+      this.loadAllPlans();
+      this.loadTree();
+    });
+  }
+
+  ngOnDestroy() {
+    this.accountSub?.unsubscribe();
   }
 
   loadTree() {

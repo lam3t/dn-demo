@@ -1,7 +1,7 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
-import { AuthService } from '../../../core/services/auth.service';
+import { AuthService, DemoAccountInfo } from '../../../core/services/auth.service';
 import { ContactCardService } from '../../../core/services/contact-card.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { ContactMiniCardComponent } from '../contact-mini-card/contact-mini-card.component';
@@ -27,8 +27,8 @@ import { UserPickerItem } from '../../../core/models/user.models';
 
         <!-- Campus / Role Context Selector Pill -->
         @if (authService.activeRole(); as role) {
-          <div class="context-pill" [title]="'Đang làm việc với vai trò: ' + role.roleTitle">
-            <span class="material-symbols-outlined pill-icon">badge</span>
+          <div class="context-pill" [ngClass]="getRolePillClass()" [title]="'Đang làm việc với vai trò: ' + role.roleTitle">
+            <span class="material-symbols-outlined pill-icon">{{ getRoleIcon() }}</span>
             <div class="pill-info">
               <span class="pill-role">{{ role.roleTitle }}</span>
               <span class="pill-scope">{{ role.scopeName || 'Toàn trường' }}</span>
@@ -76,7 +76,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
         <div class="sidebar-action">
           <button type="button" class="create-task-btn" routerLink="/tasks" [queryParams]="{ create: 'true' }">
             <span class="material-symbols-outlined">add_circle</span>
-            <span>Giao việc mới</span>
+            <span>{{ authService.isGiaoVien() ? 'Đề xuất việc mới' : 'Giao việc mới (RACI)' }}</span>
           </button>
         </div>
 
@@ -99,7 +99,41 @@ import { UserPickerItem } from '../../../core/models/user.models';
 
       <!-- 2. MAIN CONTENT AREA -->
       <div class="main-wrapper">
-        <!-- MOBILE TOP BAR -->
+        <!-- TOP DEMO ROLE & ACCOUNT SWITCHER BAR (DESKTOP & MOBILE) -->
+        <header class="top-demo-bar">
+          <div class="bar-left">
+            <div class="active-identity-tag" [ngClass]="getRolePillClass()">
+              <span class="material-symbols-outlined tag-icon">{{ getRoleIcon() }}</span>
+              <div class="tag-details">
+                <span class="tag-title">{{ authService.currentUser()?.fullName }}</span>
+                <span class="tag-sub">{{ authService.activeRole()?.roleTitle }} • {{ authService.activeRole()?.scopeName || 'Toàn trường' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4 QUICK DEMO ACCOUNTS SWITCH BUTTONS -->
+          <div class="bar-right">
+            <span class="demo-bar-label">⚡ Đổi nhanh vai trò:</span>
+            <div class="demo-buttons-row">
+              @for (acc of authService.demoAccounts; track acc.identifier) {
+                <button
+                  type="button"
+                  class="demo-role-btn tap-target"
+                  [class.active]="isCurrentAccount(acc.identifier)"
+                  [ngClass]="'role-' + acc.role.toLowerCase()"
+                  (click)="switchAccount(acc)"
+                  [title]="acc.desc"
+                >
+                  <span class="material-symbols-outlined btn-icon">{{ acc.icon }}</span>
+                  <span class="btn-name">{{ acc.name }}</span>
+                  <span class="btn-role-tag">{{ acc.roleTitle }}</span>
+                </button>
+              }
+            </div>
+          </div>
+        </header>
+
+        <!-- MOBILE TOP BAR (Small screens only) -->
         <header class="mobile-header hide-on-desktop">
           <div class="mobile-brand">
             <span class="material-symbols-outlined brand-icon">school</span>
@@ -188,7 +222,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
       .desktop-sidebar {
         width: var(--sidebar-width);
         min-width: var(--sidebar-width);
-        background: var(--tn-primary);
+        background: #1F3864;
         color: #FFFFFF;
         display: flex;
         flex-direction: column;
@@ -200,12 +234,12 @@ import { UserPickerItem } from '../../../core/models/user.models';
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 20px 16px 16px;
+        padding: 18px 16px 14px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 
         .logo-box {
-          width: 40px;
-          height: 40px;
+          width: 38px;
+          height: 38px;
           background: rgba(255, 255, 255, 0.15);
           border-radius: 10px;
           display: flex;
@@ -213,7 +247,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
           justify-content: center;
 
           .logo-icon {
-            font-size: 24px;
+            font-size: 22px;
             color: #FFFFFF;
           }
         }
@@ -221,20 +255,20 @@ import { UserPickerItem } from '../../../core/models/user.models';
         .brand-text {
           .app-name {
             font-size: 1.15rem;
-            font-weight: 700;
+            font-weight: 800;
             letter-spacing: 0.5px;
             color: #FFFFFF;
             line-height: 1.2;
           }
           .school-name {
-            font-size: 0.78rem;
+            font-size: 0.76rem;
             color: rgba(255, 255, 255, 0.7);
           }
         }
       }
 
       .context-pill {
-        margin: 12px 16px 8px;
+        margin: 10px 14px 6px;
         padding: 8px 12px;
         background: rgba(255, 255, 255, 0.08);
         border-radius: 8px;
@@ -255,7 +289,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
 
           .pill-role {
             font-size: 0.8rem;
-            font-weight: 600;
+            font-weight: 700;
             color: #FFFFFF;
             white-space: nowrap;
             overflow: hidden;
@@ -270,11 +304,32 @@ import { UserPickerItem } from '../../../core/models/user.models';
             text-overflow: ellipsis;
           }
         }
+
+        &.pill-hieu-truong {
+          background: rgba(30, 58, 138, 0.5);
+          border-color: #60A5FA;
+          .pill-icon { color: #FBBF24; }
+        }
+        &.pill-pht {
+          background: rgba(46, 94, 170, 0.5);
+          border-color: #93C5FD;
+          .pill-icon { color: #60A5FA; }
+        }
+        &.pill-to-truong {
+          background: rgba(217, 119, 6, 0.3);
+          border-color: #FCD34D;
+          .pill-icon { color: #F59E0B; }
+        }
+        &.pill-giao-vien {
+          background: rgba(5, 150, 105, 0.3);
+          border-color: #6EE7B7;
+          .pill-icon { color: #34D399; }
+        }
       }
 
       .sidebar-nav {
         flex: 1;
-        padding: 12px 10px;
+        padding: 10px 10px;
         overflow-y: auto;
         display: flex;
         flex-direction: column;
@@ -288,7 +343,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
           border-radius: 8px;
           color: rgba(255, 255, 255, 0.8);
           text-decoration: none;
-          font-size: 0.9rem;
+          font-size: 0.88rem;
           font-weight: 500;
           transition: all 0.2s ease;
 
@@ -306,14 +361,14 @@ import { UserPickerItem } from '../../../core/models/user.models';
           &.active {
             background: rgba(255, 255, 255, 0.2);
             color: #FFFFFF;
-            font-weight: 600;
+            font-weight: 700;
             .nav-icon { color: #93C5FD; }
           }
         }
       }
 
       .sidebar-action {
-        padding: 12px 16px;
+        padding: 10px 14px;
 
         .create-task-btn {
           width: 100%;
@@ -325,9 +380,9 @@ import { UserPickerItem } from '../../../core/models/user.models';
           color: #FFFFFF;
           border: none;
           border-radius: 8px;
-          padding: 10px 16px;
-          font-size: 0.9rem;
-          font-weight: 600;
+          padding: 9px 14px;
+          font-size: 0.85rem;
+          font-weight: 700;
           cursor: pointer;
           transition: all 0.2s ease;
 
@@ -339,7 +394,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
       }
 
       .sidebar-footer {
-        padding: 12px 16px;
+        padding: 10px 14px;
         border-top: 1px solid rgba(255, 255, 255, 0.08);
 
         .user-card {
@@ -348,8 +403,8 @@ import { UserPickerItem } from '../../../core/models/user.models';
           gap: 10px;
 
           .user-avatar {
-            width: 38px;
-            height: 38px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             border: 2px solid rgba(255, 255, 255, 0.2);
           }
@@ -361,8 +416,8 @@ import { UserPickerItem } from '../../../core/models/user.models';
             flex-direction: column;
 
             .user-name {
-              font-size: 0.85rem;
-              font-weight: 600;
+              font-size: 0.82rem;
+              font-weight: 700;
               color: #FFFFFF;
               white-space: nowrap;
               overflow: hidden;
@@ -370,7 +425,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
             }
 
             .user-title {
-              font-size: 0.72rem;
+              font-size: 0.7rem;
               color: rgba(255, 255, 255, 0.65);
               white-space: nowrap;
               overflow: hidden;
@@ -404,7 +459,163 @@ import { UserPickerItem } from '../../../core/models/user.models';
         height: 100vh;
         overflow: hidden;
         position: relative;
-        background: var(--tn-bg-app);
+        background: #F1F5F9;
+      }
+
+      /* TOP DEMO SWITCHER BAR */
+      .top-demo-bar {
+        background: #FFFFFF;
+        border-bottom: 1px solid #CBD5E1;
+        padding: 8px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        z-index: 50;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+        flex-wrap: wrap;
+
+        .bar-left {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+
+          .active-identity-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 10px;
+            border-radius: 8px;
+            background: #EEF4FC;
+            border: 1px solid #BFDBFE;
+
+            .tag-icon {
+              font-size: 20px;
+              color: #1F3864;
+            }
+
+            .tag-details {
+              display: flex;
+              flex-direction: column;
+
+              .tag-title {
+                font-size: 0.82rem;
+                font-weight: 800;
+                color: #1F3864;
+              }
+
+              .tag-sub {
+                font-size: 0.7rem;
+                color: #475569;
+              }
+            }
+
+            &.pill-hieu-truong {
+              background: #EFF6FF;
+              border-color: #93C5FD;
+              .tag-icon { color: #1E40AF; }
+              .tag-title { color: #1E40AF; }
+            }
+            &.pill-pht {
+              background: #F0FDF4;
+              border-color: #86EFAC;
+              .tag-icon { color: #166534; }
+              .tag-title { color: #166534; }
+            }
+            &.pill-to-truong {
+              background: #FFFBEB;
+              border-color: #FDE68A;
+              .tag-icon { color: #92400E; }
+              .tag-title { color: #92400E; }
+            }
+            &.pill-giao-vien {
+              background: #ECFDF5;
+              border-color: #A7F3D0;
+              .tag-icon { color: #065F46; }
+              .tag-title { color: #065F46; }
+            }
+          }
+        }
+
+        .bar-right {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          overflow-x: auto;
+
+          .demo-bar-label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #475569;
+            white-space: nowrap;
+          }
+
+          .demo-buttons-group,
+          .demo-buttons-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+
+            .demo-role-btn {
+              display: inline-flex;
+              align-items: center;
+              gap: 4px;
+              padding: 4px 10px;
+              border-radius: 9999px;
+              border: 1.5px solid #CBD5E1;
+              background: #F8FAFC;
+              color: #334155;
+              font-size: 0.75rem;
+              font-weight: 600;
+              cursor: pointer;
+              white-space: nowrap;
+              transition: all 0.15s ease;
+
+              .btn-icon {
+                font-size: 16px;
+                color: #64748B;
+              }
+
+              .btn-name {
+                font-weight: 700;
+              }
+
+              .btn-role-tag {
+                font-size: 0.68rem;
+                opacity: 0.85;
+              }
+
+              &:hover {
+                background: #EEF4FC;
+                border-color: #93C5FD;
+                color: #1F3864;
+                .btn-icon { color: #1F3864; }
+              }
+
+              &.active {
+                background: #1F3864;
+                border-color: #1F3864;
+                color: #FFFFFF;
+
+                .btn-icon { color: #FBBF24; }
+                .btn-role-tag { color: #93C5FD; }
+              }
+
+              &.active.role-pho_hieu_truong {
+                background: #2E5EAA;
+                border-color: #2E5EAA;
+              }
+              &.active.role-to_truong {
+                background: #D97706;
+                border-color: #D97706;
+              }
+              &.active.role-giao_vien {
+                background: #059669;
+                border-color: #059669;
+              }
+            }
+          }
+        }
       }
 
       .page-content {
@@ -418,7 +629,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
       .mobile-header {
         height: var(--top-header-height);
         min-height: var(--top-header-height);
-        background: var(--tn-primary);
+        background: #1F3864;
         color: #FFFFFF;
         display: flex;
         align-items: center;
@@ -487,9 +698,9 @@ import { UserPickerItem } from '../../../core/models/user.models';
           }
 
           &.active {
-            color: var(--tn-primary);
+            color: #1F3864;
             font-weight: 700;
-            .tab-icon { color: var(--tn-primary); }
+            .tab-icon { color: #1F3864; }
           }
         }
       }
@@ -521,46 +732,52 @@ import { UserPickerItem } from '../../../core/models/user.models';
         }
       }
 
-        .sidebar-unread-badge {
-          margin-left: auto;
+      .sidebar-unread-badge {
+        margin-left: auto;
+        background: #DC2626;
+        color: #FFFFFF;
+        font-size: 0.72rem;
+        font-weight: 800;
+        padding: 1px 7px;
+        border-radius: 9999px;
+      }
+
+      .mobile-notif-dot {
+        width: 8px;
+        height: 8px;
+        background: #EF4444;
+        border-radius: 50%;
+        position: absolute;
+        top: 14px;
+        right: 54px;
+      }
+
+      .tab-icon-wrapper {
+        position: relative;
+        display: inline-flex;
+
+        .bottom-notif-badge {
+          position: absolute;
+          top: -4px;
+          right: -8px;
           background: #DC2626;
           color: #FFFFFF;
-          font-size: 0.72rem;
+          font-size: 0.65rem;
           font-weight: 800;
-          padding: 1px 7px;
+          padding: 0 4px;
           border-radius: 9999px;
+          min-width: 14px;
+          text-align: center;
         }
-
-        .mobile-notif-dot {
-          width: 8px;
-          height: 8px;
-          background: #EF4444;
-          border-radius: 50%;
-          position: absolute;
-          top: 14px;
-          right: 54px;
-        }
-
-        .tab-icon-wrapper {
-          position: relative;
-          display: inline-flex;
-
-          .bottom-notif-badge {
-            position: absolute;
-            top: -4px;
-            right: -8px;
-            background: #DC2626;
-            color: #FFFFFF;
-            font-size: 0.65rem;
-            font-weight: 800;
-            padding: 0 4px;
-            border-radius: 9999px;
-            min-width: 14px;
-            text-align: center;
-          }
-        }
+      }
 
       @media (max-width: 768px) {
+        .top-demo-bar {
+          padding: 6px 10px;
+          .bar-left { display: none; }
+          .bar-right { width: 100%; justify-content: space-between; }
+        }
+
         .page-content {
           padding: 12px;
           padding-bottom: calc(var(--bottom-nav-height) + 20px);
@@ -569,7 +786,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
     `,
   ],
 })
-export class LayoutComponent implements OnInit {
+export class LayoutComponent implements OnInit, OnDestroy {
   authService = inject(AuthService);
   contactCardService = inject(ContactCardService);
   notifService = inject(NotificationService);
@@ -579,10 +796,61 @@ export class LayoutComponent implements OnInit {
 
   ngOnInit() {
     this.fetchNotifications();
-    // Poll notifications every 30s as per Prompt 17
     this.notifInterval = setInterval(() => {
       this.fetchNotifications();
     }, 30000);
+  }
+
+  ngOnDestroy() {
+    if (this.notifInterval) clearInterval(this.notifInterval);
+  }
+
+  isCurrentAccount(identifier: string): boolean {
+    const user = this.authService.currentUser();
+    return user?.phone === identifier || user?.email === identifier;
+  }
+
+  switchAccount(acc: DemoAccountInfo) {
+    this.authService.switchDemoAccount(acc.identifier).subscribe({
+      next: () => {
+        this.fetchNotifications();
+      },
+      error: () => {},
+    });
+  }
+
+  getRolePillClass(): string {
+    const role = this.authService.activeRole()?.role;
+    switch (role) {
+      case 'HIEU_TRUONG':
+      case 'ADMIN':
+        return 'pill-hieu-truong';
+      case 'PHO_HIEU_TRUONG':
+        return 'pill-pht';
+      case 'TO_TRUONG':
+        return 'pill-to-truong';
+      case 'GIAO_VIEN':
+      case 'NHAN_VIEN':
+      default:
+        return 'pill-giao-vien';
+    }
+  }
+
+  getRoleIcon(): string {
+    const role = this.authService.activeRole()?.role;
+    switch (role) {
+      case 'HIEU_TRUONG':
+      case 'ADMIN':
+        return 'stars';
+      case 'PHO_HIEU_TRUONG':
+        return 'shield_person';
+      case 'TO_TRUONG':
+        return 'supervisor_account';
+      case 'GIAO_VIEN':
+      case 'NHAN_VIEN':
+      default:
+        return 'person';
+    }
   }
 
   fetchNotifications() {
@@ -612,4 +880,3 @@ export class LayoutComponent implements OnInit {
     return undefined;
   }
 }
-

@@ -316,6 +316,12 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                 </div>
 
                 <div class="workflow-action-buttons">
+                  @if (!hasAnyAction() && task()!.status !== 'DONG') {
+                    <div class="read-only-role-notice">
+                      <span class="material-symbols-outlined">visibility</span>
+                      <span>Bạn đang xem công việc với quyền theo dõi (Chỉ người được phân công RACI phù hợp mới có thể chuyển trạng thái).</span>
+                    </div>
+                  }
                   <!-- TIẾP NHẬN (CHO CHỦ TRÌ KHI DA_GIAO) -->
                   @if (canTransitionTo('DA_TIEP_NHAN')) {
                     <button
@@ -1133,6 +1139,26 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
           flex-direction: column;
           gap: 8px;
 
+          .read-only-role-notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 10px 12px;
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: #64748B;
+            line-height: 1.4;
+
+            .material-symbols-outlined {
+              font-size: 18px;
+              color: #94A3B8;
+              flex-shrink: 0;
+              margin-top: 1px;
+            }
+          }
+
           .btn-workflow-action {
             display: flex;
             align-items: center;
@@ -1441,23 +1467,43 @@ export class TaskDetailModalComponent implements OnInit {
     const t = this.task();
     if (!t) return false;
     const current = t.status;
+    const currentUserId = this.authService.currentUser()?.id;
+    const isBGH = this.authService.isBGH();
+    const isHieuTruong = this.authService.isHieuTruong();
+    const isCreator = t.createdById === currentUserId;
+
+    const userAssignment = t.assignments?.find((a) => a.userId === currentUserId);
+    const userRole = userAssignment?.role;
+    const isChuTri = userRole === 'CHU_TRI' || isCreator;
+    const isInspector = userRole === 'KIEM_TRA' || userRole === 'PHE_DUYET' || isBGH;
 
     switch (status) {
       case 'DA_TIEP_NHAN':
-        return current === 'DA_GIAO' || current === 'NHAP';
+        return (current === 'DA_GIAO' || current === 'NHAP') && (isChuTri || isBGH);
       case 'DANG_THUC_HIEN':
-        return current === 'DA_TIEP_NHAN' || current === 'BO_SUNG' || current === 'DA_GIAO';
+        return (current === 'DA_TIEP_NHAN' || current === 'BO_SUNG' || current === 'DA_GIAO') && (isChuTri || isBGH);
       case 'CHO_KIEM_TRA':
-        return current === 'DANG_THUC_HIEN' || current === 'DA_TIEP_NHAN' || current === 'BO_SUNG';
+        return (current === 'DANG_THUC_HIEN' || current === 'DA_TIEP_NHAN' || current === 'BO_SUNG') && (isChuTri || isBGH);
       case 'HOAN_THANH':
-        return current === 'CHO_KIEM_TRA' || current === 'DANG_THUC_HIEN';
+        return (current === 'CHO_KIEM_TRA' || current === 'DANG_THUC_HIEN') && isInspector;
       case 'BO_SUNG':
-        return current === 'CHO_KIEM_TRA';
+        return current === 'CHO_KIEM_TRA' && isInspector;
       case 'DONG':
-        return current === 'HOAN_THANH' || current === 'XAC_NHAN';
+        return (current === 'HOAN_THANH' || current === 'XAC_NHAN') && (isHieuTruong || isCreator || isBGH || userRole === 'PHE_DUYET');
       default:
         return false;
     }
+  }
+
+  hasAnyAction(): boolean {
+    return (
+      this.canTransitionTo('DA_TIEP_NHAN') ||
+      this.canTransitionTo('DANG_THUC_HIEN') ||
+      this.canTransitionTo('CHO_KIEM_TRA') ||
+      this.canTransitionTo('HOAN_THANH') ||
+      this.canTransitionTo('BO_SUNG') ||
+      this.canTransitionTo('DONG')
+    );
   }
 
   performStatusChange(status: TaskStatus, note?: string) {

@@ -1,6 +1,7 @@
 import {
   Component,
   OnInit,
+  OnDestroy,
   inject,
   signal,
   computed,
@@ -9,6 +10,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { TaskService, TaskFilterParams } from '../../core/services/task.service';
 import { UserService } from '../../core/services/user.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -53,8 +55,8 @@ import { TaskDetailModalComponent } from '../../shared/components/task-detail-mo
 
         <div class="header-actions">
           <button type="button" class="btn-create-task tap-target" (click)="openCreateWizard()">
-            <span class="material-symbols-outlined">add_task</span>
-            <span>+ Giao việc mới</span>
+            <span class="material-symbols-outlined">{{ authService.isGiaoVien() ? 'post_add' : 'add_task' }}</span>
+            <span>{{ authService.isGiaoVien() ? '+ Đề xuất việc mới' : '+ Giao việc mới (RACI)' }}</span>
           </button>
         </div>
       </header>
@@ -1052,31 +1054,31 @@ import { TaskDetailModalComponent } from '../../shared/components/task-detail-mo
     `,
   ],
 })
-export class TasksComponent implements OnInit {
-  private taskService = inject(TaskService);
+export class TasksComponent implements OnInit, OnDestroy {
+  taskService = inject(TaskService);
+  userService = inject(UserService);
+  authService = inject(AuthService);
   private dashboardService = inject(DashboardService);
-  private userService = inject(UserService);
-  private authService = inject(AuthService);
   private contactCardService = inject(ContactCardService);
-  private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
-  @ViewChild('taskWizard') taskWizard?: TaskCreateWizardComponent;
+  @ViewChild('taskWizard') taskWizard!: TaskCreateWizardComponent;
 
-  isLoading = signal(false);
+  isLoading = signal(true);
   tasksList = signal<TaskItem[]>([]);
   totalTasks = signal(0);
 
-  // Tabs - Phù hợp chính xác Prompt 16
+  // Status Tabs Counter
   activeStatusTab = signal<string>('ALL');
   statusTabs = signal<StatusTabItem[]>([
-    { key: 'ALL', label: 'Tất cả', count: 0, icon: 'list_alt' },
-    { key: 'MOI', label: 'Mới', count: 0, icon: 'fiber_new' },
-    { key: 'DANG_THUC_HIEN', label: 'Đang thực hiện', count: 0, icon: 'play_arrow' },
-    { key: 'CHO_KIEM_TRA', label: 'Chờ kiểm tra', count: 0, icon: 'hourglass_empty' },
-    { key: 'CHO_PHE_DUYET', label: 'Chờ phê duyệt', count: 0, icon: 'verified' },
-    { key: 'BO_SUNG', label: 'Bổ sung', count: 0, icon: 'replay' },
-    { key: 'DONG', label: 'Đã đóng', count: 0, icon: 'lock' },
+    { key: 'ALL', label: 'Tất cả', count: 0 },
+    { key: 'MOI', label: 'Mới', count: 0 },
+    { key: 'DANG_THUC_HIEN', label: 'Đang thực hiện', count: 0 },
+    { key: 'CHO_KIEM_TRA', label: 'Chờ kiểm tra', count: 0 },
+    { key: 'CHO_PHE_DUYET', label: 'Chờ phê duyệt', count: 0 },
+    { key: 'BO_SUNG', label: 'Bổ sung', count: 0 },
+    { key: 'DONG', label: 'Đã đóng', count: 0 },
   ]);
 
   // Filters
@@ -1093,10 +1095,17 @@ export class TasksComponent implements OnInit {
   // Task Detail Modal State
   selectedTaskId = signal<string | null>(null);
 
+  private accountSub?: Subscription;
+
   ngOnInit() {
     this.loadFilterOptions();
     this.loadTasks();
     this.loadTabCounters();
+
+    // Subscribe to switchDemoAccount to reload data immediately
+    this.accountSub = this.authService.accountSwitched$.subscribe(() => {
+      this.loadTasks();
+    });
 
     // Check query params for direct task opening (e.g. ?taskId=...) or create wizard (?create=true)
     this.route.queryParams.subscribe((params) => {
@@ -1110,6 +1119,10 @@ export class TasksComponent implements OnInit {
         }, 150);
       }
     });
+  }
+
+  ngOnDestroy() {
+    this.accountSub?.unsubscribe();
   }
 
   private loadFilterOptions() {

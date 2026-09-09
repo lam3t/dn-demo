@@ -1,7 +1,8 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { TaskService } from '../../core/services/task.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ContactCardService } from '../../core/services/contact-card.service';
@@ -24,6 +25,29 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
   ],
   template: `
     <div class="my-tasks-page">
+      <!-- ROLE-TAILORED BANNER -->
+      @if (authService.currentUser(); as user) {
+        <div class="my-role-banner" [ngClass]="getRoleBannerClass()">
+          <div class="role-icon-box">
+            <span class="material-symbols-outlined">{{ getRoleBannerIcon() }}</span>
+          </div>
+          <div class="role-content">
+            <div class="role-badge-row">
+              <span class="role-tag-pill">{{ authService.activeRole()?.roleTitle || user.title }}</span>
+              <span class="scope-tag-pill">{{ authService.activeRole()?.scopeName }}</span>
+            </div>
+            <h2 class="role-heading">Nhiệm Vụ Cá Nhân & Trách Nhiệm Phân Công</h2>
+            <p class="role-guidance">{{ getRoleGuidance() }}</p>
+          </div>
+          @if (waitingConfirmCount() > 0 && (authService.isToTruong() || authService.isBGH())) {
+            <div class="alert-pending-badge tap-target" (click)="setGroup('WAITING_CONFIRM')">
+              <span class="material-symbols-outlined pulse-icon">notifications_active</span>
+              <span><strong>{{ waitingConfirmCount() }}</strong> việc đang chờ bạn nghiệm thu!</span>
+            </div>
+          }
+        </div>
+      }
+
       <!-- HEADER -->
       <div class="page-header">
         <div class="header-left">
@@ -261,16 +285,50 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
                   }
                 </div>
 
-                <!-- BUTTON CẬP NHẬT NHANH -->
-                <button
-                  type="button"
-                  class="quick-update-btn tap-target"
-                  (click)="openQuickUpdate(task, $event)"
-                  title="Cập nhật tiến độ & Minh chứng"
-                >
-                  <span class="material-symbols-outlined">edit_note</span>
-                  <span>Cập nhật nhanh</span>
-                </button>
+                <div class="card-footer-btns">
+                  <!-- NẾU LÀ NGƯỜI KIỂM TRA / BGH VÀ VIỆC ĐANG CHỜ KIỂM TRA -->
+                  @if (canInspect(task)) {
+                    <button
+                      type="button"
+                      class="btn-card-action btn-approve tap-target"
+                      (click)="quickApprove(task, $event)"
+                      title="Nghiệm thu đạt yêu cầu"
+                    >
+                      <span class="material-symbols-outlined">check_circle</span>
+                      <span>Duyệt đạt</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-card-action btn-reject tap-target"
+                      (click)="quickReject(task, $event)"
+                      title="Yêu cầu bổ sung"
+                    >
+                      <span class="material-symbols-outlined">replay</span>
+                      <span>Bổ sung</span>
+                    </button>
+                  } @else if (isMyLeading(task) && canSubmitForReview(task)) {
+                    <button
+                      type="button"
+                      class="quick-update-btn btn-highlight tap-target"
+                      (click)="openQuickUpdate(task, $event)"
+                      title="Cập nhật tiến độ & Gửi duyệt"
+                    >
+                      <span class="material-symbols-outlined">send</span>
+                      <span>Nộp kết quả</span>
+                    </button>
+                  } @else {
+                    <!-- BUTTON CẬP NHẬT NHANH -->
+                    <button
+                      type="button"
+                      class="quick-update-btn tap-target"
+                      (click)="openQuickUpdate(task, $event)"
+                      title="Cập nhật tiến độ & Minh chứng"
+                    >
+                      <span class="material-symbols-outlined">edit_note</span>
+                      <span>Cập nhật</span>
+                    </button>
+                  }
+                </div>
               </div>
             </div>
           }
@@ -1076,6 +1134,204 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
         }
       }
 
+      /* ROLE WORKSPACE BANNER */
+      .my-role-banner {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 18px;
+        border-radius: 14px;
+        border: 1.5px solid #E2E8F0;
+        background: #FFFFFF;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+        flex-wrap: wrap;
+
+        &.role-hieu-truong {
+          background: linear-gradient(135deg, #1F3864 0%, #152847 100%);
+          border-color: #3B5B91;
+          color: #FFFFFF;
+          .role-icon-box { background: rgba(255, 255, 255, 0.15); color: #FCD34D; }
+          .role-tag-pill { background: #FCD34D; color: #1E293B; }
+          .scope-tag-pill { background: rgba(255, 255, 255, 0.2); color: #E2E8F0; }
+          .role-heading { color: #FFFFFF; }
+          .role-guidance { color: #CBD5E1; }
+        }
+
+        &.role-pht {
+          background: linear-gradient(135deg, #2E5EAA 0%, #1F3864 100%);
+          border-color: #60A5FA;
+          color: #FFFFFF;
+          .role-icon-box { background: rgba(255, 255, 255, 0.18); color: #93C5FD; }
+          .role-tag-pill { background: #93C5FD; color: #1E293B; }
+          .scope-tag-pill { background: rgba(255, 255, 255, 0.2); color: #E2E8F0; }
+          .role-heading { color: #FFFFFF; }
+          .role-guidance { color: #E2E8F0; }
+        }
+
+        &.role-to-truong {
+          background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+          border-color: #FCD34D;
+          color: #78350F;
+          .role-icon-box { background: #F59E0B; color: #FFFFFF; }
+          .role-tag-pill { background: #D97706; color: #FFFFFF; }
+          .scope-tag-pill { background: #FDE68A; color: #92400E; }
+          .role-heading { color: #78350F; }
+          .role-guidance { color: #92400E; }
+        }
+
+        &.role-giao-vien {
+          background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
+          border-color: #86EFAC;
+          color: #14532D;
+          .role-icon-box { background: #10B981; color: #FFFFFF; }
+          .role-tag-pill { background: #059669; color: #FFFFFF; }
+          .scope-tag-pill { background: #BBF7D0; color: #166534; }
+          .role-heading { color: #14532D; }
+          .role-guidance { color: #166534; }
+        }
+
+        .role-icon-box {
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+
+          .material-symbols-outlined {
+            font-size: 24px;
+          }
+        }
+
+        .role-content {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+
+          .role-badge-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+
+            .role-tag-pill {
+              font-size: 0.72rem;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.4px;
+              padding: 2px 8px;
+              border-radius: 9999px;
+            }
+
+            .scope-tag-pill {
+              font-size: 0.72rem;
+              font-weight: 600;
+              padding: 2px 8px;
+              border-radius: 9999px;
+            }
+          }
+
+          .role-heading {
+            font-size: 1.05rem;
+            font-weight: 800;
+            margin: 0;
+          }
+
+          .role-guidance {
+            font-size: 0.82rem;
+            margin: 0;
+            line-height: 1.4;
+          }
+        }
+
+        .alert-pending-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: #DC2626;
+          color: #FFFFFF;
+          padding: 8px 14px;
+          border-radius: 10px;
+          font-size: 0.8rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+
+          &:hover {
+            background: #B91C1C;
+            transform: scale(1.02);
+          }
+
+          .pulse-icon {
+            font-size: 18px;
+            animation: pulse-ring 1.5s infinite;
+          }
+        }
+      }
+
+      .card-footer-btns {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+
+        .btn-card-action {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 6px 12px;
+          border-radius: 8px;
+          font-size: 0.78rem;
+          font-weight: 700;
+          border: none;
+          cursor: pointer;
+          transition: all 0.15s ease;
+
+          .material-symbols-outlined {
+            font-size: 16px;
+          }
+
+          &.btn-approve {
+            background: #DCFCE7;
+            color: #15803D;
+            border: 1px solid #86EFAC;
+
+            &:hover {
+              background: #16A34A;
+              color: #FFFFFF;
+            }
+          }
+
+          &.btn-reject {
+            background: #FFEDD5;
+            color: #C2410C;
+            border: 1px solid #FDBA74;
+
+            &:hover {
+              background: #EA580C;
+              color: #FFFFFF;
+            }
+          }
+        }
+
+        .btn-highlight {
+          background: #1F3864 !important;
+          color: #FFFFFF !important;
+          border-color: #1F3864 !important;
+
+          &:hover {
+            background: #152847 !important;
+          }
+        }
+      }
+
+      @keyframes pulse-ring {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+      }
+
       @keyframes scaleUp {
         from { opacity: 0; transform: scale(0.96); }
         to { opacity: 1; transform: scale(1); }
@@ -1088,9 +1344,9 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
     `,
   ],
 })
-export class MyTasksComponent implements OnInit {
-  private taskService = inject(TaskService);
-  private authService = inject(AuthService);
+export class MyTasksComponent implements OnInit, OnDestroy {
+  taskService = inject(TaskService);
+  authService = inject(AuthService);
   private contactCardService = inject(ContactCardService);
   private router = inject(Router);
 
@@ -1107,6 +1363,8 @@ export class MyTasksComponent implements OnInit {
   updateProgressVal = 0;
   updateNote = '';
   quickUpdateError = signal<string | null>(null);
+
+  private accountSub?: Subscription;
 
   totalCount = computed(() => this.allTasks().length);
 
@@ -1141,10 +1399,13 @@ export class MyTasksComponent implements OnInit {
     const currentUserId = this.authService.currentUser()?.id;
     return this.allTasks().filter((t) => {
       if (t.status === 'CHO_KIEM_TRA') {
-        return t.assignments.some(
-          (a) =>
-            a.userId === currentUserId &&
-            (a.role === 'KIEM_TRA' || a.role === 'PHE_DUYET')
+        return (
+          this.authService.isBGH() ||
+          t.assignments.some(
+            (a) =>
+              a.userId === currentUserId &&
+              (a.role === 'KIEM_TRA' || a.role === 'PHE_DUYET')
+          )
         );
       }
       if (t.status === 'BO_SUNG') {
@@ -1184,10 +1445,13 @@ export class MyTasksComponent implements OnInit {
     } else if (grp === 'WAITING_CONFIRM') {
       list = list.filter((t) => {
         if (t.status === 'CHO_KIEM_TRA') {
-          return t.assignments.some(
-            (a) =>
-              a.userId === currentUserId &&
-              (a.role === 'KIEM_TRA' || a.role === 'PHE_DUYET')
+          return (
+            this.authService.isBGH() ||
+            t.assignments.some(
+              (a) =>
+                a.userId === currentUserId &&
+                (a.role === 'KIEM_TRA' || a.role === 'PHE_DUYET')
+            )
           );
         }
         if (t.status === 'BO_SUNG') {
@@ -1215,6 +1479,42 @@ export class MyTasksComponent implements OnInit {
 
   ngOnInit() {
     this.loadMyTasks();
+
+    // Subscribe to switchDemoAccount to reload personal tasks immediately
+    this.accountSub = this.authService.accountSwitched$.subscribe(() => {
+      this.loadMyTasks();
+    });
+  }
+
+  ngOnDestroy() {
+    this.accountSub?.unsubscribe();
+  }
+
+  getRoleBannerClass(): string {
+    if (this.authService.isHieuTruong()) return 'role-hieu-truong';
+    if (this.authService.isPHT()) return 'role-pht';
+    if (this.authService.isToTruong()) return 'role-to-truong';
+    return 'role-giao-vien';
+  }
+
+  getRoleBannerIcon(): string {
+    if (this.authService.isHieuTruong()) return 'stars';
+    if (this.authService.isPHT()) return 'shield_person';
+    if (this.authService.isToTruong()) return 'supervisor_account';
+    return 'assignment_ind';
+  }
+
+  getRoleGuidance(): string {
+    if (this.authService.isHieuTruong()) {
+      return 'Nhiệm vụ trực tiếp chỉ đạo, giám sát các tổ chuyên môn và duyệt đóng các mốc kế hoạch quan trọng.';
+    }
+    if (this.authService.isPHT()) {
+      return 'Theo dõi & chỉ đạo các công việc trọng tâm tại Phân hiệu 1 Tân Lập và công việc phối hợp liên trường.';
+    }
+    if (this.authService.isToTruong()) {
+      return 'Quản lý tiến độ tổ Toán - Tin. Kiểm tra & Nghiệm thu đạt yêu cầu cho các công việc giáo viên đã hoàn tất nộp minh chứng.';
+    }
+    return 'Cập nhật tiến độ % thực hiện, kéo thanh trượt, đính kèm hình ảnh/tệp minh chứng và gửi kiểm tra duyệt.';
   }
 
   loadMyTasks() {
@@ -1223,6 +1523,13 @@ export class MyTasksComponent implements OnInit {
       next: (res) => {
         this.isLoading.set(false);
         this.allTasks.set(res.items);
+
+        // If ToTruong or BGH has waiting tasks, default to WAITING_CONFIRM group
+        if ((this.authService.isToTruong() || this.authService.isBGH()) && this.waitingConfirmCount() > 0) {
+          this.activeGroup.set('WAITING_CONFIRM');
+        } else {
+          this.activeGroup.set('ALL');
+        }
       },
       error: () => {
         this.isLoading.set(false);
@@ -1241,6 +1548,49 @@ export class MyTasksComponent implements OnInit {
   }
 
   onFilterChange() {}
+
+  isMyLeading(task: TaskItem): boolean {
+    const currentUserId = this.authService.currentUser()?.id;
+    return task.assignments.some((a) => a.userId === currentUserId && a.role === 'CHU_TRI');
+  }
+
+  canInspect(task: TaskItem): boolean {
+    if (task.status !== 'CHO_KIEM_TRA') return false;
+    const currentUserId = this.authService.currentUser()?.id;
+    if (this.authService.isBGH()) return true;
+    return task.assignments.some(
+      (a) => a.userId === currentUserId && (a.role === 'KIEM_TRA' || a.role === 'PHE_DUYET')
+    );
+  }
+
+  quickApprove(task: TaskItem, event: MouseEvent) {
+    event.stopPropagation();
+    if (!confirm(`Xác nhận nghiệm thu ĐẠT cho công việc "${task.title}"?`)) return;
+
+    this.taskService.updateStatus(task.id, 'HOAN_THANH', 'Nghiệm thu đạt yêu cầu qua nút duyệt nhanh').subscribe({
+      next: () => {
+        this.loadMyTasks();
+      },
+      error: (err) => {
+        alert(err.error?.message || 'Không thể nghiệm thu công việc.');
+      },
+    });
+  }
+
+  quickReject(task: TaskItem, event: MouseEvent) {
+    event.stopPropagation();
+    const reason = prompt(`Nhập yêu cầu bổ sung cho công việc "${task.title}":`, 'Cần bổ sung thêm ảnh minh chứng rõ nét hơn');
+    if (reason === null || !reason.trim()) return;
+
+    this.taskService.updateStatus(task.id, 'BO_SUNG', reason.trim()).subscribe({
+      next: () => {
+        this.loadMyTasks();
+      },
+      error: (err) => {
+        alert(err.error?.message || 'Không thể chuyển trạng thái.');
+      },
+    });
+  }
 
   getMyRoleName(task: TaskItem): string {
     const currentUserId = this.authService.currentUser()?.id;
