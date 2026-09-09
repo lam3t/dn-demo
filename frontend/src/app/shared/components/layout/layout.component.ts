@@ -127,8 +127,8 @@ import { UserPickerItem } from '../../../core/models/user.models';
 
       <!-- 2. MAIN CONTENT AREA -->
       <div class="main-wrapper">
-        <!-- TOP HEADER: CLEAN BRAND TITLE & QUICK ROLE SWITCHER -->
-        <header class="top-nav-bar">
+        <!-- TOP HEADER: CLEAN BRAND TITLE & QUICK ROLE SWITCHER (DESKTOP) -->
+        <header class="top-nav-bar hide-on-mobile">
           <div class="nav-bar-left">
             <div class="header-brand-title hide-on-mobile">
               <span class="material-symbols-outlined brand-star-icon">school</span>
