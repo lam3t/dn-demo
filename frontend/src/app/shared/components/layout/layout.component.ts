@@ -742,86 +742,103 @@ import { UserPickerItem } from '../../../core/models/user.models';
       }
 
       /* TOP HEADER WITH TABS & QUICK ROLE SWITCHER */
+      /* TOP HEADER WITH QUICK ROLE SWITCHER (DESKTOP) */
       .top-nav-bar {
         background: #FFFFFF;
         border-bottom: 1px solid #E2E8F0;
-        padding: 0 1.25rem;
-        height: 56px;
+        padding: 0 1rem;
+        height: 54px;
+        min-height: 54px;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 1rem;
+        gap: 0.75rem;
         z-index: 50;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+        overflow-x: auto;
+        scrollbar-width: none;
+        &::-webkit-scrollbar { display: none; }
 
         .nav-bar-left {
           display: flex;
           align-items: center;
           height: 100%;
+          flex-shrink: 0;
+          white-space: nowrap;
         }
 
         .header-brand-title {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
+          white-space: nowrap;
 
           .brand-star-icon {
-            font-size: 20px;
+            font-size: 18px;
             color: #1E40AF;
+            flex-shrink: 0;
           }
 
           .brand-school {
-            font-size: 0.95rem;
+            font-size: 0.88rem;
             font-weight: 800;
             color: #0F172A;
             letter-spacing: -0.01em;
+            white-space: nowrap;
           }
 
           .brand-scale-badge {
-            font-size: 0.72rem;
+            font-size: 0.68rem;
             font-weight: 700;
             background: #EEF2FF;
             color: #3730A3;
             border: 1px solid #C7D2FE;
-            padding: 2px 8px;
+            padding: 2px 7px;
             border-radius: 999px;
+            white-space: nowrap;
           }
         }
 
         .nav-bar-right {
           display: flex;
           align-items: center;
-          gap: 1.25rem;
+          gap: 0.75rem;
+          flex-shrink: 0;
+          white-space: nowrap;
         }
 
         .demo-buttons-container {
           display: flex;
           align-items: center;
-          gap: 0.5rem;
+          gap: 0.35rem;
+          flex-shrink: 0;
+          white-space: nowrap;
 
           .demo-bar-label {
-            font-size: 0.75rem;
-            font-weight: 600;
+            font-size: 0.72rem;
+            font-weight: 700;
             color: #64748B;
+            white-space: nowrap;
           }
 
           .demo-buttons-row {
             display: flex;
             align-items: center;
-            gap: 0.35rem;
+            gap: 0.3rem;
             flex-wrap: nowrap;
+            flex-shrink: 0;
           }
         }
 
         .demo-role-btn {
           display: inline-flex;
           align-items: center;
-          gap: 5px;
-          padding: 5px 8px;
+          gap: 4px;
+          padding: 4px 7px;
           border-radius: 6px;
           border: 1px solid #E2E8F0;
           background: #FFFFFF;
-          font-size: 0.74rem;
+          font-size: 0.72rem;
           font-weight: 600;
           color: #475569;
           cursor: pointer;
@@ -831,7 +848,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
           line-height: 1;
 
           .btn-icon {
-            font-size: 15px;
+            font-size: 14px;
             flex-shrink: 0;
           }
           .btn-name {
@@ -839,10 +856,10 @@ import { UserPickerItem } from '../../../core/models/user.models';
             white-space: nowrap;
           }
           .btn-role-tag {
-            font-size: 0.65rem;
+            font-size: 0.62rem;
             background: #F1F5F9;
             color: #64748B;
-            padding: 2px 5px;
+            padding: 2px 4px;
             border-radius: 4px;
             white-space: nowrap;
             line-height: 1.1;
@@ -867,16 +884,19 @@ import { UserPickerItem } from '../../../core/models/user.models';
         .header-user-controls {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
+          gap: 0.5rem;
+          flex-shrink: 0;
+          white-space: nowrap;
         }
 
         .lang-pill {
-          font-size: 0.75rem;
+          font-size: 0.72rem;
           font-weight: 700;
           color: #475569;
-          padding: 2px 6px;
+          padding: 2px 5px;
           border-radius: 4px;
           background: #F1F5F9;
+          white-space: nowrap;
         }
 
         .notif-bell-btn {
@@ -887,6 +907,8 @@ import { UserPickerItem } from '../../../core/models/user.models';
           align-items: center;
           padding: 4px;
           border-radius: 6px;
+          white-space: nowrap;
+          flex-shrink: 0;
 
           &:hover {
             color: #0F172A;
@@ -909,26 +931,29 @@ import { UserPickerItem } from '../../../core/models/user.models';
         .header-profile-pill {
           display: flex;
           align-items: center;
-          gap: 8px;
-          padding: 3px 8px 3px 4px;
+          gap: 6px;
+          padding: 2px 7px 2px 3px;
           border-radius: 999px;
           background: #F8FAFC;
           border: 1px solid #E2E8F0;
           cursor: pointer;
           transition: background 0.15s;
+          white-space: nowrap;
+          flex-shrink: 0;
 
           &:hover {
             background: #F1F5F9;
           }
 
           .avatar-ring {
-            width: 26px;
-            height: 26px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
             overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0;
           }
 
           .header-avatar {
@@ -941,18 +966,41 @@ import { UserPickerItem } from '../../../core/models/user.models';
             display: flex;
             flex-direction: column;
             line-height: 1.1;
+            max-width: 110px;
+            overflow: hidden;
 
             .header-user-name {
-              font-size: 0.78rem;
+              font-size: 0.75rem;
               font-weight: 700;
               color: #0F172A;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
             }
 
             .header-user-role {
-              font-size: 0.68rem;
+              font-size: 0.65rem;
               color: #64748B;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
             }
           }
+        }
+      }
+
+      @media (max-width: 1440px) {
+        .brand-scale-badge {
+          display: none !important;
+        }
+        .demo-bar-label {
+          display: none !important;
+        }
+      }
+
+      @media (max-width: 1220px) {
+        .demo-role-btn .btn-role-tag {
+          display: none !important;
         }
       }
 
