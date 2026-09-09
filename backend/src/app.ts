@@ -10,6 +10,7 @@ import planRoutes from './modules/plans/plan.routes';
 import taskRoutes from './modules/tasks/task.routes';
 import attachmentRoutes from './modules/attachments/attachment.routes';
 import notificationRoutes from './modules/notifications/notification.routes';
+import adminRoutes from './modules/admin/admin.routes';
 import dashboardRoutes from './modules/dashboard/dashboard.routes';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
 
@@ -42,6 +43,7 @@ app.use('/uploads', express.static(uploadsPath));
 // API Routes
 app.use('/api', healthRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/org', orgUnitRoutes);
 app.use('/api/users', userRoutes);

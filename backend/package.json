@@ -17,7 +17,8 @@
     "test:plans": "ts-node src/modules/plans/plans.test.ts",
     "test:tasks": "ts-node src/modules/tasks/tasks.test.ts",
     "test:dashboard": "ts-node src/modules/dashboard/dashboard.test.ts",
-    "test:all": "npm run test:auth && npm run test:users && npm run test:plans && npm run test:tasks && npm run test:dashboard"
+    "test:admin": "ts-node src/modules/admin/admin.test.ts",
+    "test:all": "npm run test:auth && npm run test:users && npm run test:plans && npm run test:tasks && npm run test:dashboard && npm run test:admin"
   },
   "keywords": [
     "education",
