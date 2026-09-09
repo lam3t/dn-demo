@@ -70,6 +70,13 @@ import { UserPickerItem } from '../../../core/models/user.models';
               <span class="sidebar-unread-badge">{{ notifService.unreadCount() }}</span>
             }
           </a>
+
+          @if (authService.isHieuTruong()) {
+            <a routerLink="/admin-settings" routerLinkActive="active" class="nav-link admin-link">
+              <span class="material-symbols-outlined nav-icon">admin_panel_settings</span>
+              <span class="nav-text">Cấu hình hệ thống</span>
+            </a>
+          }
         </nav>
 
         <!-- Quick Create Task Action in Sidebar -->
@@ -141,6 +148,11 @@ import { UserPickerItem } from '../../../core/models/user.models';
           </div>
 
           <div class="mobile-actions">
+            @if (authService.isHieuTruong()) {
+              <a routerLink="/admin-settings" class="mobile-icon-btn admin-mobile-btn" title="Cấu hình hệ thống">
+                <span class="material-symbols-outlined">admin_panel_settings</span>
+              </a>
+            }
             <a routerLink="/notifications" class="mobile-icon-btn" title="Thông báo">
               <span class="material-symbols-outlined">notifications</span>
               @if (notifService.unreadCount() > 0) {

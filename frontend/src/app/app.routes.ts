@@ -54,6 +54,15 @@ export const routes: Routes = [
           import('./features/notifications/notifications.component').then((m) => m.NotificationsComponent),
       },
       {
+        path: 'admin-settings',
+        canActivate: [authGuard],
+        data: { roles: ['ADMIN', 'HIEU_TRUONG'] },
+        loadComponent: () =>
+          import('./features/admin-settings/admin-settings.component').then(
+            (m) => m.AdminSettingsComponent
+          ),
+      },
+      {
         path: 'dev/people-picker',
         loadComponent: () =>
           import('./features/dev/people-picker-demo.component').then((m) => m.PeoplePickerDemoComponent),
