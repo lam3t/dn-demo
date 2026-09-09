@@ -80,9 +80,16 @@ import { UserPickerItem } from '../../../core/models/user.models';
           </a>
 
           @if (authService.isHieuTruong()) {
-            <a routerLink="/admin-settings" routerLinkActive="active" class="nav-link admin-link">
+            <a routerLink="/admin-settings" routerLinkActive="active" class="nav-link admin-link" title="Cấu hình hệ thống (Prompt 18B)">
+              <span class="material-symbols-outlined nav-icon admin-icon">admin_panel_settings</span>
+              <span class="nav-text">Cấu hình hệ thống</span>
+              <span class="sidebar-admin-badge">Admin</span>
+            </a>
+          } @else {
+            <a (click)="switchAndGoToAdmin()" class="nav-link admin-link locked-role-nav" title="Dành cho Hiệu trưởng / Quản trị. Bấm để chuyển nhanh sang Cô Phạm Thị Nam">
               <span class="material-symbols-outlined nav-icon">admin_panel_settings</span>
-              <span class="nav-text">Quản trị hệ thống</span>
+              <span class="nav-text">Cấu hình hệ thống</span>
+              <span class="sidebar-lock-tag">Hiệu trưởng</span>
             </a>
           }
         </nav>
@@ -120,23 +127,13 @@ import { UserPickerItem } from '../../../core/models/user.models';
 
       <!-- 2. MAIN CONTENT AREA -->
       <div class="main-wrapper">
-        <!-- TOP HEADER WITH TABS & QUICK ROLE SWITCHER -->
+        <!-- TOP HEADER: CLEAN BRAND TITLE & QUICK ROLE SWITCHER -->
         <header class="top-nav-bar">
           <div class="nav-bar-left">
-            <!-- Top Navigation Tabs (matching sample image) -->
-            <div class="top-tabs-menu hide-on-mobile">
-              <a routerLink="/dashboard" routerLinkActive="tab-active" class="top-tab-item">
-                <span class="tab-title">DASHBOARD</span>
-              </a>
-              <a routerLink="/tasks" routerLinkActive="tab-active" class="top-tab-item">
-                <span class="tab-title">DANH SÁCH</span>
-              </a>
-              <a routerLink="/plans" routerLinkActive="tab-active" class="top-tab-item">
-                <span class="tab-title">KẾ HOẠCH</span>
-              </a>
-              <a routerLink="/school-info" routerLinkActive="tab-active" class="top-tab-item">
-                <span class="tab-title">QUY MÔ & BÁO CÁO</span>
-              </a>
+            <div class="header-brand-title hide-on-mobile">
+              <span class="material-symbols-outlined brand-star-icon">school</span>
+              <span class="brand-school">Trường THCS Phước Tân</span>
+              <span class="brand-scale-badge">122 Lớp • 5.669 Học sinh</span>
             </div>
           </div>
 
@@ -453,6 +450,39 @@ import { UserPickerItem } from '../../../core/models/user.models';
           padding: 1px 6px;
           border-radius: 999px;
         }
+
+        .sidebar-admin-badge {
+          margin-left: auto;
+          background: #EEF2FF;
+          color: #3730A3;
+          border: 1px solid #C7D2FE;
+          font-size: 0.68rem;
+          font-weight: 700;
+          padding: 1px 6px;
+          border-radius: 4px;
+        }
+
+        .sidebar-lock-tag {
+          margin-left: auto;
+          background: #F1F5F9;
+          color: #64748B;
+          font-size: 0.65rem;
+          font-weight: 600;
+          padding: 1px 5px;
+          border-radius: 4px;
+        }
+
+        .locked-role-nav {
+          cursor: pointer;
+          opacity: 0.85;
+
+          &:hover {
+            opacity: 1;
+            background: #FEF3C7;
+            color: #92400E;
+            .nav-icon { color: #D97706; }
+          }
+        }
       }
 
       .sidebar-action {
@@ -585,32 +615,31 @@ import { UserPickerItem } from '../../../core/models/user.models';
           height: 100%;
         }
 
-        .top-tabs-menu {
+        .header-brand-title {
           display: flex;
-          height: 100%;
-          gap: 1.5rem;
+          align-items: center;
+          gap: 8px;
 
-          .top-tab-item {
-            display: flex;
-            align-items: center;
-            height: 100%;
-            padding: 0 0.25rem;
-            color: #64748B;
-            text-decoration: none;
-            font-size: 0.82rem;
+          .brand-star-icon {
+            font-size: 20px;
+            color: #1E40AF;
+          }
+
+          .brand-school {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #0F172A;
+            letter-spacing: -0.01em;
+          }
+
+          .brand-scale-badge {
+            font-size: 0.72rem;
             font-weight: 700;
-            letter-spacing: 0.04em;
-            border-bottom: 3px solid transparent;
-            transition: all 0.2s ease;
-
-            &:hover {
-              color: #1E40AF;
-            }
-
-            &.tab-active {
-              color: #2563EB;
-              border-bottom-color: #2563EB;
-            }
+            background: #EEF2FF;
+            color: #3730A3;
+            border: 1px solid #C7D2FE;
+            padding: 2px 8px;
+            border-radius: 999px;
           }
         }
 
@@ -921,6 +950,17 @@ export class LayoutComponent implements OnInit, OnDestroy {
 
   switchAccount(account: DemoAccountInfo): void {
     this.authService.switchDemoAccount(account.identifier).subscribe({ error: () => {} });
+  }
+
+  switchAndGoToAdmin(): void {
+    const hieuTruongAcc = this.authService.demoAccounts.find((a) => a.role === 'HIEU_TRUONG');
+    if (hieuTruongAcc) {
+      this.authService.switchDemoAccount(hieuTruongAcc.identifier).subscribe({
+        next: () => {
+          this.router.navigate(['/admin-settings']);
+        },
+      });
+    }
   }
 
   isCurrentAccount(identifier: string): boolean {

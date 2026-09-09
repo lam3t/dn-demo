@@ -33,6 +33,20 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc';
           <h1 class="page-title">Cấu hình & Quản lý Phân quyền</h1>
           <p class="page-subtitle">Quản lý danh sách tài khoản, gán quyền & phạm vi, cơ sở điểm trường và nhân sự trực thuộc.</p>
         </div>
+
+        @if (!authService.isHieuTruong()) {
+          <div class="role-warning-banner">
+            <span class="material-symbols-outlined warn-icon">info</span>
+            <div class="warn-content">
+              <span class="warn-title">Bạn đang truy cập với vai trò: <strong>{{ authService.activeRole()?.roleTitle || 'Cán bộ' }}</strong></span>
+              <span class="warn-desc">Phân hệ Quản trị & Cấu hình hệ thống yêu cầu quyền Quản trị hoặc Hiệu trưởng.</span>
+            </div>
+            <button type="button" class="btn-switch-principal tap-target" (click)="switchToPrincipalAccount()">
+              <span class="material-symbols-outlined">stars</span>
+              <span>Chuyển sang Cô Phạm Thị Nam (Hiệu trưởng)</span>
+            </button>
+          </div>
+        }
       </div>
 
       <!-- 4 NAVIGATION TABS -->
@@ -1215,6 +1229,59 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc';
           font-size: 0.92rem;
           color: #64748B;
           margin: 0;
+        }
+
+        .role-warning-banner {
+          margin-top: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          background: #FFFBEB;
+          border: 1px solid #FDE68A;
+          padding: 12px 16px;
+          border-radius: 10px;
+
+          .warn-icon {
+            font-size: 22px;
+            color: #D97706;
+          }
+
+          .warn-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+
+            .warn-title {
+              font-size: 0.88rem;
+              color: #92400E;
+              strong { font-weight: 700; color: #78350F; }
+            }
+            .warn-desc {
+              font-size: 0.78rem;
+              color: #B45309;
+            }
+          }
+
+          .btn-switch-principal {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: #1F3864;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.15s;
+
+            &:hover {
+              background: #16294A;
+            }
+          }
         }
       }
 
@@ -2831,6 +2898,29 @@ export class AdminSettingsComponent implements OnInit {
     this.loadCommonMetadata();
     this.loadUsers();
     this.loadLocationsSummary();
+
+    // Auto-reload data when user switches active account via top bar
+    this.authService.accountSwitched$.subscribe(() => {
+      this.loadCommonMetadata();
+      this.loadUsers();
+      this.loadLocationsSummary();
+      if (this.activeTab() === 'roles') {
+        this.loadPermissionsMatrix();
+      } else if (this.activeTab() === 'teachers-by-loc') {
+        this.loadCampusTeachers();
+      }
+    });
+  }
+
+  switchToPrincipalAccount() {
+    const principal = this.authService.demoAccounts.find((a) => a.role === 'HIEU_TRUONG');
+    if (principal) {
+      this.authService.switchDemoAccount(principal.identifier).subscribe({
+        next: () => {
+          this.showAlert('Đã chuyển sang vai trò Cô Phạm Thị Nam (Hiệu trưởng).');
+        },
+      });
+    }
   }
 
   switchTab(tab: AdminTab) {
