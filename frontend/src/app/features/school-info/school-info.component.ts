@@ -15,7 +15,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       <div class="page-header">
         <div class="header-left">
           <div class="breadcrumb">
-            <span class="icon">school</span>
+            <span class="material-symbols-outlined icon-breadcrumb">school</span>
             <span>Hồ sơ & Quy mô Nhà trường</span>
             <span class="separator">/</span>
             <span class="active">Năm học 2026 - 2027</span>
@@ -33,11 +33,11 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
 
         <div class="header-actions">
           <button *ngIf="canEdit()" (click)="openEditModal()" class="btn-primary">
-            <span class="icon">edit_note</span>
+            <span class="material-symbols-outlined btn-icon">edit_note</span>
             <span>Cập nhật thông tin</span>
           </button>
           <button (click)="loadSchoolData()" class="btn-secondary" title="Làm mới dữ liệu">
-            <span class="icon" [class.spinning]="loading()">refresh</span>
+            <span class="material-symbols-outlined btn-icon" [class.spinning]="loading()">refresh</span>
             <span>Làm mới</span>
           </button>
         </div>
@@ -54,7 +54,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
         <div class="stats-grid">
           <div class="stat-card blue">
             <div class="stat-icon-wrapper">
-              <span class="icon">groups</span>
+              <span class="material-symbols-outlined card-icon">groups</span>
             </div>
             <div class="stat-info">
               <span class="stat-label">Tổng số Học sinh</span>
@@ -64,7 +64,8 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
               </div>
               <div class="stat-sub">
                 <span class="badge female-badge">
-                  <span class="icon">female</span> {{ school()?.totalFemaleStudents | number }} Nữ ({{ getFemalePercent() }}%)
+                  <span class="material-symbols-outlined mini-icon">female</span>
+                  {{ school()?.totalFemaleStudents | number }} Nữ ({{ getFemalePercent() }}%)
                 </span>
                 <span class="avg-badge">~46.5 HS/lớp</span>
               </div>
@@ -73,7 +74,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
 
           <div class="stat-card green">
             <div class="stat-icon-wrapper">
-              <span class="icon">class</span>
+              <span class="material-symbols-outlined card-icon">class</span>
             </div>
             <div class="stat-info">
               <span class="stat-label">Tổng số Lớp học</span>
@@ -89,7 +90,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
 
           <div class="stat-card purple">
             <div class="stat-icon-wrapper">
-              <span class="icon">badge</span>
+              <span class="material-symbols-outlined card-icon">badge</span>
             </div>
             <div class="stat-info">
               <span class="stat-label">Cán bộ • Giáo viên • NV</span>
@@ -105,7 +106,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
 
           <div class="stat-card amber">
             <div class="stat-icon-wrapper">
-              <span class="icon">domain</span>
+              <span class="material-symbols-outlined card-icon">domain</span>
             </div>
             <div class="stat-info">
               <span class="stat-label">Điểm trường / Phân hiệu</span>
@@ -123,7 +124,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
         <!-- 3 Campus Cards Section -->
         <div class="section-title-row">
           <h2 class="section-title">
-            <span class="icon">apartment</span>
+            <span class="material-symbols-outlined title-icon">apartment</span>
             Quy mô & Cơ sở vật chất 3 Điểm trường (Năm học 2026-2027)
           </h2>
           <span class="section-desc">Nguyên tắc một kế hoạch giáo dục - một chuẩn kiểm tra đánh giá - dữ liệu dùng chung</span>
@@ -163,11 +164,11 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
 
               <div class="loc-info-list">
                 <div class="info-row">
-                  <span class="icon">location_on</span>
+                  <span class="material-symbols-outlined row-icon">location_on</span>
                   <span class="text">{{ loc.address || 'Phường Phước Tân, TP. Biên Hòa' }}</span>
                 </div>
                 <div class="info-row">
-                  <span class="icon">call</span>
+                  <span class="material-symbols-outlined row-icon">call</span>
                   <a [href]="'tel:' + loc.phone" class="phone-link">{{ loc.phone }}</a>
                   <span class="direct-call-badge">Liên hệ trực tiếp</span>
                 </div>
@@ -191,7 +192,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
           <div class="card-header">
             <div>
               <h3 class="card-title">
-                <span class="icon">table_chart</span>
+                <span class="material-symbols-outlined title-icon">table_chart</span>
                 Ma trận Sĩ số & Phân bố Lớp học theo từng Khối (Khối 6 - 9)
               </h3>
               <p class="card-subtitle">
@@ -279,7 +280,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
         <div class="legal-info-grid">
           <div class="legal-card">
             <h4 class="legal-title">
-              <span class="icon">verified_user</span>
+              <span class="material-symbols-outlined title-icon text-blue">verified_user</span>
               Ban Giám hiệu & Quản trị Nhà trường
             </h4>
             <ul class="legal-list">
@@ -300,7 +301,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
 
           <div class="legal-card">
             <h4 class="legal-title">
-              <span class="icon">description</span>
+              <span class="material-symbols-outlined title-icon text-blue">description</span>
               Căn cứ Pháp lý & Kế hoạch Thực hiện
             </h4>
             <ul class="legal-list">
@@ -323,14 +324,14 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
         <div class="modal-card" (click)="$event.stopPropagation()">
           <div class="modal-header">
             <div class="modal-title-group">
-              <span class="icon modal-icon">edit_square</span>
+              <span class="material-symbols-outlined modal-icon">edit_square</span>
               <div>
                 <h3 class="modal-title">Cập nhật Thông tin & Quy mô Trường học</h3>
                 <p class="modal-subtitle">Dữ liệu được đồng bộ trực tiếp vào hệ thống quản lý điều hành</p>
               </div>
             </div>
             <button class="close-btn" (click)="closeEditModal()">
-              <span class="icon">close</span>
+              <span class="material-symbols-outlined">close</span>
             </button>
           </div>
 
@@ -407,8 +408,8 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
             <div class="modal-footer">
               <button type="button" (click)="closeEditModal()" class="btn-cancel">Hủy</button>
               <button type="submit" [disabled]="editForm.invalid || saving()" class="btn-save">
-                <span class="icon" *ngIf="!saving()">save</span>
-                <span class="icon spinning" *ngIf="saving()">progress_activity</span>
+                <span class="material-symbols-outlined btn-icon" *ngIf="!saving()">save</span>
+                <span class="material-symbols-outlined btn-icon spinning" *ngIf="saving()">progress_activity</span>
                 <span>{{ saving() ? 'Đang lưu...' : 'Lưu thay đổi' }}</span>
               </button>
             </div>
@@ -422,7 +423,8 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       display: block;
       padding: 1.5rem;
       background: #F8FAFC;
-      min-height: calc(100vh - 64px);
+      min-height: calc(100vh - 56px);
+      font-family: inherit;
     }
 
     .school-info-container {
@@ -448,8 +450,8 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       margin-bottom: 0.5rem;
     }
 
-    .breadcrumb .icon {
-      font-size: 1.1rem;
+    .icon-breadcrumb {
+      font-size: 1.15rem;
       color: #1F3864;
     }
 
@@ -547,6 +549,10 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       border-color: #94A3B8;
     }
 
+    .btn-icon {
+      font-size: 18px;
+    }
+
     .spinning {
       animation: spin 1s linear infinite;
     }
@@ -567,9 +573,9 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       border-radius: 12px;
       padding: 1.25rem;
       display: flex;
-      gap: 1rem;
+      gap: 1.25rem;
       align-items: center;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
       border: 1px solid #E2E8F0;
       position: relative;
       overflow: hidden;
@@ -591,6 +597,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
     .stat-icon-wrapper {
       width: 52px;
       height: 52px;
+      min-width: 52px;
       border-radius: 12px;
       display: flex;
       align-items: center;
@@ -602,19 +609,20 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
     .stat-card.purple .stat-icon-wrapper { background: #FAF5FF; color: #7C3AED; }
     .stat-card.amber .stat-icon-wrapper { background: #FFFBEB; color: #D97706; }
 
-    .stat-icon-wrapper .icon {
-      font-size: 1.75rem;
+    .card-icon {
+      font-size: 28px;
     }
 
     .stat-info {
       flex: 1;
+      min-width: 0;
     }
 
     .stat-label {
-      font-size: 0.8rem;
-      font-weight: 600;
+      font-size: 0.78rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.04em;
       color: #64748B;
       display: block;
       margin-bottom: 0.25rem;
@@ -622,7 +630,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
 
     .stat-value {
       font-size: 1.75rem;
-      font-weight: 700;
+      font-weight: 800;
       color: #0F172A;
       line-height: 1.1;
       display: flex;
@@ -657,8 +665,8 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       gap: 0.2rem;
     }
 
-    .female-badge .icon {
-      font-size: 0.9rem;
+    .mini-icon {
+      font-size: 14px;
     }
 
     .avg-badge {
@@ -690,8 +698,12 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       gap: 0.5rem;
     }
 
-    .section-title .icon {
+    .title-icon {
+      font-size: 22px;
       color: #1F3864;
+    }
+    .text-blue {
+      color: #2563EB !important;
     }
 
     .section-desc {
@@ -802,8 +814,8 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       color: #475569;
     }
 
-    .info-row .icon {
-      font-size: 1rem;
+    .row-icon {
+      font-size: 18px;
       color: #64748B;
     }
 
@@ -869,10 +881,6 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       display: flex;
       align-items: center;
       gap: 0.5rem;
-    }
-
-    .card-title .icon {
-      color: #1F3864;
     }
 
     .card-subtitle {
@@ -972,10 +980,6 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       display: flex;
       align-items: center;
       gap: 0.5rem;
-    }
-
-    .legal-title .icon {
-      color: #2563EB;
     }
 
     .legal-list {

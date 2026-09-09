@@ -635,35 +635,43 @@ import { UserPickerItem } from '../../../core/models/user.models';
             display: flex;
             align-items: center;
             gap: 0.35rem;
+            flex-wrap: nowrap;
           }
         }
 
         .demo-role-btn {
           display: inline-flex;
           align-items: center;
-          gap: 4px;
-          padding: 4px 8px;
+          gap: 5px;
+          padding: 5px 8px;
           border-radius: 6px;
           border: 1px solid #E2E8F0;
           background: #FFFFFF;
-          font-size: 0.72rem;
+          font-size: 0.74rem;
           font-weight: 600;
           color: #475569;
           cursor: pointer;
           transition: all 0.15s ease;
+          white-space: nowrap;
+          flex-shrink: 0;
+          line-height: 1;
 
           .btn-icon {
-            font-size: 14px;
+            font-size: 15px;
+            flex-shrink: 0;
           }
           .btn-name {
             font-weight: 600;
+            white-space: nowrap;
           }
           .btn-role-tag {
             font-size: 0.65rem;
             background: #F1F5F9;
             color: #64748B;
-            padding: 1px 4px;
+            padding: 2px 5px;
             border-radius: 4px;
+            white-space: nowrap;
+            line-height: 1.1;
           }
 
           &:hover {
