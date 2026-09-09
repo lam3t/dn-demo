@@ -12,6 +12,7 @@ import attachmentRoutes from './modules/attachments/attachment.routes';
 import notificationRoutes from './modules/notifications/notification.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import dashboardRoutes from './modules/dashboard/dashboard.routes';
+import schoolRoutes from './modules/school/school.routes';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
 
 const app: Express = express();
@@ -44,6 +45,7 @@ app.use('/uploads', express.static(uploadsPath));
 app.use('/api', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/school', schoolRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/org', orgUnitRoutes);
 app.use('/api/users', userRoutes);

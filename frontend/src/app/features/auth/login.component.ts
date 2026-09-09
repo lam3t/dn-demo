@@ -642,10 +642,10 @@ export class LoginComponent {
 
   demoAccounts: DemoAccount[] = [
     {
-      name: 'Nguyễn Văn An',
+      name: 'Phạm Thị Nam',
       roleTitle: 'Hiệu trưởng',
       identifier: '0903111222',
-      avatar: 'https://ui-avatars.com/api/?name=Nguy%E1%BB%85n+V%C4%83n+An&background=1F3864&color=fff',
+      avatar: 'https://ui-avatars.com/api/?name=Pham+Thi+Nam&background=1F3864&color=fff',
     },
     {
       name: 'Lê Hoàng Long',

@@ -71,14 +71,23 @@ enum NotificationType {
 // --------------------------------------------------------
 
 model School {
-  id        String   @id @default(uuid())
-  name      String
-  code      String   @unique
-  address   String?
-  phone     String?
-  email     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String   @id @default(uuid())
+  name                String
+  code                String   @unique
+  address             String?
+  phone               String?
+  email               String?
+  website             String?
+  principalName       String?  // Cô Phạm Thị Nam
+  totalStudents       Int      @default(5669) // 5.669 học sinh
+  totalFemaleStudents Int      @default(2736) // 2.736 nữ
+  totalClasses        Int      @default(122)  // 122 lớp
+  totalStaff          Int      @default(218)  // 218 cán bộ, giáo viên, nhân viên
+  schoolYear          String   @default("2026-2027")
+  statsJson           String?  // JSON lưu phân bố sĩ số từng khối và điểm trường
+  description         String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   locations Location[]
   orgUnits  OrgUnit[]
@@ -88,16 +97,19 @@ model School {
 }
 
 model Location {
-  id        String   @id @default(uuid())
-  schoolId  String
-  name      String
-  code      String
-  address   String?
-  phone     String?
-  isMain    Boolean  @default(false)
-  managerId String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  schoolId           String
+  name               String
+  code               String
+  address            String?
+  phone              String?
+  isMain             Boolean  @default(false)
+  managerId          String?
+  studentCount       Int?     @default(0)
+  femaleStudentCount Int?     @default(0)
+  classCount         Int?     @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   school        School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   manager       User?          @relation("LocationManager", fields: [managerId], references: [id], onDelete: SetNull)

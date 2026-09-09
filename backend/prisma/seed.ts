@@ -27,12 +27,60 @@ async function main() {
     data: {
       name: 'Trường THCS Phước Tân',
       code: 'THCS_PHUOC_TAN',
-      address: 'Xã Phước Tân, TP. Biên Hòa, Tỉnh Đồng Nai',
+      address: 'Phường Phước Tân, TP. Biên Hòa, Tỉnh Đồng Nai',
       phone: '02513888999',
       email: 'thcsphuoctan@dongnai.edu.vn',
+      website: 'https://thcsphuoctan.dongnai.edu.vn',
+      principalName: 'Phạm Thị Nam',
+      totalStudents: 5669,
+      totalFemaleStudents: 2736,
+      totalClasses: 122,
+      totalStaff: 218,
+      schoolYear: '2026 - 2027',
+      description: 'Trường THCS Phước Tân được thành lập sau khi sáp nhập 3 trường THCS trên địa bàn phường Phước Tân. Nhà trường quản lý đồng bộ 3 điểm trường với 122 lớp, 5.669 học sinh và 218 cán bộ, giáo viên, nhân viên.',
+      statsJson: JSON.stringify({
+        grades: {
+          g6: { classes: 31, students: 1438, female: 702 },
+          g7: { classes: 27, students: 1338, female: 651 },
+          g8: { classes: 31, students: 1345, female: 629 },
+          g9: { classes: 33, students: 1548, female: 754 }
+        },
+        locationsBreakdown: {
+          main: {
+            name: 'Điểm chính (Trung tâm)',
+            classes: 44,
+            students: 2137,
+            female: 1027,
+            g6: { classes: 10, students: 494 },
+            g7: { classes: 10, students: 527 },
+            g8: { classes: 13, students: 565 },
+            g9: { classes: 11, students: 551 }
+          },
+          ph1: {
+            name: 'Phân hiệu 1 (Tân Lập)',
+            classes: 59,
+            students: 2688,
+            female: 1339,
+            g6: { classes: 16, students: 746 },
+            g7: { classes: 12, students: 570 },
+            g8: { classes: 14, students: 601 },
+            g9: { classes: 17, students: 771 }
+          },
+          ph2: {
+            name: 'Phân hiệu 2 (Vườn Dừa)',
+            classes: 19,
+            students: 844,
+            female: 370,
+            g6: { classes: 5, students: 198 },
+            g7: { classes: 5, students: 241 },
+            g8: { classes: 4, students: 179 },
+            g9: { classes: 5, students: 226 }
+          }
+        }
+      })
     },
   });
-  console.log(`✓ Đã tạo trường: ${school.name}`);
+  console.log(`✓ Đã tạo trường: ${school.name} (Hiệu trưởng: ${school.principalName}, Quy mô: ${school.totalClasses} lớp, ${school.totalStudents} HS)`);
 
   // 2. TẠO 3 ĐIỂM TRƯỜNG
   const locMain = await prisma.location.create({
@@ -42,6 +90,9 @@ async function main() {
       code: 'DIEM_CHINH',
       address: 'Số 10 đường Nguyễn Huệ, Phước Tân, TP. Biên Hòa',
       phone: '02513888001',
+      studentCount: 2137,
+      femaleStudentCount: 1027,
+      classCount: 44,
       isMain: true,
     },
   });
@@ -53,6 +104,9 @@ async function main() {
       code: 'PHAN_HIEU_1',
       address: 'Khu phố Tân Lập, Phước Tân, TP. Biên Hòa',
       phone: '02513888002',
+      studentCount: 2688,
+      femaleStudentCount: 1339,
+      classCount: 59,
       isMain: false,
     },
   });
@@ -64,10 +118,13 @@ async function main() {
       code: 'PHAN_HIEU_2',
       address: 'Ấp Vườn Dừa, Phước Tân, TP. Biên Hòa',
       phone: '02513888003',
+      studentCount: 844,
+      femaleStudentCount: 370,
+      classCount: 19,
       isMain: false,
     },
   });
-  console.log('✓ Đã tạo 3 điểm trường (Điểm chính, Phân hiệu 1, Phân hiệu 2)');
+  console.log('✓ Đã tạo 3 điểm trường (Điểm chính: 44 lớp/2.137 HS, Phân hiệu 1: 59 lớp/2.688 HS, Phân hiệu 2: 19 lớp/844 HS)');
 
   // 3. TẠO 8 TỔ CHỨC / PHÒNG BAN
   const orgBGH = await prisma.orgUnit.create({
@@ -135,7 +192,7 @@ async function main() {
 
   // 4.1 Ban Giám hiệu
   const uHieuTruong = await createUser(
-    'Nguyễn Văn An',
+    'Phạm Thị Nam',
     'hieutruong@phuoctan.edu.vn',
     '0903111222',
     'Hiệu trưởng',

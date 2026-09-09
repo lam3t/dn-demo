@@ -17,11 +17,14 @@ import { UserPickerItem } from '../../../core/models/user.models';
       <aside class="desktop-sidebar hide-on-mobile">
         <div class="sidebar-header">
           <div class="logo-box">
-            <span class="material-symbols-outlined logo-icon">school</span>
+            <span class="material-symbols-outlined logo-icon">insights</span>
           </div>
           <div class="brand-text">
-            <h1 class="app-name">TN EDU</h1>
-            <span class="school-name">THCS Phước Tân</span>
+            <div class="brand-top">
+              <h1 class="app-name">TN EDU</h1>
+              <span class="version-tag">2026-2027</span>
+            </div>
+            <span class="school-name">THCS PHƯỚC TÂN</span>
           </div>
         </div>
 
@@ -40,7 +43,22 @@ import { UserPickerItem } from '../../../core/models/user.models';
         <nav class="sidebar-nav">
           <a routerLink="/dashboard" routerLinkActive="active" class="nav-link">
             <span class="material-symbols-outlined nav-icon">dashboard</span>
-            <span class="nav-text">Tổng quan</span>
+            <span class="nav-text">Dashboard</span>
+          </a>
+
+          <a routerLink="/school-info" routerLinkActive="active" class="nav-link">
+            <span class="material-symbols-outlined nav-icon">domain</span>
+            <span class="nav-text">Hồ sơ & Quy mô trường</span>
+          </a>
+
+          <a routerLink="/plans" routerLinkActive="active" class="nav-link">
+            <span class="material-symbols-outlined nav-icon">calendar_month</span>
+            <span class="nav-text">Lập kế hoạch & Phê duyệt</span>
+          </a>
+
+          <a routerLink="/tasks" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">
+            <span class="material-symbols-outlined nav-icon">assignment</span>
+            <span class="nav-text">Quản lý công việc</span>
           </a>
 
           <a routerLink="/my-tasks" routerLinkActive="active" class="nav-link">
@@ -48,18 +66,8 @@ import { UserPickerItem } from '../../../core/models/user.models';
             <span class="nav-text">Việc của tôi</span>
           </a>
 
-          <a routerLink="/plans" routerLinkActive="active" class="nav-link">
-            <span class="material-symbols-outlined nav-icon">calendar_month</span>
-            <span class="nav-text">Kế hoạch</span>
-          </a>
-
-          <a routerLink="/tasks" routerLinkActive="active" class="nav-link">
-            <span class="material-symbols-outlined nav-icon">assignment</span>
-            <span class="nav-text">Tất cả công việc</span>
-          </a>
-
           <a routerLink="/org" routerLinkActive="active" class="nav-link">
-            <span class="material-symbols-outlined nav-icon">account_tree</span>
+            <span class="material-symbols-outlined nav-icon">apartment</span>
             <span class="nav-text">Cơ cấu & Điểm trường</span>
           </a>
 
@@ -74,7 +82,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
           @if (authService.isHieuTruong()) {
             <a routerLink="/admin-settings" routerLinkActive="active" class="nav-link admin-link">
               <span class="material-symbols-outlined nav-icon">admin_panel_settings</span>
-              <span class="nav-text">Cấu hình hệ thống</span>
+              <span class="nav-text">Quản trị hệ thống</span>
             </a>
           }
         </nav>
@@ -85,6 +93,12 @@ import { UserPickerItem } from '../../../core/models/user.models';
             <span class="material-symbols-outlined">add_circle</span>
             <span>{{ authService.isGiaoVien() ? 'Đề xuất việc mới' : 'Giao việc mới (RACI)' }}</span>
           </button>
+        </div>
+
+        <!-- Version footer -->
+        <div class="sidebar-bottom-badge">
+          <span class="material-symbols-outlined icon-mini">verified</span>
+          <span>Phiên bản Năm học 2026-2027</span>
         </div>
 
         <!-- User Profile & Logout in Sidebar Footer -->
@@ -106,35 +120,69 @@ import { UserPickerItem } from '../../../core/models/user.models';
 
       <!-- 2. MAIN CONTENT AREA -->
       <div class="main-wrapper">
-        <!-- TOP DEMO ROLE & ACCOUNT SWITCHER BAR (DESKTOP & MOBILE) -->
-        <header class="top-demo-bar">
-          <div class="bar-left">
-            <div class="active-identity-tag" [ngClass]="getRolePillClass()">
-              <span class="material-symbols-outlined tag-icon">{{ getRoleIcon() }}</span>
-              <div class="tag-details">
-                <span class="tag-title">{{ authService.currentUser()?.fullName }}</span>
-                <span class="tag-sub">{{ authService.activeRole()?.roleTitle }} • {{ authService.activeRole()?.scopeName || 'Toàn trường' }}</span>
-              </div>
+        <!-- TOP HEADER WITH TABS & QUICK ROLE SWITCHER -->
+        <header class="top-nav-bar">
+          <div class="nav-bar-left">
+            <!-- Top Navigation Tabs (matching sample image) -->
+            <div class="top-tabs-menu hide-on-mobile">
+              <a routerLink="/dashboard" routerLinkActive="tab-active" class="top-tab-item">
+                <span class="tab-title">DASHBOARD</span>
+              </a>
+              <a routerLink="/tasks" routerLinkActive="tab-active" class="top-tab-item">
+                <span class="tab-title">DANH SÁCH</span>
+              </a>
+              <a routerLink="/plans" routerLinkActive="tab-active" class="top-tab-item">
+                <span class="tab-title">KẾ HOẠCH</span>
+              </a>
+              <a routerLink="/school-info" routerLinkActive="tab-active" class="top-tab-item">
+                <span class="tab-title">QUY MÔ & BÁO CÁO</span>
+              </a>
             </div>
           </div>
 
-          <!-- 4 QUICK DEMO ACCOUNTS SWITCH BUTTONS -->
-          <div class="bar-right">
-            <span class="demo-bar-label">⚡ Đổi nhanh vai trò:</span>
-            <div class="demo-buttons-row">
-              @for (acc of authService.demoAccounts; track acc.identifier) {
-                <button
-                  type="button"
-                  class="demo-role-btn tap-target"
-                  [class.active]="isCurrentAccount(acc.identifier)"
-                  [ngClass]="'role-' + acc.role.toLowerCase()"
-                  (click)="switchAccount(acc)"
-                  [title]="acc.desc"
-                >
-                  <span class="material-symbols-outlined btn-icon">{{ acc.icon }}</span>
-                  <span class="btn-name">{{ acc.name }}</span>
-                  <span class="btn-role-tag">{{ acc.roleTitle }}</span>
-                </button>
+          <!-- 4 QUICK DEMO ACCOUNTS SWITCH BUTTONS & USER STATUS -->
+          <div class="nav-bar-right">
+            <div class="demo-buttons-container hide-on-mobile">
+              <span class="demo-bar-label">⚡ Đổi nhanh vai trò:</span>
+              <div class="demo-buttons-row">
+                @for (acc of authService.demoAccounts; track acc.identifier) {
+                  <button
+                    type="button"
+                    class="demo-role-btn tap-target"
+                    [class.active]="isCurrentAccount(acc.identifier)"
+                    [ngClass]="'role-' + acc.role.toLowerCase()"
+                    (click)="switchAccount(acc)"
+                    [title]="acc.desc"
+                  >
+                    <span class="material-symbols-outlined btn-icon">{{ acc.icon }}</span>
+                    <span class="btn-name">{{ acc.name }}</span>
+                    <span class="btn-role-tag">{{ acc.roleTitle }}</span>
+                  </button>
+                }
+              </div>
+            </div>
+
+            <!-- Right Controls: Language pill, Notification Bell, User Header Pill -->
+            <div class="header-user-controls">
+              <span class="lang-pill" title="Ngôn ngữ tiếng Việt">VN</span>
+
+              <a routerLink="/notifications" class="notif-bell-btn" title="Thông báo hệ thống">
+                <span class="material-symbols-outlined">notifications</span>
+                @if (notifService.unreadCount() > 0) {
+                  <span class="notif-badge">{{ notifService.unreadCount() }}</span>
+                }
+              </a>
+
+              @if (authService.currentUser(); as u) {
+                <div class="header-profile-pill" (click)="logout()" title="Bấm để đăng xuất">
+                  <div class="avatar-ring">
+                    <img [src]="u.avatarUrl" [alt]="u.fullName" class="header-avatar" />
+                  </div>
+                  <div class="header-user-text hide-on-mobile">
+                    <span class="header-user-name">{{ u.fullName }}</span>
+                    <span class="header-user-role">{{ u.title || authService.activeRole()?.roleTitle }}</span>
+                  </div>
+                </div>
               }
             </div>
           </div>
@@ -144,7 +192,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
         <header class="mobile-header hide-on-desktop">
           <div class="mobile-brand">
             <span class="material-symbols-outlined brand-icon">school</span>
-            <span class="mobile-title">TN EDU</span>
+            <span class="mobile-title">TN EDU - THCS Phước Tân</span>
           </div>
 
           <div class="mobile-actions">
@@ -170,27 +218,26 @@ import { UserPickerItem } from '../../../core/models/user.models';
           <router-outlet></router-outlet>
         </main>
 
-        <!-- MOBILE FLOATING ACTION BUTTON (FAB) -->
-        <button
-          type="button"
-          class="mobile-fab hide-on-desktop tap-target"
-          routerLink="/tasks"
-          [queryParams]="{ create: 'true' }"
-          title="Tạo việc mới"
-        >
-          <span class="material-symbols-outlined">add</span>
-        </button>
-
         <!-- MOBILE BOTTOM NAVIGATION (4 Tabs) -->
         <nav class="mobile-bottom-nav hide-on-desktop">
-          <a routerLink="/my-tasks" routerLinkActive="active" class="bottom-tab tap-target">
-            <span class="material-symbols-outlined tab-icon">task_alt</span>
-            <span class="tab-label">Việc của tôi</span>
+          <a routerLink="/dashboard" routerLinkActive="active" class="bottom-tab tap-target">
+            <span class="material-symbols-outlined tab-icon">dashboard</span>
+            <span class="tab-label">Tổng quan</span>
+          </a>
+
+          <a routerLink="/school-info" routerLinkActive="active" class="bottom-tab tap-target">
+            <span class="material-symbols-outlined tab-icon">domain</span>
+            <span class="tab-label">Quy mô</span>
           </a>
 
           <a routerLink="/plans" routerLinkActive="active" class="bottom-tab tap-target">
             <span class="material-symbols-outlined tab-icon">calendar_month</span>
             <span class="tab-label">Kế hoạch</span>
+          </a>
+
+          <a routerLink="/my-tasks" routerLinkActive="active" class="bottom-tab tap-target">
+            <span class="material-symbols-outlined tab-icon">task_alt</span>
+            <span class="tab-label">Việc của tôi</span>
           </a>
 
           <a routerLink="/notifications" routerLinkActive="active" class="bottom-tab tap-target">
@@ -202,15 +249,10 @@ import { UserPickerItem } from '../../../core/models/user.models';
             </div>
             <span class="tab-label">Thông báo</span>
           </a>
-
-          <a routerLink="/dashboard" routerLinkActive="active" class="bottom-tab tap-target">
-            <span class="material-symbols-outlined tab-icon">dashboard</span>
-            <span class="tab-label">Tổng quan</span>
-          </a>
         </nav>
       </div>
 
-      <!-- 3. GLOBAL CONTACT MINI CARD POPOVER / BOTTOM-SHEET -->
+      <!-- 3. GLOBAL CONTACT MINI CARD POPOVER -->
       @if (contactCardService.isOpen()) {
         <app-contact-mini-card
           [visible]="contactCardService.isOpen()"
@@ -228,70 +270,91 @@ import { UserPickerItem } from '../../../core/models/user.models';
         height: 100vh;
         width: 100vw;
         overflow: hidden;
+        background: #F8FAFC;
+        font-family: inherit;
       }
 
       /* 1. DESKTOP SIDEBAR */
       .desktop-sidebar {
-        width: var(--sidebar-width);
-        min-width: var(--sidebar-width);
-        background: #1F3864;
-        color: #FFFFFF;
+        width: 250px;
+        min-width: 250px;
+        background: #FFFFFF;
+        color: #1E293B;
         display: flex;
         flex-direction: column;
-        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        border-right: 1px solid #E2E8F0;
         z-index: 100;
+        box-shadow: 1px 0 3px rgba(0, 0, 0, 0.02);
       }
 
       .sidebar-header {
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 18px 16px 14px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 16px 16px 14px;
+        border-bottom: 1px solid #F1F5F9;
 
         .logo-box {
-          width: 38px;
-          height: 38px;
-          background: rgba(255, 255, 255, 0.15);
-          border-radius: 10px;
+          width: 36px;
+          height: 36px;
+          background: linear-gradient(135deg, #1E40AF, #3B82F6);
+          border-radius: 8px;
           display: flex;
           align-items: center;
           justify-content: center;
+          box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
 
           .logo-icon {
-            font-size: 22px;
+            font-size: 20px;
             color: #FFFFFF;
           }
         }
 
         .brand-text {
+          flex: 1;
+          .brand-top {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          }
           .app-name {
-            font-size: 1.15rem;
+            font-size: 1.05rem;
             font-weight: 800;
             letter-spacing: 0.5px;
-            color: #FFFFFF;
+            color: #1E3A8A;
             line-height: 1.2;
+            margin: 0;
+          }
+          .version-tag {
+            font-size: 0.65rem;
+            font-weight: 700;
+            background: #EFF6FF;
+            color: #2563EB;
+            padding: 1px 5px;
+            border-radius: 4px;
           }
           .school-name {
-            font-size: 0.76rem;
-            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #64748B;
+            letter-spacing: 0.02em;
           }
         }
       }
 
       .context-pill {
-        margin: 10px 14px 6px;
-        padding: 8px 12px;
-        background: rgba(255, 255, 255, 0.08);
+        margin: 10px 12px 6px;
+        padding: 8px 10px;
+        background: #F8FAFC;
         border-radius: 8px;
         display: flex;
         align-items: center;
         gap: 8px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        border: 1px solid #E2E8F0;
 
         .pill-icon {
-          font-size: 20px;
-          color: #93C5FD;
+          font-size: 18px;
+          color: #2563EB;
         }
 
         .pill-info {
@@ -300,17 +363,17 @@ import { UserPickerItem } from '../../../core/models/user.models';
           overflow: hidden;
 
           .pill-role {
-            font-size: 0.8rem;
+            font-size: 0.78rem;
             font-weight: 700;
-            color: #FFFFFF;
+            color: #0F172A;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
           }
 
           .pill-scope {
-            font-size: 0.72rem;
-            color: #93C5FD;
+            font-size: 0.7rem;
+            color: #64748B;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -318,107 +381,136 @@ import { UserPickerItem } from '../../../core/models/user.models';
         }
 
         &.pill-hieu-truong {
-          background: rgba(30, 58, 138, 0.5);
-          border-color: #60A5FA;
-          .pill-icon { color: #FBBF24; }
+          background: #EFF6FF;
+          border-color: #BFDBFE;
+          .pill-icon { color: #1D4ED8; }
         }
         &.pill-pht {
-          background: rgba(46, 94, 170, 0.5);
-          border-color: #93C5FD;
-          .pill-icon { color: #60A5FA; }
+          background: #F0FDF4;
+          border-color: #BBF7D0;
+          .pill-icon { color: #15803D; }
         }
         &.pill-to-truong {
-          background: rgba(217, 119, 6, 0.3);
-          border-color: #FCD34D;
-          .pill-icon { color: #F59E0B; }
+          background: #FFFBEB;
+          border-color: #FDE68A;
+          .pill-icon { color: #B45309; }
         }
         &.pill-giao-vien {
-          background: rgba(5, 150, 105, 0.3);
-          border-color: #6EE7B7;
-          .pill-icon { color: #34D399; }
+          background: #F8FAFC;
+          border-color: #E2E8F0;
+          .pill-icon { color: #475569; }
         }
       }
 
       .sidebar-nav {
         flex: 1;
-        padding: 10px 10px;
+        padding: 8px 10px;
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 3px;
 
         .nav-link {
           display: flex;
           align-items: center;
-          gap: 12px;
-          padding: 10px 14px;
+          gap: 10px;
+          padding: 9px 12px;
           border-radius: 8px;
-          color: rgba(255, 255, 255, 0.8);
+          color: #475569;
           text-decoration: none;
-          font-size: 0.88rem;
+          font-size: 0.85rem;
           font-weight: 500;
-          transition: all 0.2s ease;
+          transition: all 0.15s ease;
 
           .nav-icon {
-            font-size: 20px;
-            color: rgba(255, 255, 255, 0.7);
+            font-size: 19px;
+            color: #64748B;
+            transition: color 0.15s;
           }
 
           &:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #FFFFFF;
-            .nav-icon { color: #FFFFFF; }
+            background: #F1F5F9;
+            color: #0F172A;
+            .nav-icon { color: #1E293B; }
           }
 
           &.active {
-            background: rgba(255, 255, 255, 0.2);
-            color: #FFFFFF;
+            background: #EFF6FF;
+            color: #1D4ED8;
             font-weight: 700;
-            .nav-icon { color: #93C5FD; }
+            border-left: 3px solid #2563EB;
+            border-radius: 4px 8px 8px 4px;
+            .nav-icon { color: #2563EB; }
           }
+        }
+
+        .sidebar-unread-badge {
+          margin-left: auto;
+          background: #EF4444;
+          color: #FFFFFF;
+          font-size: 0.7rem;
+          font-weight: 700;
+          padding: 1px 6px;
+          border-radius: 999px;
         }
       }
 
       .sidebar-action {
-        padding: 10px 14px;
+        padding: 8px 12px;
 
         .create-task-btn {
           width: 100%;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 8px;
-          background: #2E7D32;
+          gap: 6px;
+          background: #1F3864;
           color: #FFFFFF;
           border: none;
           border-radius: 8px;
-          padding: 9px 14px;
-          font-size: 0.85rem;
-          font-weight: 700;
+          padding: 8px 12px;
+          font-size: 0.82rem;
+          font-weight: 600;
           cursor: pointer;
           transition: all 0.2s ease;
 
           &:hover {
-            background: #256628;
-            box-shadow: 0 4px 10px rgba(46, 125, 50, 0.3);
+            background: #16294A;
+            box-shadow: 0 3px 8px rgba(31, 56, 100, 0.25);
           }
         }
       }
 
+      .sidebar-bottom-badge {
+        padding: 6px 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.72rem;
+        color: #64748B;
+        border-top: 1px solid #F1F5F9;
+
+        .icon-mini {
+          font-size: 14px;
+          color: #10B981;
+        }
+      }
+
       .sidebar-footer {
-        padding: 10px 14px;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 8px 12px;
+        border-top: 1px solid #F1F5F9;
+        background: #F8FAFC;
 
         .user-card {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
 
           .user-avatar {
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
-            border: 2px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid #CBD5E1;
           }
 
           .user-details {
@@ -428,17 +520,17 @@ import { UserPickerItem } from '../../../core/models/user.models';
             flex-direction: column;
 
             .user-name {
-              font-size: 0.82rem;
+              font-size: 0.8rem;
               font-weight: 700;
-              color: #FFFFFF;
+              color: #0F172A;
               white-space: nowrap;
               overflow: hidden;
               text-overflow: ellipsis;
             }
 
             .user-title {
-              font-size: 0.7rem;
-              color: rgba(255, 255, 255, 0.65);
+              font-size: 0.68rem;
+              color: #64748B;
               white-space: nowrap;
               overflow: hidden;
               text-overflow: ellipsis;
@@ -448,16 +540,16 @@ import { UserPickerItem } from '../../../core/models/user.models';
           .logout-btn {
             background: transparent;
             border: none;
-            color: rgba(255, 255, 255, 0.6);
+            color: #94A3B8;
             cursor: pointer;
-            padding: 6px;
-            border-radius: 6px;
+            padding: 4px;
+            border-radius: 4px;
             display: flex;
             align-items: center;
 
             &:hover {
               color: #EF4444;
-              background: rgba(239, 68, 68, 0.15);
+              background: #FEE2E2;
             }
           }
         }
@@ -471,192 +563,237 @@ import { UserPickerItem } from '../../../core/models/user.models';
         height: 100vh;
         overflow: hidden;
         position: relative;
-        background: #F1F5F9;
+        background: #F8FAFC;
       }
 
-      /* TOP DEMO SWITCHER BAR */
-      .top-demo-bar {
+      /* TOP HEADER WITH TABS & QUICK ROLE SWITCHER */
+      .top-nav-bar {
         background: #FFFFFF;
-        border-bottom: 1px solid #CBD5E1;
-        padding: 8px 16px;
+        border-bottom: 1px solid #E2E8F0;
+        padding: 0 1.25rem;
+        height: 56px;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
+        gap: 1rem;
         z-index: 50;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-        flex-wrap: wrap;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 
-        .bar-left {
+        .nav-bar-left {
           display: flex;
           align-items: center;
-          gap: 8px;
+          height: 100%;
+        }
 
-          .active-identity-tag {
-            display: inline-flex;
+        .top-tabs-menu {
+          display: flex;
+          height: 100%;
+          gap: 1.5rem;
+
+          .top-tab-item {
+            display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 4px 10px;
-            border-radius: 8px;
-            background: #EEF4FC;
-            border: 1px solid #BFDBFE;
+            height: 100%;
+            padding: 0 0.25rem;
+            color: #64748B;
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease;
 
-            .tag-icon {
-              font-size: 20px;
-              color: #1F3864;
+            &:hover {
+              color: #1E40AF;
             }
 
-            .tag-details {
-              display: flex;
-              flex-direction: column;
-
-              .tag-title {
-                font-size: 0.82rem;
-                font-weight: 800;
-                color: #1F3864;
-              }
-
-              .tag-sub {
-                font-size: 0.7rem;
-                color: #475569;
-              }
-            }
-
-            &.pill-hieu-truong {
-              background: #EFF6FF;
-              border-color: #93C5FD;
-              .tag-icon { color: #1E40AF; }
-              .tag-title { color: #1E40AF; }
-            }
-            &.pill-pht {
-              background: #F0FDF4;
-              border-color: #86EFAC;
-              .tag-icon { color: #166534; }
-              .tag-title { color: #166534; }
-            }
-            &.pill-to-truong {
-              background: #FFFBEB;
-              border-color: #FDE68A;
-              .tag-icon { color: #92400E; }
-              .tag-title { color: #92400E; }
-            }
-            &.pill-giao-vien {
-              background: #ECFDF5;
-              border-color: #A7F3D0;
-              .tag-icon { color: #065F46; }
-              .tag-title { color: #065F46; }
+            &.tab-active {
+              color: #2563EB;
+              border-bottom-color: #2563EB;
             }
           }
         }
 
-        .bar-right {
+        .nav-bar-right {
           display: flex;
           align-items: center;
-          gap: 8px;
-          overflow-x: auto;
+          gap: 1.25rem;
+        }
+
+        .demo-buttons-container {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
 
           .demo-bar-label {
-            font-size: 0.78rem;
-            font-weight: 700;
-            color: #475569;
-            white-space: nowrap;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #64748B;
           }
 
-          .demo-buttons-group,
           .demo-buttons-row {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 0.35rem;
+          }
+        }
 
-            .demo-role-btn {
-              display: inline-flex;
-              align-items: center;
-              gap: 4px;
-              padding: 4px 10px;
-              border-radius: 9999px;
-              border: 1.5px solid #CBD5E1;
-              background: #F8FAFC;
-              color: #334155;
-              font-size: 0.75rem;
-              font-weight: 600;
-              cursor: pointer;
-              white-space: nowrap;
-              transition: all 0.15s ease;
+        .demo-role-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 8px;
+          border-radius: 6px;
+          border: 1px solid #E2E8F0;
+          background: #FFFFFF;
+          font-size: 0.72rem;
+          font-weight: 600;
+          color: #475569;
+          cursor: pointer;
+          transition: all 0.15s ease;
 
-              .btn-icon {
-                font-size: 16px;
-                color: #64748B;
-              }
+          .btn-icon {
+            font-size: 14px;
+          }
+          .btn-name {
+            font-weight: 600;
+          }
+          .btn-role-tag {
+            font-size: 0.65rem;
+            background: #F1F5F9;
+            color: #64748B;
+            padding: 1px 4px;
+            border-radius: 4px;
+          }
 
-              .btn-name {
-                font-weight: 700;
-              }
+          &:hover {
+            border-color: #94A3B8;
+            background: #F8FAFC;
+          }
 
-              .btn-role-tag {
-                font-size: 0.68rem;
-                opacity: 0.85;
-              }
+          &.active {
+            border-color: #3B82F6;
+            background: #EFF6FF;
+            color: #1D4ED8;
+            .btn-role-tag {
+              background: #DBEAFE;
+              color: #1E40AF;
+            }
+          }
+        }
 
-              &:hover {
-                background: #EEF4FC;
-                border-color: #93C5FD;
-                color: #1F3864;
-                .btn-icon { color: #1F3864; }
-              }
+        .header-user-controls {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
 
-              &.active {
-                background: #1F3864;
-                border-color: #1F3864;
-                color: #FFFFFF;
+        .lang-pill {
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: #475569;
+          padding: 2px 6px;
+          border-radius: 4px;
+          background: #F1F5F9;
+        }
 
-                .btn-icon { color: #FBBF24; }
-                .btn-role-tag { color: #93C5FD; }
-              }
+        .notif-bell-btn {
+          position: relative;
+          color: #64748B;
+          text-decoration: none;
+          display: flex;
+          align-items: center;
+          padding: 4px;
+          border-radius: 6px;
 
-              &.active.role-pho_hieu_truong {
-                background: #2E5EAA;
-                border-color: #2E5EAA;
-              }
-              &.active.role-to_truong {
-                background: #D97706;
-                border-color: #D97706;
-              }
-              &.active.role-giao_vien {
-                background: #059669;
-                border-color: #059669;
-              }
+          &:hover {
+            color: #0F172A;
+            background: #F1F5F9;
+          }
+
+          .notif-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background: #EF4444;
+            color: #FFFFFF;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 1px 4px;
+            border-radius: 999px;
+          }
+        }
+
+        .header-profile-pill {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 3px 8px 3px 4px;
+          border-radius: 999px;
+          background: #F8FAFC;
+          border: 1px solid #E2E8F0;
+          cursor: pointer;
+          transition: background 0.15s;
+
+          &:hover {
+            background: #F1F5F9;
+          }
+
+          .avatar-ring {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .header-avatar {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+
+          .header-user-text {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.1;
+
+            .header-user-name {
+              font-size: 0.78rem;
+              font-weight: 700;
+              color: #0F172A;
+            }
+
+            .header-user-role {
+              font-size: 0.68rem;
+              color: #64748B;
             }
           }
         }
       }
 
-      .page-content {
-        flex: 1;
-        overflow-y: auto;
-        padding: 16px 20px;
-        -webkit-overflow-scrolling: touch;
-      }
-
-      /* 3. MOBILE HEADER & NAVIGATION */
+      /* Mobile Header */
       .mobile-header {
-        height: var(--top-header-height);
-        min-height: var(--top-header-height);
-        background: #1F3864;
-        color: #FFFFFF;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 0 16px;
-        box-shadow: var(--tn-shadow-sm);
-        z-index: 90;
+        padding: 10px 16px;
+        background: #FFFFFF;
+        border-bottom: 1px solid #E2E8F0;
 
         .mobile-brand {
           display: flex;
           align-items: center;
           gap: 8px;
+          color: #1E40AF;
+          font-weight: 800;
+          font-size: 0.95rem;
 
-          .brand-icon { font-size: 22px; color: #FFFFFF; }
-          .mobile-title { font-size: 1.1rem; font-weight: 700; }
+          .brand-icon {
+            font-size: 22px;
+          }
         }
 
         .mobile-actions {
@@ -665,134 +802,93 @@ import { UserPickerItem } from '../../../core/models/user.models';
           gap: 12px;
 
           .mobile-icon-btn {
-            color: #FFFFFF;
+            position: relative;
+            color: #64748B;
             text-decoration: none;
             display: flex;
             align-items: center;
           }
 
-          .mobile-avatar {
-            width: 32px;
-            height: 32px;
+          .mobile-notif-dot {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 8px;
+            height: 8px;
+            background: #EF4444;
             border-radius: 50%;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            cursor: pointer;
+          }
+
+          .mobile-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
           }
         }
       }
 
+      .page-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0;
+      }
+
+      /* Mobile Bottom Nav */
       .mobile-bottom-nav {
-        height: var(--bottom-nav-height);
-        background: var(--tn-surface);
-        border-top: 1px solid var(--tn-border);
         display: flex;
+        background: #FFFFFF;
+        border-top: 1px solid #E2E8F0;
+        height: 56px;
         align-items: center;
         justify-content: space-around;
-        padding: 0 8px;
-        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
-        z-index: 90;
+        z-index: 100;
 
         .bottom-tab {
-          flex: 1;
           display: flex;
           flex-direction: column;
           align-items: center;
-          justify-content: center;
-          gap: 3px;
+          gap: 2px;
+          color: #64748B;
           text-decoration: none;
-          color: var(--tn-text-muted);
-          font-size: 0.72rem;
+          font-size: 0.7rem;
           font-weight: 500;
-          transition: all 0.2s ease;
 
           .tab-icon {
-            font-size: 22px;
+            font-size: 20px;
           }
 
           &.active {
-            color: #1F3864;
+            color: #2563EB;
             font-weight: 700;
-            .tab-icon { color: #1F3864; }
+          }
+
+          .tab-icon-wrapper {
+            position: relative;
+          }
+
+          .bottom-notif-badge {
+            position: absolute;
+            top: -3px;
+            right: -6px;
+            background: #EF4444;
+            color: #FFFFFF;
+            font-size: 0.6rem;
+            padding: 1px 4px;
+            border-radius: 999px;
+            font-weight: 700;
           }
         }
       }
 
-      .mobile-fab {
-        position: absolute;
-        bottom: calc(var(--bottom-nav-height) + 16px);
-        right: 16px;
-        width: 52px;
-        height: 52px;
-        border-radius: 50%;
-        background: #2E7D32;
-        color: #FFFFFF;
-        border: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 14px rgba(46, 125, 50, 0.4);
-        cursor: pointer;
-        z-index: 95;
-        transition: transform 0.2s ease;
-
-        &:active {
-          transform: scale(0.92);
-        }
-
-        .material-symbols-outlined {
-          font-size: 28px;
+      @media (min-width: 1024px) {
+        .hide-on-desktop {
+          display: none !important;
         }
       }
 
-      .sidebar-unread-badge {
-        margin-left: auto;
-        background: #DC2626;
-        color: #FFFFFF;
-        font-size: 0.72rem;
-        font-weight: 800;
-        padding: 1px 7px;
-        border-radius: 9999px;
-      }
-
-      .mobile-notif-dot {
-        width: 8px;
-        height: 8px;
-        background: #EF4444;
-        border-radius: 50%;
-        position: absolute;
-        top: 14px;
-        right: 54px;
-      }
-
-      .tab-icon-wrapper {
-        position: relative;
-        display: inline-flex;
-
-        .bottom-notif-badge {
-          position: absolute;
-          top: -4px;
-          right: -8px;
-          background: #DC2626;
-          color: #FFFFFF;
-          font-size: 0.65rem;
-          font-weight: 800;
-          padding: 0 4px;
-          border-radius: 9999px;
-          min-width: 14px;
-          text-align: center;
-        }
-      }
-
-      @media (max-width: 768px) {
-        .top-demo-bar {
-          padding: 6px 10px;
-          .bar-left { display: none; }
-          .bar-right { width: 100%; justify-content: space-between; }
-        }
-
-        .page-content {
-          padding: 12px;
-          padding-bottom: calc(var(--bottom-nav-height) + 20px);
+      @media (max-width: 1023px) {
+        .hide-on-mobile {
+          display: none !important;
         }
       }
     `,
@@ -804,45 +900,37 @@ export class LayoutComponent implements OnInit, OnDestroy {
   notifService = inject(NotificationService);
   private router = inject(Router);
 
-  private notifInterval: any;
-
-  ngOnInit() {
-    this.fetchNotifications();
-    this.notifInterval = setInterval(() => {
-      this.fetchNotifications();
-    }, 30000);
+  ngOnInit(): void {
+    this.notifService.getNotifications({ unreadOnly: true }).subscribe({ error: () => {} });
   }
 
-  ngOnDestroy() {
-    if (this.notifInterval) clearInterval(this.notifInterval);
+  ngOnDestroy(): void {}
+
+  logout(): void {
+    this.authService.logout();
+    this.router.navigate(['/auth/login']);
+  }
+
+  switchAccount(account: DemoAccountInfo): void {
+    this.authService.switchDemoAccount(account.identifier).subscribe({ error: () => {} });
   }
 
   isCurrentAccount(identifier: string): boolean {
     const user = this.authService.currentUser();
-    return user?.phone === identifier || user?.email === identifier;
-  }
-
-  switchAccount(acc: DemoAccountInfo) {
-    this.authService.switchDemoAccount(acc.identifier).subscribe({
-      next: () => {
-        this.fetchNotifications();
-      },
-      error: () => {},
-    });
+    if (!user) return false;
+    return user.phone === identifier || user.email === identifier;
   }
 
   getRolePillClass(): string {
     const role = this.authService.activeRole()?.role;
     switch (role) {
       case 'HIEU_TRUONG':
-      case 'ADMIN':
         return 'pill-hieu-truong';
       case 'PHO_HIEU_TRUONG':
         return 'pill-pht';
       case 'TO_TRUONG':
         return 'pill-to-truong';
       case 'GIAO_VIEN':
-      case 'NHAN_VIEN':
       default:
         return 'pill-giao-vien';
     }
@@ -852,43 +940,24 @@ export class LayoutComponent implements OnInit, OnDestroy {
     const role = this.authService.activeRole()?.role;
     switch (role) {
       case 'HIEU_TRUONG':
-      case 'ADMIN':
         return 'stars';
       case 'PHO_HIEU_TRUONG':
         return 'shield_person';
       case 'TO_TRUONG':
         return 'supervisor_account';
       case 'GIAO_VIEN':
-      case 'NHAN_VIEN':
       default:
         return 'person';
     }
   }
 
-  fetchNotifications() {
-    if (this.authService.isAuthenticated()) {
-      this.notifService.getNotifications({ pageSize: 5 }).subscribe();
-    }
-  }
-
-  logout() {
-    if (this.notifInterval) clearInterval(this.notifInterval);
-    this.authService.logout();
-  }
-
-  getContactUser(): UserPickerItem | null {
-    const val = this.contactCardService.currentUser();
-    if (val && typeof val === 'object') {
-      return val as UserPickerItem;
-    }
-    return null;
+  getContactUser(): UserPickerItem | undefined {
+    const u = this.contactCardService.currentUser();
+    return typeof u === 'object' && u !== null ? (u as UserPickerItem) : undefined;
   }
 
   getContactUserId(): string | undefined {
-    const val = this.contactCardService.currentUser();
-    if (typeof val === 'string') {
-      return val;
-    }
-    return undefined;
+    const u = this.contactCardService.currentUser();
+    return typeof u === 'string' ? u : u?.id;
   }
 }

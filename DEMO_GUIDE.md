@@ -50,7 +50,7 @@ Tất cả tài khoản đều sử dụng **Mật khẩu chung: `123456`**
 
 | STT | Họ và Tên | Vai trò | Điểm trường | SĐT / Tài khoản | Ghi chú kịch bản demo |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **1** | **Nguyễn Văn An** | **Hiệu trưởng** | Điểm chính (Trung tâm) | `0903111222` | **Tài khoản chính xem Dashboard & Giám sát** |
+| **1** | **Phạm Thị Nam** | **Hiệu trưởng** | Điểm chính (Trung tâm) | `0903111222` | **Tài khoản chính xem Dashboard & Giám sát** |
 | **2** | **Trần Thị Bích Mai** | **Phó Hiệu trưởng** | Điểm chính (Chuyên môn) | `0903222333` | Quản lý kế hoạch chuyên môn |
 | **3** | **Lê Hoàng Long** | **Phó Hiệu trưởng** | Phân hiệu 1 (Tân Lập) | `0903333444` | Quản trị điều hành Phân hiệu 1 |
 | **4** | **Phạm Quốc Tuấn** | **Phó Hiệu trưởng** | Phân hiệu 2 (Vườn Dừa) | `0903444555` | Quản trị điều hành Phân hiệu 2 |

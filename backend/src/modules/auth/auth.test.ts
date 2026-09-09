@@ -79,7 +79,7 @@ async function runTests() {
     .get('/api/auth/me')
     .set('Authorization', `Bearer ${hieuTruongToken}`);
 
-  if (meRes.status === 200 && meRes.body.data.fullName === 'Nguyễn Văn An') {
+  if (meRes.status === 200 && meRes.body.data.fullName === 'Phạm Thị Nam') {
     console.log(`✓ PASS: Lấy thông tin user thành công: ${meRes.body.data.fullName} (${meRes.body.data.title})`);
   } else {
     throw new Error(`FAIL: GET /me thất bại: ${JSON.stringify(meRes.body)}`);

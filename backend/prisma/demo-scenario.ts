@@ -14,7 +14,7 @@ async function main() {
   }
 
   // 1. Tìm các nhân sự chủ chốt
-  const hieuTruong = await prisma.user.findFirst({ where: { phone: '0903111222' } }); // Nguyễn Văn An (Hiệu trưởng)
+  const hieuTruong = await prisma.user.findFirst({ where: { phone: '0903111222' } }); // Cô Phạm Thị Nam (Hiệu trưởng)
   const toTruongToan = await prisma.user.findFirst({ where: { phone: '0912111001' } }); // Vũ Đình Dũng (Tổ trưởng Toán - Tin)
   const gvPhanHieu2 = await prisma.user.findFirst({ where: { phone: '0915303001' } }); // Lê Hữu Nghĩa (GV Toán - Phân hiệu 2)
   const gvPhanHieu1 = await prisma.user.findFirst({ where: { phone: '0914202001' } }); // Bùi Thị Hồng Nhung (GV Toán - Phân hiệu 1)
@@ -279,7 +279,7 @@ async function main() {
   console.log('================================================================');
   console.log('📋 HƯỚNG DẪN 5 BƯỚC TRÌNH DIỄN CHO BAN GIÁM HIỆU (5 PHÚT)');
   console.log('================================================================');
-  console.log('🔹 BƯỚC 1: Đăng nhập vai trò Hiệu trưởng (0903111222 / 123456 - Thầy Nguyễn Văn An)');
+  console.log('🔹 BƯỚC 1: Đăng nhập vai trò Hiệu trưởng (0903111222 / 123456 - Cô Phạm Thị Nam)');
   console.log('   - Xem Dashboard: Thẻ số việc quá hạn (màu đỏ) & Danh sách "Việc cần quan tâm".');
   console.log('   - Thấy ngay việc [CV-DEMO-02] bị quá hạn 3 ngày tại Phân hiệu 1.');
   console.log('   - Bấm nút GỌI ĐIỆN NGAY trên thẻ để gọi thẳng cho cô Bùi Thị Hồng Nhung (0914202001).');

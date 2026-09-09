@@ -23,13 +23,13 @@ export interface DemoAccountInfo {
 
 export const DEMO_ACCOUNTS: DemoAccountInfo[] = [
   {
-    name: 'Nguyễn Văn An',
+    name: 'Phạm Thị Nam',
     role: 'HIEU_TRUONG',
     roleTitle: 'Hiệu trưởng',
-    scopeName: 'Toàn trường (3 Điểm trường)',
+    scopeName: 'Toàn trường (122 lớp • 5.669 HS)',
     identifier: '0903111222',
-    avatar: 'https://ui-avatars.com/api/?name=Nguy%E1%BB%85n+V%C4%83n+An&background=1F3864&color=fff',
-    desc: 'Quản trị toàn trường • Xem Dashboard toàn diện • Duyệt kế hoạch cấp trường',
+    avatar: 'https://ui-avatars.com/api/?name=Pham+Thi+Nam&background=1F3864&color=fff',
+    desc: 'Quản trị toàn trường • Xem BI Dashboard • Quản lý 3 điểm trường & 122 lớp',
     color: '#1F3864',
     icon: 'stars',
   },

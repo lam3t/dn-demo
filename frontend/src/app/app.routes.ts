@@ -24,6 +24,11 @@ export const routes: Routes = [
           import('./features/dashboard/dashboard.component').then((m) => m.DashboardComponent),
       },
       {
+        path: 'school-info',
+        loadComponent: () =>
+          import('./features/school-info/school-info.component').then((m) => m.SchoolInfoComponent),
+      },
+      {
         path: 'my-tasks',
         loadComponent: () =>
           import('./features/my-tasks/my-tasks.component').then((m) => m.MyTasksComponent),
