@@ -187,6 +187,7 @@ interface PaperPlanRow {
               (createTaskForPlan)="openWizardForPlan($event)"
               (addChildPlan)="openAddChildPlanModal($event)"
               (editPlan)="openEditPlanModal($event)"
+              (deletePlan)="onDeletePlan($event)"
             ></app-plan-tree>
           }
         </section>
@@ -443,21 +444,35 @@ interface PaperPlanRow {
             </div>
 
             <div class="modal-footer">
-              <button type="button" class="btn-cancel" (click)="closePlanModal()">Hủy bỏ</button>
-              <button
-                type="button"
-                class="btn-save"
-                (click)="submitPlanForm()"
-                [disabled]="isSubmittingPlan()"
-              >
-                @if (isSubmittingPlan()) {
-                  <span class="material-symbols-outlined spin">progress_activity</span>
-                  <span>Đang lưu...</span>
-                } @else {
-                  <span class="material-symbols-outlined">save</span>
-                  <span>{{ editingPlanId() ? 'Lưu thay đổi' : 'Tạo kế hoạch' }}</span>
-                }
-              </button>
+              @if (editingPlanId()) {
+                <button
+                  type="button"
+                  class="btn-delete-plan tap-target"
+                  (click)="deleteCurrentEditingPlan()"
+                  [disabled]="isSubmittingPlan()"
+                  title="Xóa kế hoạch này"
+                >
+                  <span class="material-symbols-outlined">delete</span>
+                  <span>Xóa kế hoạch</span>
+                </button>
+              }
+              <div class="footer-right-actions">
+                <button type="button" class="btn-cancel" (click)="closePlanModal()">Hủy bỏ</button>
+                <button
+                  type="button"
+                  class="btn-save"
+                  (click)="submitPlanForm()"
+                  [disabled]="isSubmittingPlan()"
+                >
+                  @if (isSubmittingPlan()) {
+                    <span class="material-symbols-outlined spin">progress_activity</span>
+                    <span>Đang lưu...</span>
+                  } @else {
+                    <span class="material-symbols-outlined">save</span>
+                    <span>{{ editingPlanId() ? 'Lưu thay đổi' : 'Tạo kế hoạch' }}</span>
+                  }
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1322,6 +1337,36 @@ interface PaperPlanRow {
         border-top: 1px solid #E2E8F0;
         gap: 10px;
 
+        .btn-delete-plan {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 14px;
+          background: #FEF2F2;
+          color: #DC2626;
+          border: 1px solid #FECACA;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.15s ease;
+
+          &:hover:not(:disabled) {
+            background: #FEE2E2;
+          }
+
+          .material-symbols-outlined {
+            font-size: 18px;
+          }
+        }
+
+        .footer-right-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-left: auto;
+        }
+
         .btn-cancel {
           padding: 8px 16px;
           background: #FFFFFF;
@@ -1730,6 +1775,43 @@ export class PlansComponent implements OnInit, OnDestroy {
         error: (err) => {
           this.isSubmittingPlan.set(false);
           this.planModalError.set(err.error?.message || 'Tạo kế hoạch thất bại.');
+        },
+      });
+    }
+  }
+
+  onDeletePlan(node: PlanTreeNode) {
+    if (confirm(`Bạn có chắc chắn muốn xóa kế hoạch "${node.title}"?\nLưu ý: Kế hoạch chỉ được xóa khi không chứa công việc hoặc kế hoạch con trực thuộc.`)) {
+      this.planService.delete(node.id).subscribe({
+        next: () => {
+          this.loadTree();
+          this.loadAllPlans();
+          alert(`Đã xóa kế hoạch "${node.title}" thành công.`);
+        },
+        error: (err) => {
+          alert(err.error?.message || 'Không thể xóa kế hoạch. Vui lòng kiểm tra lại công việc trực thuộc.');
+        },
+      });
+    }
+  }
+
+  deleteCurrentEditingPlan() {
+    const editId = this.editingPlanId();
+    if (!editId) return;
+
+    if (confirm(`Bạn có chắc chắn muốn xóa kế hoạch "${this.planFormTitle}"?\nLưu ý: Kế hoạch chỉ được xóa khi không chứa công việc hoặc kế hoạch con trực thuộc.`)) {
+      this.isSubmittingPlan.set(true);
+      this.planService.delete(editId).subscribe({
+        next: () => {
+          this.isSubmittingPlan.set(false);
+          this.closePlanModal();
+          this.loadTree();
+          this.loadAllPlans();
+          alert('Đã xóa kế hoạch thành công.');
+        },
+        error: (err) => {
+          this.isSubmittingPlan.set(false);
+          this.planModalError.set(err.error?.message || 'Không thể xóa kế hoạch.');
         },
       });
     }

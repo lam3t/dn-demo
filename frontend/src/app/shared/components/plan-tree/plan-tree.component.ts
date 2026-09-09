@@ -130,11 +130,29 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
 
                   <button
                     type="button"
-                    class="action-btn btn-more tap-target"
-                    title="Thao tác"
-                    (click)="onNodeMenu(node, $event)"
+                    class="action-btn btn-add-sub tap-target"
+                    title="Thêm kế hoạch con"
+                    (click)="onAddChildPlan(node)"
                   >
-                    <span class="material-symbols-outlined">more_vert</span>
+                    <span class="material-symbols-outlined">add</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="action-btn btn-edit tap-target"
+                    title="Sửa kế hoạch"
+                    (click)="onEditPlan(node, $event)"
+                  >
+                    <span class="material-symbols-outlined">edit</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="action-btn btn-delete tap-target"
+                    title="Xóa kế hoạch"
+                    (click)="onDeletePlan(node, $event)"
+                  >
+                    <span class="material-symbols-outlined">delete</span>
                   </button>
                 </div>
               </div>
@@ -620,15 +638,31 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
             }
           }
 
+          &.btn-add-sub,
+          &.btn-edit,
+          &.btn-delete,
           &.btn-more {
             background: transparent;
             color: #64748B;
             padding: 6px 8px;
+            border: 1px solid transparent;
+            border-radius: 6px;
 
             &:hover {
               background: #F1F5F9;
               color: #1E293B;
+              border-color: #CBD5E1;
             }
+
+            .material-symbols-outlined {
+              font-size: 18px;
+            }
+          }
+
+          &.btn-delete:hover {
+            color: #DC2626;
+            background: #FEF2F2;
+            border-color: #FECACA;
           }
         }
       }
@@ -1237,6 +1271,16 @@ export class PlanTreeComponent {
   onNodeMenu(node: PlanTreeNode, event: Event) {
     event.stopPropagation();
     this.editPlan.emit(node);
+  }
+
+  onEditPlan(node: PlanTreeNode, event: Event) {
+    event.stopPropagation();
+    this.editPlan.emit(node);
+  }
+
+  onDeletePlan(node: PlanTreeNode, event: Event) {
+    event.stopPropagation();
+    this.deletePlan.emit(node);
   }
 
   onTaskClick(task: any) {

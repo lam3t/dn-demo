@@ -25,6 +25,12 @@ router.put(
   (req, res, next) => planController.update(req, res, next)
 );
 
+router.patch(
+  '/:id',
+  requireRole(Role.ADMIN, Role.HIEU_TRUONG, Role.PHO_HIEU_TRUONG, Role.TO_TRUONG),
+  (req, res, next) => planController.update(req, res, next)
+);
+
 router.delete(
   '/:id',
   requireRole(Role.ADMIN, Role.HIEU_TRUONG, Role.PHO_HIEU_TRUONG),
