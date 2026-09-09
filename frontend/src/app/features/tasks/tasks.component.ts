@@ -26,6 +26,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
 import { StatusTabsCounterComponent, StatusTabItem } from '../../shared/components/status-tabs-counter/status-tabs-counter.component';
 import { TaskCreateWizardComponent } from '../../shared/components/task-create-wizard/task-create-wizard.component';
 import { TaskDetailModalComponent } from '../../shared/components/task-detail-modal/task-detail-modal.component';
+import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
 
 @Component({
   selector: 'app-tasks',
@@ -37,6 +38,7 @@ import { TaskDetailModalComponent } from '../../shared/components/task-detail-mo
     StatusTabsCounterComponent,
     TaskCreateWizardComponent,
     TaskDetailModalComponent,
+    PaginationComponent,
   ],
   template: `
     <div class="tasks-page-container">
@@ -185,7 +187,7 @@ import { TaskDetailModalComponent } from '../../shared/components/task-detail-mo
                 </tr>
               </thead>
               <tbody>
-                @for (task of tasksList(); track task.id) {
+                @for (task of pagedTasksList(); track task.id) {
                   <tr class="task-table-row tap-target" (click)="openTaskDetail(task.id)">
                     <td class="col-code">
                       <span class="code-badge">{{ task.code || 'CV-' + task.id.slice(0, 4) }}</span>
@@ -305,7 +307,7 @@ import { TaskDetailModalComponent } from '../../shared/components/task-detail-mo
 
           <!-- MOBILE CARDS VIEW (<768px) -->
           <div class="mobile-cards-list">
-            @for (task of tasksList(); track task.id) {
+            @for (task of pagedTasksList(); track task.id) {
               <div class="mobile-task-card tap-target" (click)="openTaskDetail(task.id)">
                 <div class="mobile-card-top">
                   <div class="tags-row">
@@ -351,6 +353,16 @@ import { TaskDetailModalComponent } from '../../shared/components/task-detail-mo
               </div>
             }
           </div>
+
+          <!-- PAGINATION -->
+          <app-pagination
+            [totalItems]="tasksList().length"
+            [pageSize]="pageSize()"
+            [currentPage]="currentPage()"
+            itemName="công việc"
+            (pageChange)="onPageChange($event)"
+            (pageSizeChange)="onPageSizeChange($event)"
+          ></app-pagination>
         }
       </section>
 
@@ -1069,6 +1081,26 @@ export class TasksComponent implements OnInit, OnDestroy {
   tasksList = signal<TaskItem[]>([]);
   totalTasks = signal(0);
 
+  // Pagination
+  currentPage = signal<number>(1);
+  pageSize = signal<number>(10);
+
+  pagedTasksList = computed(() => {
+    const list = this.tasksList();
+    const page = this.currentPage();
+    const size = this.pageSize();
+    return list.slice((page - 1) * size, page * size);
+  });
+
+  onPageChange(page: number) {
+    this.currentPage.set(page);
+  }
+
+  onPageSizeChange(size: number) {
+    this.pageSize.set(size);
+    this.currentPage.set(1);
+  }
+
   // Status Tabs Counter
   activeStatusTab = signal<string>('ALL');
   statusTabs = signal<StatusTabItem[]>([
@@ -1180,6 +1212,7 @@ export class TasksComponent implements OnInit, OnDestroy {
 
   loadTasks() {
     this.isLoading.set(true);
+    this.currentPage.set(1);
     this.loadTabCounters();
 
     const params: TaskFilterParams = {

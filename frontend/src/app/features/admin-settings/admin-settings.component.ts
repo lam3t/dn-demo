@@ -14,13 +14,14 @@ import {
 } from '../../core/models/admin.models';
 import { LocationItem, OrgUnitItem, UserPickerItem } from '../../core/models/user.models';
 import { PeoplePickerComponent } from '../../shared/components/people-picker/people-picker.component';
+import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
 
 export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc';
 
 @Component({
   selector: 'app-admin-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, PeoplePickerComponent],
+  imports: [CommonModule, FormsModule, PeoplePickerComponent, PaginationComponent],
   template: `
     <div class="admin-settings-container">
       <!-- HEADER -->
@@ -229,7 +230,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc';
                   </tr>
                 </thead>
                 <tbody>
-                  @for (user of usersList(); track user.id) {
+                  @for (user of pagedUsersList(); track user.id) {
                     <tr [class.row-locked]="!user.isActive">
                       <td>
                         <div class="user-cell">
@@ -314,7 +315,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc';
 
             <!-- MOBILE CARDS VIEW -->
             <div class="mobile-cards-list hide-on-desktop">
-              @for (user of usersList(); track user.id) {
+              @for (user of pagedUsersList(); track user.id) {
                 <div class="user-card-item" [class.card-locked]="!user.isActive">
                   <div class="card-header">
                     <img [src]="user.avatarUrl" [alt]="user.fullName" class="card-avatar" />
@@ -384,6 +385,16 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc';
                 </div>
               }
             </div>
+
+            <!-- PAGINATION TAB 1 -->
+            <app-pagination
+              [totalItems]="usersList().length"
+              [pageSize]="usersPageSize()"
+              [currentPage]="currentUsersPage()"
+              itemName="tài khoản"
+              (pageChange)="onUsersPageChange($event)"
+              (pageSizeChange)="onUsersPageSizeChange($event)"
+            ></app-pagination>
           }
         </div>
       }
@@ -680,7 +691,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc';
                   </tr>
                 </thead>
                 <tbody>
-                  @for (teacher of filteredCampusTeachers(); track teacher.id) {
+                  @for (teacher of pagedCampusTeachers(); track teacher.id) {
                     <tr>
                       <td>
                         <div class="user-cell">
@@ -725,7 +736,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc';
 
             <!-- Mobile Cards -->
             <div class="mobile-cards-list hide-on-desktop">
-              @for (teacher of filteredCampusTeachers(); track teacher.id) {
+              @for (teacher of pagedCampusTeachers(); track teacher.id) {
                 <div class="user-card-item">
                   <div class="card-header">
                     <img [src]="teacher.avatarUrl" [alt]="teacher.fullName" class="card-avatar" />
@@ -762,6 +773,16 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc';
                 </div>
               }
             </div>
+
+            <!-- PAGINATION TAB 4 -->
+            <app-pagination
+              [totalItems]="filteredCampusTeachers().length"
+              [pageSize]="teachersPageSize()"
+              [currentPage]="currentTeachersPage()"
+              itemName="giáo viên"
+              (pageChange)="onTeachersPageChange($event)"
+              (pageSizeChange)="onTeachersPageSizeChange($event)"
+            ></app-pagination>
           }
         </div>
       }
@@ -2828,6 +2849,25 @@ export class AdminSettingsComponent implements OnInit {
   filterRole = '';
   filterStatus: 'all' | 'active' | 'locked' = 'all';
 
+  currentUsersPage = signal<number>(1);
+  usersPageSize = signal<number>(10);
+
+  pagedUsersList = computed(() => {
+    const list = this.usersList();
+    const page = this.currentUsersPage();
+    const size = this.usersPageSize();
+    return list.slice((page - 1) * size, page * size);
+  });
+
+  onUsersPageChange(page: number) {
+    this.currentUsersPage.set(page);
+  }
+
+  onUsersPageSizeChange(size: number) {
+    this.usersPageSize.set(size);
+    this.currentUsersPage.set(1);
+  }
+
   // TAB 2: ROLES STATE
   selectedRoleUser = signal<AdminUserItem | null>(null);
 
@@ -2838,6 +2878,9 @@ export class AdminSettingsComponent implements OnInit {
   selectedCampusId = '';
   campusTeachersList = signal<AdminUserItem[]>([]);
   campusSearchKeyword = '';
+
+  currentTeachersPage = signal<number>(1);
+  teachersPageSize = signal<number>(10);
 
   filteredCampusTeachers = computed(() => {
     const list = this.campusTeachersList();
@@ -2850,6 +2893,22 @@ export class AdminSettingsComponent implements OnInit {
         (u.title && u.title.toLowerCase().includes(q))
     );
   });
+
+  pagedCampusTeachers = computed(() => {
+    const list = this.filteredCampusTeachers();
+    const page = this.currentTeachersPage();
+    const size = this.teachersPageSize();
+    return list.slice((page - 1) * size, page * size);
+  });
+
+  onTeachersPageChange(page: number) {
+    this.currentTeachersPage.set(page);
+  }
+
+  onTeachersPageSizeChange(size: number) {
+    this.teachersPageSize.set(size);
+    this.currentTeachersPage.set(1);
+  }
 
   // MODAL STATES
   showCreateUserModal = signal<boolean>(false);
@@ -2971,6 +3030,7 @@ export class AdminSettingsComponent implements OnInit {
   // =======================================================
   loadUsers() {
     this.isLoadingUsers.set(true);
+    this.currentUsersPage.set(1);
     this.adminService
       .getUsers({
         search: this.searchKeyword,
@@ -3315,6 +3375,7 @@ export class AdminSettingsComponent implements OnInit {
   loadCampusTeachers() {
     if (!this.selectedCampusId) return;
     this.isLoadingCampusTeachers.set(true);
+    this.currentTeachersPage.set(1);
     this.adminService
       .getUsers({
         locationId: this.selectedCampusId,

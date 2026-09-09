@@ -9,6 +9,7 @@ import { ContactCardService } from '../../core/services/contact-card.service';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { StatusTabsCounterComponent, StatusTabItem } from '../../shared/components/status-tabs-counter/status-tabs-counter.component';
 import { FileDropzoneComponent } from '../../shared/components/file-dropzone/file-dropzone.component';
+import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
 import { TaskItem, TaskStatus, TaskPriority, TaskAssignmentRole } from '../../core/models/task.models';
 
 type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 'WAITING_CONFIRM';
@@ -22,6 +23,7 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
     RouterModule,
     StatusBadgeComponent,
     FileDropzoneComponent,
+    PaginationComponent,
   ],
   template: `
     <div class="my-tasks-page">
@@ -206,7 +208,7 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
         </div>
       } @else {
         <div class="tasks-cards-grid">
-          @for (task of filteredTasks(); track task.id) {
+          @for (task of pagedTasks(); track task.id) {
             <div class="task-compact-card" [class.is-overdue]="task.isOverdue">
               <!-- TOP META ROW -->
               <div class="card-top-row">
@@ -333,6 +335,17 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
             </div>
           }
         </div>
+
+        <!-- PAGINATION -->
+        <app-pagination
+          [totalItems]="filteredTasks().length"
+          [pageSize]="pageSize()"
+          [currentPage]="currentPage()"
+          [pageSizeOptions]="[8, 16, 24]"
+          itemName="nhiệm vụ"
+          (pageChange)="onPageChange($event)"
+          (pageSizeChange)="onPageSizeChange($event)"
+        ></app-pagination>
       }
 
       <!-- MODAL CẬP NHẬT NHANH (IN-PLACE QUICK UPDATE DRAWER / MODAL) -->
@@ -1477,6 +1490,26 @@ export class MyTasksComponent implements OnInit, OnDestroy {
     return list;
   });
 
+  // Pagination
+  currentPage = signal<number>(1);
+  pageSize = signal<number>(8);
+
+  pagedTasks = computed(() => {
+    const list = this.filteredTasks();
+    const page = this.currentPage();
+    const size = this.pageSize();
+    return list.slice((page - 1) * size, page * size);
+  });
+
+  onPageChange(page: number) {
+    this.currentPage.set(page);
+  }
+
+  onPageSizeChange(size: number) {
+    this.pageSize.set(size);
+    this.currentPage.set(1);
+  }
+
   ngOnInit() {
     this.loadMyTasks();
 
@@ -1519,6 +1552,7 @@ export class MyTasksComponent implements OnInit, OnDestroy {
 
   loadMyTasks() {
     this.isLoading.set(true);
+    this.currentPage.set(1);
     this.taskService.getTasks({ myTasks: true, pageSize: 50 }).subscribe({
       next: (res) => {
         this.isLoading.set(false);
@@ -1539,15 +1573,21 @@ export class MyTasksComponent implements OnInit, OnDestroy {
 
   setGroup(group: MyTaskGroupType) {
     this.activeGroup.set(group);
+    this.currentPage.set(1);
   }
 
-  onSearchChange() {}
+  onSearchChange() {
+    this.currentPage.set(1);
+  }
 
   clearSearch() {
     this.searchKeyword = '';
+    this.currentPage.set(1);
   }
 
-  onFilterChange() {}
+  onFilterChange() {
+    this.currentPage.set(1);
+  }
 
   isMyLeading(task: TaskItem): boolean {
     const currentUserId = this.authService.currentUser()?.id;

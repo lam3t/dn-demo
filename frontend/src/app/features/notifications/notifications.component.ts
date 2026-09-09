@@ -3,16 +3,18 @@ import {
   OnInit,
   inject,
   signal,
+  computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { NotificationService } from '../../core/services/notification.service';
 import { NotificationItem, NotificationType } from '../../core/models/notification.models';
+import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
 
 @Component({
   selector: 'app-notifications',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, PaginationComponent],
   template: `
     <div class="notifications-page-container">
       <!-- HEADER -->
@@ -98,7 +100,7 @@ import { NotificationItem, NotificationType } from '../../core/models/notificati
           </div>
         } @else {
           <div class="notif-cards-list">
-            @for (notif of notificationsList(); track notif.id) {
+            @for (notif of pagedNotifications(); track notif.id) {
               <div
                 class="notif-card tap-target"
                 [class.is-unread]="!notif.isRead"
@@ -139,6 +141,17 @@ import { NotificationItem, NotificationType } from '../../core/models/notificati
               </div>
             }
           </div>
+
+          <!-- PAGINATION -->
+          <app-pagination
+            [totalItems]="notificationsList().length"
+            [pageSize]="pageSize()"
+            [currentPage]="currentPage()"
+            [pageSizeOptions]="[10, 20, 50]"
+            itemName="thông báo"
+            (pageChange)="onPageChange($event)"
+            (pageSizeChange)="onPageSizeChange($event)"
+          ></app-pagination>
         }
       </section>
     </div>
@@ -464,12 +477,33 @@ export class NotificationsComponent implements OnInit {
   totalCount = signal(0);
   unreadCount = signal(0);
 
+  // Pagination
+  currentPage = signal<number>(1);
+  pageSize = signal<number>(10);
+
+  pagedNotifications = computed(() => {
+    const list = this.notificationsList();
+    const page = this.currentPage();
+    const size = this.pageSize();
+    return list.slice((page - 1) * size, page * size);
+  });
+
+  onPageChange(page: number) {
+    this.currentPage.set(page);
+  }
+
+  onPageSizeChange(size: number) {
+    this.pageSize.set(size);
+    this.currentPage.set(1);
+  }
+
   ngOnInit() {
     this.loadNotifications();
   }
 
   loadNotifications() {
     this.isLoading.set(true);
+    this.currentPage.set(1);
     this.notifService
       .getNotifications({ unreadOnly: this.filterUnreadOnly() ? true : undefined, pageSize: 50 })
       .subscribe({
@@ -487,6 +521,7 @@ export class NotificationsComponent implements OnInit {
 
   setFilter(unreadOnly: boolean) {
     this.filterUnreadOnly.set(unreadOnly);
+    this.currentPage.set(1);
     this.loadNotifications();
   }
 

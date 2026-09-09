@@ -21,11 +21,12 @@ import {
 } from '../../core/models/user.models';
 import { TaskItem } from '../../core/models/task.models';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
+import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
 
 @Component({
   selector: 'app-org',
   standalone: true,
-  imports: [CommonModule, FormsModule, StatusBadgeComponent],
+  imports: [CommonModule, FormsModule, StatusBadgeComponent, PaginationComponent],
   template: `
     <div class="org-page-container">
       <!-- HEADER -->
@@ -311,7 +312,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
               </div>
 
               <div class="roster-list">
-                @for (u of campusUsers(); track u.id) {
+                @for (u of pagedCampusUsers(); track u.id) {
                   <div
                     class="roster-item tap-target"
                     [class.is-current-user]="isCurrentUser(u.id)"
@@ -349,6 +350,17 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
                   </div>
                 }
               </div>
+
+              <!-- PAGINATION USERS -->
+              <app-pagination
+                [totalItems]="campusUsers().length"
+                [pageSize]="usersPageSize()"
+                [currentPage]="currentUsersPage()"
+                [pageSizeOptions]="[6, 12, 24]"
+                itemName="nhân sự"
+                (pageChange)="onUsersPageChange($event)"
+                (pageSizeChange)="onUsersPageSizeChange($event)"
+              ></app-pagination>
             </div>
 
             <!-- TASKS AT CAMPUS CARD -->
@@ -368,7 +380,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
                     <p>Hiện không có công việc nào đang thực hiện tại điểm trường này.</p>
                   </div>
                 } @else {
-                  @for (t of campusTasks(); track t.id) {
+                  @for (t of pagedCampusTasks(); track t.id) {
                     <div class="campus-task-item tap-target" (click)="goToTask(t.id)">
                       <div class="task-top">
                         <span class="t-code">{{ t.code || 'CV-' + t.id.slice(0, 4) }}</span>
@@ -389,6 +401,17 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
                   }
                 }
               </div>
+
+              <!-- PAGINATION TASKS -->
+              <app-pagination
+                [totalItems]="campusTasks().length"
+                [pageSize]="tasksPageSize()"
+                [currentPage]="currentTasksPage()"
+                [pageSizeOptions]="[6, 12, 24]"
+                itemName="công việc"
+                (pageChange)="onTasksPageChange($event)"
+                (pageSizeChange)="onTasksPageSizeChange($event)"
+              ></app-pagination>
             </div>
           </div>
         </section>
@@ -1385,11 +1408,14 @@ export class OrgComponent implements OnInit, OnDestroy {
 
   selectLocation(locId: string) {
     this.selectedLocationId.set(locId);
+    this.currentUsersPage.set(1);
+    this.currentTasksPage.set(1);
     this.activeTab.set('campus-detail');
   }
 
   onLocationChange() {
-    // reactive
+    this.currentUsersPage.set(1);
+    this.currentTasksPage.set(1);
   }
 
   onTreeLocationFilterChange() {
@@ -1436,11 +1462,49 @@ export class OrgComponent implements OnInit, OnDestroy {
     return this.allUsers().filter((u) => u.primaryLocation?.id === locId);
   });
 
+  currentUsersPage = signal<number>(1);
+  usersPageSize = signal<number>(6);
+
+  pagedCampusUsers = computed(() => {
+    const list = this.campusUsers();
+    const page = this.currentUsersPage();
+    const size = this.usersPageSize();
+    return list.slice((page - 1) * size, page * size);
+  });
+
+  onUsersPageChange(page: number) {
+    this.currentUsersPage.set(page);
+  }
+
+  onUsersPageSizeChange(size: number) {
+    this.usersPageSize.set(size);
+    this.currentUsersPage.set(1);
+  }
+
   campusTasks = computed(() => {
     const locId = this.selectedLocationId();
     if (!locId) return this.allTasks();
     return this.allTasks().filter((t) => t.locationId === locId);
   });
+
+  currentTasksPage = signal<number>(1);
+  tasksPageSize = signal<number>(6);
+
+  pagedCampusTasks = computed(() => {
+    const list = this.campusTasks();
+    const page = this.currentTasksPage();
+    const size = this.tasksPageSize();
+    return list.slice((page - 1) * size, page * size);
+  });
+
+  onTasksPageChange(page: number) {
+    this.currentTasksPage.set(page);
+  }
+
+  onTasksPageSizeChange(size: number) {
+    this.tasksPageSize.set(size);
+    this.currentTasksPage.set(1);
+  }
 
   getWorkloadClass(load: number): string {
     if (load >= 6) return 'load-high';
