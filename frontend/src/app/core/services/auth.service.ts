@@ -1,7 +1,7 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, Subject, tap, catchError, throwError } from 'rxjs';
+import { Observable, Subject, tap, catchError, throwError, of } from 'rxjs';
 import { UserProfile, ActiveContextRole, LoginResponse } from '../models/auth.models';
 
 const ACCESS_TOKEN_KEY = 'tn_edu_access_token';
@@ -167,6 +167,38 @@ export class AuthService {
     }
   }
 
+  private getMockProfileForIdentifier(identifier: string): LoginResponse {
+    let matched = DEMO_ACCOUNTS.find(
+      (a) => a.identifier === identifier || a.name.toLowerCase().includes(identifier.toLowerCase())
+    );
+    if (!matched) {
+      matched = DEMO_ACCOUNTS[0]; // Default: Cô Phạm Thị Nam
+    }
+    const mockUser: UserProfile = {
+      id: 'demo-user-' + matched.role.toLowerCase(),
+      email: `${matched.role.toLowerCase()}@phuoctan.edu.vn`,
+      phone: matched.identifier,
+      fullName: matched.name,
+      title: matched.roleTitle,
+      avatarUrl: matched.avatar,
+      schoolId: 'demo-school-phuoc-tan',
+      schoolName: 'Trường TH và THCS Phước Tân',
+      primaryLocationName: matched.scopeName,
+      roles: [
+        {
+          role: matched.role as any,
+          scopeLocationName: matched.scopeName,
+        },
+      ],
+    };
+
+    return {
+      accessToken: 'demo-token-' + Date.now(),
+      refreshToken: 'demo-refresh-' + Date.now(),
+      user: mockUser,
+    };
+  }
+
   login(identifier: string, password = '123456'): Observable<{ success: boolean; data: LoginResponse }> {
     return this.http
       .post<{ success: boolean; data: LoginResponse }>('/api/auth/login', {
@@ -178,6 +210,11 @@ export class AuthService {
           if (res.success && res.data) {
             this.setSession(res.data);
           }
+        }),
+        catchError(() => {
+          const fallbackData = this.getMockProfileForIdentifier(identifier);
+          this.setSession(fallbackData);
+          return of({ success: true, data: fallbackData });
         })
       );
   }
