@@ -335,18 +335,19 @@ import { LocationItem } from '../../core/models/user.models';
               }
             </div>
 
-            <!-- ATTENTION TASKS PAGINATION -->
+            <!-- ATTENTION TASKS PAGINATION (MATCHING PLAN TREE STYLE) -->
             @if ((data.attentionTasks || []).length > attentionPageSize()) {
-              <div class="attention-pagination-bar">
-                <span class="pagination-info">
+              <div class="attention-pagination-bar" (click)="$event.stopPropagation()">
+                <span class="pagination-summary">
                   Hiển thị <strong>{{ (attentionPage() - 1) * attentionPageSize() + 1 }}</strong> -
-                  <strong>{{ Math.min(attentionPage() * attentionPageSize(), (data.attentionTasks || []).length) }}</strong> trên
-                  <strong>{{ (data.attentionTasks || []).length }}</strong> việc
+                  <strong>{{ Math.min(attentionPage() * attentionPageSize(), (data.attentionTasks || []).length) }}</strong> /
+                  <strong>{{ (data.attentionTasks || []).length }}</strong> công việc
                 </span>
-                <div class="pagination-controls">
+
+                <div class="pagination-page-actions">
                   <button
                     type="button"
-                    class="page-nav-btn tap-target"
+                    class="tree-page-btn tap-target"
                     [disabled]="attentionPage() === 1"
                     (click)="attentionPage.set(attentionPage() - 1)"
                     title="Trang trước"
@@ -354,10 +355,14 @@ import { LocationItem } from '../../core/models/user.models';
                     <span class="material-symbols-outlined">chevron_left</span>
                     <span>Trước</span>
                   </button>
-                  <span class="page-current-tag">Trang {{ attentionPage() }} / {{ totalAttentionPages() }}</span>
+
+                  <span class="tree-page-tag">
+                    Trang {{ attentionPage() }} / {{ totalAttentionPages() }}
+                  </span>
+
                   <button
                     type="button"
-                    class="page-nav-btn tap-target"
+                    class="tree-page-btn tap-target"
                     [disabled]="attentionPage() === totalAttentionPages()"
                     (click)="attentionPage.set(attentionPage() + 1)"
                     title="Trang sau"
@@ -1035,55 +1040,55 @@ import { LocationItem } from '../../core/models/user.models';
           }
         }
 
-        /* PAGINATION FOR ATTENTION LIST */
+        /* PAGINATION FOR ATTENTION LIST (IDENTICAL STYLE TO PLAN TREE) */
         .attention-pagination-bar {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 12px;
-          padding: 12px 16px;
+          gap: 10px;
+          padding: 8px 14px;
           background: #F8FAFC;
-          border-top: 1px solid #E2E8F0;
-          border-radius: 0 0 16px 16px;
-          margin-top: 8px;
+          border: 1px solid #E2E8F0;
+          border-radius: 10px;
+          margin-top: 4px;
           flex-wrap: wrap;
 
-          .pagination-info {
-            font-size: 0.8rem;
+          .pagination-summary {
+            font-size: 0.76rem;
             color: #64748B;
 
             strong {
               color: #1F3864;
+              font-weight: 700;
             }
           }
 
-          .pagination-controls {
+          .pagination-page-actions {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
 
-            .page-nav-btn {
+            .tree-page-btn {
               display: inline-flex;
               align-items: center;
-              gap: 4px;
-              padding: 5px 10px;
-              font-size: 0.78rem;
+              gap: 3px;
+              padding: 4px 8px;
+              font-size: 0.74rem;
               font-weight: 600;
               color: #1F3864;
               background: #FFFFFF;
               border: 1px solid #CBD5E1;
-              border-radius: 8px;
+              border-radius: 6px;
               cursor: pointer;
-              transition: all 0.2s ease;
+              transition: all 0.15s ease;
 
               .material-symbols-outlined {
-                font-size: 16px;
+                font-size: 14px;
               }
 
               &:hover:not(:disabled) {
                 background: #EEF4FC;
                 border-color: #1F3864;
-                color: #1F3864;
               }
 
               &:disabled {
@@ -1092,12 +1097,12 @@ import { LocationItem } from '../../core/models/user.models';
               }
             }
 
-            .page-current-tag {
-              font-size: 0.78rem;
+            .tree-page-tag {
+              font-size: 0.74rem;
               font-weight: 700;
               color: #1F3864;
               background: #EEF4FC;
-              padding: 4px 8px;
+              padding: 3px 8px;
               border-radius: 6px;
             }
           }
