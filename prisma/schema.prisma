@@ -323,4 +323,3 @@ model AdminAuditLog {
 
   actorUser   User     @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
 }
-

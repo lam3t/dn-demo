@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "TN EDU – Quản lý Kế hoạch & Công việc Trường Phổ thông (Monorepo)",
   "scripts": {
-    "postinstall": "npm --prefix backend run prisma:generate",
-    "build": "npm --prefix backend install && npm --prefix backend run prisma:generate && npm --prefix frontend install && npm --prefix frontend run build",
-    "vercel-build": "npm --prefix backend install && npm --prefix backend run prisma:generate && npm --prefix frontend install && npm --prefix frontend run build",
+    "postinstall": "prisma generate && npm --prefix backend run prisma:generate",
+    "build": "prisma generate && npm --prefix backend run prisma:generate && npm --prefix frontend install && npm --prefix frontend run build",
+    "vercel-build": "prisma generate && npm --prefix backend run prisma:generate && npm --prefix frontend install && npm --prefix frontend run build",
     "build:backend": "npm --prefix backend install && npm --prefix backend run prisma:generate",
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend start",
@@ -23,6 +23,7 @@
     "express": "^4.21.1",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
+    "prisma": "^5.22.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -32,7 +33,6 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.9.0",
-    "prisma": "^5.22.0",
     "typescript": "^5.6.3"
   },
   "keywords": ["education", "management", "angular", "nodejs", "express", "prisma"],
