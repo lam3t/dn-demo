@@ -16,6 +16,7 @@ export interface UserPickerItem {
   }[];
   currentTaskLoad: number;
   sharedTaskCount?: number;
+  isToTruong?: boolean;
 }
 
 export interface LocationItem {

@@ -13,6 +13,7 @@ export interface CreateAdminUserDto {
   position?: string;
   locationId?: string | null;
   orgUnitId?: string | null;
+  isToTruong?: boolean;
   roles?: InitialUserRoleDto[];
   avatarUrl?: string;
   password?: string;
@@ -25,6 +26,7 @@ export interface UpdateAdminUserDto {
   position?: string;
   locationId?: string | null;
   orgUnitId?: string | null;
+  isToTruong?: boolean;
   avatarUrl?: string;
 }
 

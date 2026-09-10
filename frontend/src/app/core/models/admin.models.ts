@@ -39,6 +39,7 @@ export interface CreateAdminUserPayload {
   position?: string;
   locationId?: string | null;
   orgUnitId?: string | null;
+  isToTruong?: boolean;
   roles?: {
     role: string;
     scopeLocationId?: string | null;
@@ -55,6 +56,7 @@ export interface UpdateAdminUserPayload {
   position?: string;
   locationId?: string | null;
   orgUnitId?: string | null;
+  isToTruong?: boolean;
   avatarUrl?: string;
 }
 

@@ -236,7 +236,12 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc';
                         <div class="user-cell">
                           <img [src]="user.avatarUrl" [alt]="user.fullName" class="table-avatar" />
                           <div class="user-meta">
-                            <span class="user-fullname">{{ user.fullName }}</span>
+                            <div class="user-fullname-row">
+                              <span class="user-fullname">{{ user.fullName }}</span>
+                              @if (isUserToTruong(user)) {
+                                <span class="badge-totruong-mini" title="Tổ trưởng tổ chuyên môn">👑 Tổ trưởng</span>
+                              }
+                            </div>
                             <span class="user-sub">{{ user.title || user.email }}</span>
                           </div>
                         </div>
@@ -843,17 +848,41 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc';
                 </div>
               </div>
 
-              <div class="form-group">
-                <label>Vai trò ban đầu</label>
-                <select [(ngModel)]="newUserInitialRole" class="form-select">
-                  <option value="GIAO_VIEN">Giáo viên</option>
-                  <option value="TO_TRUONG">Tổ trưởng</option>
-                  <option value="PHO_HIEU_TRUONG">Phó Hiệu trưởng</option>
-                  <option value="NHAN_VIEN">Nhân viên / Hành chính</option>
-                  <option value="HIEU_TRUONG">Hiệu trưởng</option>
-                  <option value="ADMIN">Quản trị hệ thống</option>
-                </select>
-              </div>
+              @if (newUserForm.orgUnitId) {
+                <div class="form-group to-truong-switch-group">
+                  <label class="custom-checkbox-container tap-target">
+                    <input type="checkbox" [(ngModel)]="newUserForm.isToTruong" />
+                    <div class="checkbox-text-block">
+                      <strong class="checkbox-title">👑 Bổ nhiệm làm Tổ trưởng tổ chuyên môn</strong>
+                      <span class="checkbox-subtitle">Phụ trách điều hành, phân công và kiểm tra công việc trong {{ getOrgName(newUserForm.orgUnitId) }}.</span>
+                    </div>
+                  </label>
+                </div>
+
+                @if (newUserForm.isToTruong && getExistingOrgLeader(newUserForm.orgUnitId); as existingLeader) {
+                  <div class="leader-overwrite-warning-box">
+                    <span class="material-symbols-outlined warn-icon">warning</span>
+                    <div class="warn-text">
+                      <strong>⚠️ Cảnh báo chuyển giao Tổ trưởng:</strong>
+                      <p>Tổ <strong>{{ getOrgName(newUserForm.orgUnitId) }}</strong> hiện đã có Tổ trưởng là <strong>{{ existingLeader.fullName }}</strong> (SĐT: {{ existingLeader.phone }}). Khi bạn lưu, hệ thống sẽ tự động chuyển giao chức danh Tổ trưởng sang cho nhân sự mới và chuyển vai trò của <strong>{{ existingLeader.fullName }}</strong> về Giáo viên.</p>
+                    </div>
+                  </div>
+                }
+              }
+
+              @if (!newUserForm.isToTruong) {
+                <div class="form-group">
+                  <label>Vai trò ban đầu</label>
+                  <select [(ngModel)]="newUserInitialRole" class="form-select">
+                    <option value="GIAO_VIEN">Giáo viên</option>
+                    <option value="TO_TRUONG">Tổ trưởng</option>
+                    <option value="PHO_HIEU_TRUONG">Phó Hiệu trưởng</option>
+                    <option value="NHAN_VIEN">Nhân viên / Hành chính</option>
+                    <option value="HIEU_TRUONG">Hiệu trưởng</option>
+                    <option value="ADMIN">Quản trị hệ thống</option>
+                  </select>
+                </div>
+              }
 
               <div class="modal-info-box">
                 <span class="material-symbols-outlined">info</span>
@@ -926,6 +955,28 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc';
                   </select>
                 </div>
               </div>
+
+              @if (editUserForm.orgUnitId) {
+                <div class="form-group to-truong-switch-group">
+                  <label class="custom-checkbox-container tap-target">
+                    <input type="checkbox" [(ngModel)]="editUserForm.isToTruong" />
+                    <div class="checkbox-text-block">
+                      <strong class="checkbox-title">👑 Đảm nhiệm vai trò Tổ trưởng tổ chuyên môn</strong>
+                      <span class="checkbox-subtitle">Phụ trách điều hành, phân công và kiểm tra công việc trong {{ getOrgName(editUserForm.orgUnitId) }}.</span>
+                    </div>
+                  </label>
+                </div>
+
+                @if (editUserForm.isToTruong && getExistingOrgLeader(editUserForm.orgUnitId, editingUser()?.id); as existingLeader) {
+                  <div class="leader-overwrite-warning-box">
+                    <span class="material-symbols-outlined warn-icon">warning</span>
+                    <div class="warn-text">
+                      <strong>⚠️ Cảnh báo chuyển giao Tổ trưởng:</strong>
+                      <p>Tổ <strong>{{ getOrgName(editUserForm.orgUnitId) }}</strong> hiện đã có Tổ trưởng là <strong>{{ existingLeader.fullName }}</strong> (SĐT: {{ existingLeader.phone }}). Khi bạn lưu, hệ thống sẽ tự động chuyển giao chức danh Tổ trưởng sang cho nhân sự này và hạ vai trò của <strong>{{ existingLeader.fullName }}</strong> về Giáo viên.</p>
+                    </div>
+                  </div>
+                }
+              }
             </div>
 
             <div class="modal-footer">
@@ -2600,6 +2651,102 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc';
         gap: 12px;
       }
 
+      /* TO TRUONG SWITCH & WARNING */
+      .to-truong-switch-group {
+        background: #F0FDF4;
+        border: 1.5px solid #86EFAC;
+        border-radius: 10px;
+        padding: 12px 14px;
+      }
+
+      .custom-checkbox-container {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        cursor: pointer;
+
+        input[type='checkbox'] {
+          width: 18px;
+          height: 18px;
+          margin-top: 2px;
+          accent-color: #16A34A;
+          cursor: pointer;
+        }
+
+        .checkbox-text-block {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+
+          .checkbox-title {
+            font-size: 0.9rem;
+            color: #166534;
+            font-weight: 700;
+          }
+
+          .checkbox-subtitle {
+            font-size: 0.78rem;
+            color: #15803D;
+          }
+        }
+      }
+
+      .leader-overwrite-warning-box {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        background: #FFFBEB;
+        border: 1.5px solid #FCD34D;
+        border-radius: 10px;
+        font-size: 0.84rem;
+        color: #92400E;
+        animation: fadeIn 0.2s ease;
+
+        .warn-icon {
+          font-size: 22px;
+          color: #D97706;
+          flex-shrink: 0;
+        }
+
+        .warn-text {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+
+          strong {
+            font-size: 0.88rem;
+            color: #B45309;
+          }
+
+          p {
+            margin: 0;
+            line-height: 1.45;
+          }
+        }
+      }
+
+      .user-fullname-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .badge-totruong-mini {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        padding: 2px 7px;
+        background: #FEF3C7;
+        color: #92400E;
+        border: 1px solid #FDE68A;
+        border-radius: 9999px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.2px;
+      }
+
       .modal-info-box,
       .modal-warning-box {
         display: flex;
@@ -3062,6 +3209,27 @@ export class AdminSettingsComponent implements OnInit {
     this.loadUsers();
   }
 
+  getOrgName(orgUnitId?: string | null): string {
+    if (!orgUnitId) return 'Tổ chuyên môn';
+    const org = this.orgUnits().find((o) => o.id === orgUnitId);
+    return org?.name || 'Tổ chuyên môn';
+  }
+
+  getExistingOrgLeader(orgUnitId?: string | null, excludeUserId?: string): AdminUserItem | null {
+    if (!orgUnitId) return null;
+    const leader = this.usersList().find((u) => {
+      if (excludeUserId && u.id === excludeUserId) return false;
+      const isInThisOrg = u.primaryOrgUnit?.id === orgUnitId;
+      const hasToTruongRole = u.roles?.some((r) => r.role === 'TO_TRUONG' && (r.scopeOrgUnitId === orgUnitId || !r.scopeOrgUnitId));
+      return hasToTruongRole && (isInThisOrg || u.roles?.some((r) => r.scopeOrgUnitId === orgUnitId));
+    });
+    return leader || null;
+  }
+
+  isUserToTruong(user: AdminUserItem): boolean {
+    return user.roles?.some((r) => r.role === 'TO_TRUONG') || false;
+  }
+
   openCreateUserModal(prefilledLocationId?: string | null) {
     this.newUserForm = {
       fullName: '',
@@ -3070,6 +3238,7 @@ export class AdminSettingsComponent implements OnInit {
       position: '',
       locationId: prefilledLocationId || null,
       orgUnitId: null,
+      isToTruong: false,
     };
     this.newUserInitialRole = 'GIAO_VIEN';
     this.showCreateUserModal.set(true);
@@ -3082,11 +3251,12 @@ export class AdminSettingsComponent implements OnInit {
     }
 
     this.isSubmitting.set(true);
+    const initialRole = this.newUserForm.isToTruong ? 'TO_TRUONG' : this.newUserInitialRole;
     const payload: CreateAdminUserPayload = {
       ...this.newUserForm,
       roles: [
         {
-          role: this.newUserInitialRole,
+          role: initialRole,
           scopeLocationId: this.newUserForm.locationId,
           scopeOrgUnitId: this.newUserForm.orgUnitId,
         },
@@ -3124,6 +3294,7 @@ export class AdminSettingsComponent implements OnInit {
 
   openEditUserModal(user: AdminUserItem) {
     this.editingUser.set(user);
+    const hasToTruong = user.roles?.some((r) => r.role === 'TO_TRUONG') || false;
     this.editUserForm = {
       fullName: user.fullName,
       phone: user.phone,
@@ -3131,6 +3302,7 @@ export class AdminSettingsComponent implements OnInit {
       position: user.title || '',
       locationId: user.primaryLocation?.id || null,
       orgUnitId: user.primaryOrgUnit?.id || null,
+      isToTruong: hasToTruong,
     };
     this.showEditUserModal.set(true);
   }

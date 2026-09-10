@@ -17,6 +17,18 @@ export interface OrgTreeNode {
   } | null;
   userCount: number;
   taskCount: number;
+  users?: {
+    id: string;
+    fullName: string;
+    title: string | null;
+    phone: string;
+    email: string;
+    avatarUrl: string | null;
+    primaryLocation?: { id: string; name: string; code?: string } | null;
+    roles: { role: Role; scopeOrgUnitId: string | null; scopeLocationId: string | null }[];
+    currentTaskLoad?: number;
+    isToTruong: boolean;
+  }[];
   children: OrgTreeNode[];
 }
 
@@ -49,12 +61,25 @@ export class OrgUnitService {
             fullName: true,
             title: true,
             phone: true,
+            email: true,
             avatarUrl: true,
+            primaryLocation: { select: { id: true, name: true, code: true } },
             roles: {
               select: {
                 role: true,
                 scopeOrgUnitId: true,
+                scopeLocationId: true,
               },
+            },
+            taskAssignments: {
+              where: {
+                task: {
+                  status: {
+                    notIn: ['DONG', 'HUY', 'HOAN_THANH'],
+                  },
+                },
+              },
+              select: { id: true },
             },
           },
         },
@@ -72,9 +97,33 @@ export class OrgUnitService {
       // Tìm tổ trưởng / trưởng bộ phận
       const leaderUser = org.users.find(
         (u) =>
-          u.roles.some((r) => r.role === Role.TO_TRUONG && r.scopeOrgUnitId === org.id) ||
+          u.roles.some((r) => r.role === Role.TO_TRUONG && (r.scopeOrgUnitId === org.id || !r.scopeOrgUnitId)) ||
           u.roles.some((r) => r.role === Role.HIEU_TRUONG && org.code === 'BGH')
       );
+
+      const mappedUsers = org.users.map((u) => {
+        const isLeader =
+          u.roles.some((r) => r.role === Role.TO_TRUONG && (r.scopeOrgUnitId === org.id || !r.scopeOrgUnitId)) ||
+          (org.code === 'BGH' && u.roles.some((r) => r.role === Role.HIEU_TRUONG));
+        return {
+          id: u.id,
+          fullName: u.fullName,
+          title: u.title,
+          phone: u.phone,
+          email: u.email,
+          avatarUrl: u.avatarUrl,
+          primaryLocation: u.primaryLocation,
+          roles: u.roles,
+          currentTaskLoad: u.taskAssignments?.length || 0,
+          isToTruong: isLeader,
+        };
+      });
+
+      // Sắp xếp: Tổ trưởng lên đầu, sau đó theo Tên A-Z
+      mappedUsers.sort((a, b) => {
+        if (a.isToTruong !== b.isToTruong) return b.isToTruong ? 1 : -1;
+        return a.fullName.localeCompare(b.fullName, 'vi');
+      });
 
       return {
         id: org.id,
@@ -93,6 +142,7 @@ export class OrgUnitService {
           : null,
         userCount: org._count.users,
         taskCount: org._count.tasks,
+        users: mappedUsers,
         children: [],
       };
     });

@@ -259,6 +259,68 @@ async function runTests() {
     throw new Error(`FAIL: permissions-matrix thất bại: ${JSON.stringify(matrixRes.body)}`);
   }
 
+  // 3.6 TEST TỔ TRƯỞNG & OVERWRITE TỔ TRƯỞNG CŨ
+  console.log('\n--- 3.6 Test Đánh dấu Tổ trưởng & Tự động Overwrite Tổ trưởng cũ ---');
+  const toanTinOrg = await prisma.orgUnit.findFirst({ where: { code: 'TOAN_TIN' } });
+  if (toanTinOrg) {
+    const dungOldLeader = await prisma.user.findUnique({
+      where: { email: 'dung.vd@phuoctan.edu.vn' },
+      include: { roles: true },
+    });
+
+    // Tạo mới 1 giáo viên và đánh dấu là Tổ trưởng Tổ Toán - Tin
+    const newLeaderEmail = `totruong.test.${Date.now()}@phuoctan.edu.vn`;
+    const newLeaderPhone = `0988${Math.floor(100000 + Math.random() * 900000)}`;
+    const createNewLeaderRes = await request(app)
+      .post('/api/admin/users')
+      .set('Authorization', `Bearer ${htToken}`)
+      .send({
+        fullName: 'Trần Văn Tổ Trưởng Mới',
+        phone: newLeaderPhone,
+        email: newLeaderEmail,
+        position: 'Giáo viên Toán',
+        orgUnitId: toanTinOrg.id,
+        isToTruong: true,
+      });
+
+    if (createNewLeaderRes.status === 201) {
+      const createdLeader = createNewLeaderRes.body.data;
+      const hasToTruong = createdLeader.roles.some((r: any) => r.role === Role.TO_TRUONG);
+      if (hasToTruong) {
+        console.log(`✓ PASS: Tạo mới nhân sự với cờ isToTruong: true thành công (Vai trò: TO_TRUONG, Tổ: ${toanTinOrg.name}).`);
+      } else {
+        throw new Error('FAIL: User mới không có vai trò TO_TRUONG');
+      }
+
+      // Kiểm tra Thầy Dũng cũ đã bị overwrite gỡ TO_TRUONG chưa
+      const dungAfterOverwrite = await prisma.user.findUnique({
+        where: { email: 'dung.vd@phuoctan.edu.vn' },
+        include: { roles: true },
+      });
+      const dungStillHasToTruong = dungAfterOverwrite?.roles.some((r) => r.role === Role.TO_TRUONG);
+      if (!dungStillHasToTruong) {
+        console.log('✓ PASS: Tự động overwrite: Tổ trưởng cũ (Vũ Đình Dũng) đã được chuyển giao và hạ về Giáo viên.');
+      } else {
+        throw new Error('FAIL: Tổ trưởng cũ không bị gỡ vai trò TO_TRUONG');
+      }
+
+      // Khôi phục lại Thầy Dũng làm Tổ trưởng qua PATCH /api/admin/users/:id
+      if (dungOldLeader) {
+        const restoreDungRes = await request(app)
+          .patch(`/api/admin/users/${dungOldLeader.id}`)
+          .set('Authorization', `Bearer ${htToken}`)
+          .send({ isToTruong: true, orgUnitId: toanTinOrg.id });
+
+        if (restoreDungRes.status === 200) {
+          console.log('✓ PASS: Khôi phục lại Tổ trưởng cũ qua PATCH updateUser(isToTruong: true) thành công.');
+        }
+      }
+
+      // Dọn dẹp tài khoản test
+      await prisma.user.delete({ where: { id: createdLeader.id } });
+    }
+  }
+
   // 2.7 DELETE /api/admin/users/:id - Xoá tài khoản chưa gắn dữ liệu
   const deleteCleanUserRes = await request(app)
     .delete(`/api/admin/users/${createdUserId}`)

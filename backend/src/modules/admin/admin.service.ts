@@ -6,6 +6,7 @@ import { removeVietnameseAccents, calculateMatchScore } from '../../utils/vietna
 import {
   CreateAdminUserDto,
   UpdateAdminUserDto,
+  InitialUserRoleDto,
   AddUserRoleDto,
   AdminUserFilterDto,
   PermissionMatrixItem,
@@ -201,13 +202,59 @@ export class AdminService {
     const rawPassword = data.password || '123456';
     const passwordHash = await bcrypt.hash(rawPassword, 10);
 
-    const initialRoles = data.roles && data.roles.length > 0
-      ? data.roles.map((r) => ({
-          role: r.role,
-          scopeLocationId: r.scopeLocationId || null,
-          scopeOrgUnitId: r.scopeOrgUnitId || null,
-        }))
-      : [{ role: Role.GIAO_VIEN, scopeLocationId: data.locationId || null, scopeOrgUnitId: data.orgUnitId || null }];
+    let initialRoles: InitialUserRoleDto[] = [];
+    if (data.roles && data.roles.length > 0) {
+      initialRoles = data.roles.map((r) => ({
+        role: r.role,
+        scopeLocationId: r.scopeLocationId || null,
+        scopeOrgUnitId: r.scopeOrgUnitId || null,
+      }));
+    } else if (data.isToTruong && data.orgUnitId) {
+      initialRoles = [
+        { role: Role.TO_TRUONG, scopeLocationId: data.locationId || null, scopeOrgUnitId: data.orgUnitId || null },
+        { role: Role.GIAO_VIEN, scopeLocationId: data.locationId || null, scopeOrgUnitId: data.orgUnitId || null },
+      ];
+    } else {
+      initialRoles = [{ role: Role.GIAO_VIEN, scopeLocationId: data.locationId || null, scopeOrgUnitId: data.orgUnitId || null }];
+    }
+
+    // Nếu người này là Tổ trưởng: Overwrite tổ trưởng cũ của tổ này
+    if (data.isToTruong && data.orgUnitId) {
+      const oldLeaderRoles = await prisma.userRole.findMany({
+        where: {
+          role: Role.TO_TRUONG,
+          OR: [
+            { scopeOrgUnitId: data.orgUnitId },
+            { user: { primaryOrgUnitId: data.orgUnitId } },
+          ],
+        },
+        include: { user: true },
+      });
+
+      for (const oldRole of oldLeaderRoles) {
+        await prisma.userRole.delete({ where: { id: oldRole.id } });
+        const hasGiaoVien = await prisma.userRole.findFirst({
+          where: { userId: oldRole.userId, role: Role.GIAO_VIEN },
+        });
+        if (!hasGiaoVien) {
+          await prisma.userRole.create({
+            data: {
+              userId: oldRole.userId,
+              role: Role.GIAO_VIEN,
+              scopeOrgUnitId: data.orgUnitId,
+              scopeLocationId: oldRole.user.primaryLocationId,
+            },
+          });
+        }
+        await this.logAudit(
+          actorUserId,
+          'OVERWRITE_TO_TRUONG',
+          'USER',
+          oldRole.userId,
+          `Hạ vai trò Tổ trưởng của ${oldRole.user.fullName} về Giáo viên để bổ nhiệm ${data.fullName.trim()}`
+        );
+      }
+    }
 
     const newUser = await prisma.user.create({
       data: {
@@ -275,6 +322,96 @@ export class AdminService {
       });
       if (duplicateEmail) {
         throw new AppError('Địa chỉ email mới đã được sử dụng bởi một tài khoản khác.', 400);
+      }
+    }
+
+    // Xử lý thay đổi cờ Tổ trưởng (isToTruong)
+    if (data.isToTruong !== undefined) {
+      const effectiveOrgUnitId = data.orgUnitId !== undefined ? data.orgUnitId : existing.primaryOrgUnitId;
+      const effectiveLocationId = data.locationId !== undefined ? data.locationId : existing.primaryLocationId;
+
+      if (data.isToTruong && effectiveOrgUnitId) {
+        // 1. Quét tìm và overwrite các Tổ trưởng cũ khác trong cùng tổ
+        const oldLeaderRoles = await prisma.userRole.findMany({
+          where: {
+            userId: { not: id },
+            role: Role.TO_TRUONG,
+            OR: [
+              { scopeOrgUnitId: effectiveOrgUnitId },
+              { user: { primaryOrgUnitId: effectiveOrgUnitId } },
+            ],
+          },
+          include: { user: true },
+        });
+
+        for (const oldRole of oldLeaderRoles) {
+          await prisma.userRole.delete({ where: { id: oldRole.id } });
+          const hasGiaoVien = await prisma.userRole.findFirst({
+            where: { userId: oldRole.userId, role: Role.GIAO_VIEN },
+          });
+          if (!hasGiaoVien) {
+            await prisma.userRole.create({
+              data: {
+                userId: oldRole.userId,
+                role: Role.GIAO_VIEN,
+                scopeOrgUnitId: effectiveOrgUnitId,
+                scopeLocationId: oldRole.user.primaryLocationId,
+              },
+            });
+          }
+          await this.logAudit(
+            actorUserId,
+            'OVERWRITE_TO_TRUONG',
+            'USER',
+            oldRole.userId,
+            `Hạ vai trò Tổ trưởng của ${oldRole.user.fullName} về Giáo viên để bổ nhiệm ${existing.fullName}`
+          );
+        }
+
+        // 2. Gán vai trò TO_TRUONG cho user hiện tại
+        const existingToTruong = await prisma.userRole.findFirst({
+          where: { userId: id, role: Role.TO_TRUONG },
+        });
+        if (!existingToTruong) {
+          await prisma.userRole.create({
+            data: {
+              userId: id,
+              role: Role.TO_TRUONG,
+              scopeOrgUnitId: effectiveOrgUnitId,
+              scopeLocationId: effectiveLocationId || null,
+            },
+          });
+        } else {
+          await prisma.userRole.update({
+            where: { id: existingToTruong.id },
+            data: {
+              scopeOrgUnitId: effectiveOrgUnitId,
+              scopeLocationId: effectiveLocationId || null,
+            },
+          });
+        }
+      } else if (data.isToTruong === false) {
+        // Gỡ vai trò TO_TRUONG khỏi user hiện tại
+        const existingToTruong = await prisma.userRole.findFirst({
+          where: { userId: id, role: Role.TO_TRUONG },
+        });
+        if (existingToTruong) {
+          // Đảm bảo còn ít nhất 1 role khác
+          const otherRoles = await prisma.userRole.findMany({
+            where: { userId: id, id: { not: existingToTruong.id } },
+          });
+          if (otherRoles.length === 0) {
+            await prisma.userRole.create({
+              data: {
+                userId: id,
+                role: Role.GIAO_VIEN,
+                scopeOrgUnitId: effectiveOrgUnitId,
+                scopeLocationId: effectiveLocationId || null,
+              },
+            });
+          }
+          await prisma.userRole.delete({ where: { id: existingToTruong.id } });
+        }
       }
     }
 

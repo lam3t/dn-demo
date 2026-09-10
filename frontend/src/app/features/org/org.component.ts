@@ -182,7 +182,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                           [alt]="node.leader.fullName"
                         />
                         <div class="leader-info">
-                          <span class="leader-role">{{ isCurrentUser(node.leader.id) ? '⭐ Bạn phụ trách:' : 'Phụ trách:' }}</span>
+                          <span class="leader-role">{{ isCurrentUser(node.leader.id) ? '👑 Bạn là Tổ trưởng:' : '👑 Tổ trưởng:' }}</span>
                           <span class="leader-name">{{ node.leader.fullName }}</span>
                         </div>
                         @if (node.leader.phone) {
@@ -216,6 +216,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                             <div
                               class="member-mini-card tap-target"
                               [class.is-current-user]="isCurrentUser(user.id)"
+                              [class.is-leader-card]="user.isToTruong || user.id === node.leader?.id"
                               (click)="openUserContact(user, $event)"
                             >
                               <div class="member-avatar-wrapper">
@@ -234,11 +235,14 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                               <div class="member-info">
                                 <div class="member-name-line">
                                   <strong class="member-name">{{ user.fullName }}</strong>
+                                  @if (user.isToTruong || user.id === node.leader?.id) {
+                                    <span class="leader-badge-pill" title="Tổ trưởng tổ chuyên môn">👑 Tổ trưởng</span>
+                                  }
                                   @if (isCurrentUser(user.id)) {
                                     <span class="current-user-tag">⭐ Bạn</span>
                                   }
                                 </div>
-                                <span class="member-title">{{ user.title || 'Giáo viên' }}</span>
+                                <span class="member-title">{{ (user.isToTruong || user.id === node.leader?.id) ? ('Tổ trưởng • ' + (user.title || 'Giáo viên')) : (user.title || 'Giáo viên') }}</span>
                                 <span class="member-loc-pill" [ngClass]="getLocationBadgeClass(user.primaryLocation?.name)">
                                   {{ user.primaryLocation?.name || 'Điểm chính' }}
                                 </span>
@@ -330,6 +334,9 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                     <div class="user-meta-box">
                       <div class="name-row">
                         <strong class="user-name">{{ u.fullName }}</strong>
+                        @if (isToTruongUser(u)) {
+                          <span class="leader-badge-pill" title="Tổ trưởng tổ chuyên môn">👑 Tổ trưởng</span>
+                        }
                         @if (isCurrentUser(u.id)) {
                           <span class="current-user-tag">⭐ Vị trí của bạn</span>
                         }
@@ -337,7 +344,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                           {{ u.currentTaskLoad }} việc
                         </span>
                       </div>
-                      <span class="user-title">{{ u.title || 'Giáo viên' }}</span>
+                      <span class="user-title">{{ isToTruongUser(u) ? ('Tổ trưởng • ' + (u.title || 'Giáo viên')) : (u.title || 'Giáo viên') }}</span>
                       <span class="user-org">{{ u.primaryOrgUnit?.name }}</span>
                     </div>
 
@@ -754,8 +761,8 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
               align-items: center;
               gap: 8px;
               padding: 4px 10px;
-              background: #F8FAFC;
-              border: 1px solid #E2E8F0;
+              background: #FFFDF5;
+              border: 1px solid #FDE68A;
               border-radius: 9999px;
 
               .leader-avatar {
@@ -763,6 +770,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                 height: 26px;
                 border-radius: 50%;
                 object-fit: cover;
+                border: 1.5px solid #F59E0B;
               }
 
               .leader-info {
@@ -771,7 +779,8 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
 
                 .leader-role {
                   font-size: 0.65rem;
-                  color: #64748B;
+                  font-weight: 700;
+                  color: #B45309;
                 }
 
                 .leader-name {
@@ -1298,6 +1307,26 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
         display: inline-block;
       }
 
+      .is-leader-card {
+        border-color: #FCD34D !important;
+        background: #FFFDF5 !important;
+      }
+
+      .leader-badge-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        padding: 1px 6px;
+        background: #FEF3C7;
+        color: #92400E;
+        border: 1px solid #FDE68A;
+        border-radius: 9999px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        white-space: nowrap;
+      }
+
       .member-name-line {
         display: flex;
         align-items: center;
@@ -1363,6 +1392,10 @@ export class OrgComponent implements OnInit, OnDestroy {
 
   isCurrentUser(userId: string): boolean {
     return this.authService.currentUser()?.id === userId;
+  }
+
+  isToTruongUser(u: UserPickerItem): boolean {
+    return !!u.isToTruong || (u.roles || []).some((r) => r.role === 'TO_TRUONG');
   }
 
   loadLocations() {
