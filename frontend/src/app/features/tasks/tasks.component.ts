@@ -232,7 +232,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                           [title]="'Liên hệ người xử lý: ' + holder.fullName"
                         >
                           <img
-                            [src]="holder.avatarUrl || 'assets/images/default-avatar.svg'"
+                            [src]="holder.avatarUrl || 'https://ui-avatars.com/api/?name=' + holder.fullName + '&background=1F3864&color=fff'"
                             class="holder-avatar"
                             [alt]="holder.fullName"
                           />
@@ -326,7 +326,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                   <span class="label">Đang giữ việc:</span>
                   @if (getActionableHolder(task); as holder) {
                     <div class="holder-chip-mini" (click)="openUserContact(holder, $event)">
-                      <img [src]="holder.avatarUrl || 'assets/images/default-avatar.svg'" class="avatar-tiny" alt="" />
+                      <img [src]="holder.avatarUrl || 'https://ui-avatars.com/api/?name=' + holder.fullName + '&background=1F3864&color=fff'" class="avatar-tiny" [alt]="holder.fullName" />
                       <span class="name">{{ holder.fullName }}</span>
                       @if (holder.phone) {
                         <a [href]="'tel:' + holder.phone" class="call-link" (click)="$event.stopPropagation()" [title]="'Gọi ngay: ' + holder.phone">
@@ -1313,11 +1313,19 @@ export class TasksComponent implements OnInit, OnDestroy {
    * Tính toán người ĐANG GIỮ VIỆC (Người cần hành động tiếp theo theo RACI)
    */
   getActionableHolder(task: TaskItem): { id: string; fullName: string; phone: string; avatarUrl?: string | null; roleLabel: string } | null {
-    if (!task.assignments || task.assignments.length === 0) return null;
+    if (!task) return null;
 
-    const chuTri = task.assignments.find((a) => a.role === 'CHU_TRI')?.user;
-    const kiemTra = task.assignments.find((a) => a.role === 'KIEM_TRA')?.user;
-    const pheDuyet = task.assignments.find((a) => a.role === 'PHE_DUYET')?.user;
+    const chuTri = task.assignments?.find((a) => a.role === 'CHU_TRI')?.user;
+    const kiemTra = task.assignments?.find((a) => a.role === 'KIEM_TRA')?.user;
+    const pheDuyet = task.assignments?.find((a) => a.role === 'PHE_DUYET')?.user;
+
+    const buildHolder = (user: any, roleLabel: string) => ({
+      id: user.id,
+      fullName: user.fullName,
+      phone: user.phone || '',
+      avatarUrl: user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName)}&background=1F3864&color=fff`,
+      roleLabel,
+    });
 
     switch (task.status) {
       case 'NHAP':
@@ -1325,24 +1333,36 @@ export class TasksComponent implements OnInit, OnDestroy {
       case 'DA_TIEP_NHAN':
       case 'DANG_THUC_HIEN':
       case 'BO_SUNG':
-        return chuTri ? { ...chuTri, roleLabel: 'Chủ trì thực hiện' } : null;
+        if (chuTri) return buildHolder(chuTri, 'Chủ trì thực hiện');
+        break;
 
       case 'CHO_KIEM_TRA':
-        return kiemTra
-          ? { ...kiemTra, roleLabel: 'Kiểm tra / Nghiệm thu' }
-          : chuTri
-            ? { ...chuTri, roleLabel: 'Chờ duyệt' }
-            : null;
+        if (kiemTra) return buildHolder(kiemTra, 'Kiểm tra / Nghiệm thu');
+        if (pheDuyet) return buildHolder(pheDuyet, 'Phê duyệt');
+        if (chuTri) return buildHolder(chuTri, 'Chờ nghiệm thu');
+        break;
 
       case 'HOAN_THANH':
       case 'XAC_NHAN':
-        return pheDuyet
-          ? { ...pheDuyet, roleLabel: 'Phê duyệt đóng' }
-          : { id: task.createdById, fullName: task.createdBy?.fullName || 'Người giao việc', phone: task.createdBy?.phone || '', avatarUrl: task.createdBy?.avatarUrl, roleLabel: 'Người giao' };
-
-      default:
-        return chuTri ? { ...chuTri, roleLabel: 'Chủ trì' } : null;
+      case 'DONG':
+        if (pheDuyet) return buildHolder(pheDuyet, 'Phê duyệt đóng');
+        if (kiemTra) return buildHolder(kiemTra, 'Đã nghiệm thu');
+        if (chuTri) return buildHolder(chuTri, 'Đã hoàn thành');
+        if (task.createdBy?.fullName) {
+          return buildHolder(task.createdBy, 'Người giao việc');
+        }
+        break;
     }
+
+    if (chuTri) return buildHolder(chuTri, 'Chủ trì');
+    if (task.assignments && task.assignments.length > 0 && task.assignments[0].user) {
+      return buildHolder(task.assignments[0].user, 'Tham gia');
+    }
+    if (task.createdBy?.fullName) {
+      return buildHolder(task.createdBy, 'Người giao việc');
+    }
+
+    return null;
   }
 
   /**

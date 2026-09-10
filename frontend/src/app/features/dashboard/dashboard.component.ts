@@ -349,22 +349,32 @@ import { LocationItem } from '../../core/models/user.models';
                     type="button"
                     class="tree-page-btn tap-target"
                     [disabled]="attentionPage() === 1"
-                    (click)="attentionPage.set(attentionPage() - 1)"
+                    (click)="prevAttentionPage($event)"
                     title="Trang trước"
                   >
                     <span class="material-symbols-outlined">chevron_left</span>
                     <span>Trước</span>
                   </button>
 
-                  <span class="tree-page-tag">
-                    Trang {{ attentionPage() }} / {{ totalAttentionPages() }}
-                  </span>
+                  <div class="page-numbers-list">
+                    @for (p of getAttentionPagesArray(); track p) {
+                      <button
+                        type="button"
+                        class="tree-page-btn num-btn tap-target"
+                        [class.active]="p === attentionPage()"
+                        (click)="setAttentionPage(p, $event)"
+                        [title]="'Trang ' + p"
+                      >
+                        {{ p }}
+                      </button>
+                    }
+                  </div>
 
                   <button
                     type="button"
                     class="tree-page-btn tap-target"
                     [disabled]="attentionPage() === totalAttentionPages()"
-                    (click)="attentionPage.set(attentionPage() + 1)"
+                    (click)="nextAttentionPage($event)"
                     title="Trang sau"
                   >
                     <span>Sau</span>
@@ -1068,11 +1078,19 @@ import { LocationItem } from '../../core/models/user.models';
             align-items: center;
             gap: 6px;
 
+            .page-numbers-list {
+              display: flex;
+              align-items: center;
+              gap: 4px;
+            }
+
             .tree-page-btn {
               display: inline-flex;
               align-items: center;
+              justify-content: center;
               gap: 3px;
               padding: 4px 8px;
+              min-height: 28px;
               font-size: 0.74rem;
               font-weight: 600;
               color: #1F3864;
@@ -1083,7 +1101,8 @@ import { LocationItem } from '../../core/models/user.models';
               transition: all 0.15s ease;
 
               .material-symbols-outlined {
-                font-size: 14px;
+                font-size: 15px;
+                color: #1F3864;
               }
 
               &:hover:not(:disabled) {
@@ -1091,19 +1110,29 @@ import { LocationItem } from '../../core/models/user.models';
                 border-color: #1F3864;
               }
 
+              &.active {
+                background: #1F3864;
+                color: #FFFFFF;
+                border-color: #1F3864;
+                font-weight: 700;
+                box-shadow: 0 1px 4px rgba(31, 56, 100, 0.25);
+              }
+
+              &.num-btn {
+                min-width: 28px;
+                padding: 3px 6px;
+              }
+
               &:disabled {
                 opacity: 0.4;
                 cursor: not-allowed;
-              }
-            }
+                background: #F8FAFC;
+                color: #94A3B8;
 
-            .tree-page-tag {
-              font-size: 0.74rem;
-              font-weight: 700;
-              color: #1F3864;
-              background: #EEF4FC;
-              padding: 3px 8px;
-              border-radius: 6px;
+                .material-symbols-outlined {
+                  color: #94A3B8;
+                }
+              }
             }
           }
         }
@@ -1458,6 +1487,37 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const size = this.attentionPageSize();
     return tasks.slice((page - 1) * size, page * size);
   });
+
+  setAttentionPage(page: number, event?: Event) {
+    if (event) event.stopPropagation();
+    const max = this.totalAttentionPages();
+    if (page >= 1 && page <= max) {
+      this.attentionPage.set(page);
+    }
+  }
+
+  prevAttentionPage(event?: Event) {
+    if (event) event.stopPropagation();
+    if (this.attentionPage() > 1) {
+      this.attentionPage.set(this.attentionPage() - 1);
+    }
+  }
+
+  nextAttentionPage(event?: Event) {
+    if (event) event.stopPropagation();
+    if (this.attentionPage() < this.totalAttentionPages()) {
+      this.attentionPage.set(this.attentionPage() + 1);
+    }
+  }
+
+  getAttentionPagesArray(): number[] {
+    const total = this.totalAttentionPages();
+    const arr: number[] = [];
+    for (let i = 1; i <= total; i++) {
+      arr.push(i);
+    }
+    return arr;
+  }
 
   private accountSub?: Subscription;
 
