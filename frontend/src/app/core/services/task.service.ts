@@ -20,6 +20,8 @@ export interface TaskFilterParams {
   priority?: string;
   isOverdue?: boolean;
   myTasks?: boolean;
+  assigneeId?: string;
+  role?: string;
   page?: number;
   pageSize?: number;
 }
@@ -40,6 +42,8 @@ export class TaskService {
     if (params.priority) httpParams = httpParams.set('priority', params.priority);
     if (params.isOverdue !== undefined) httpParams = httpParams.set('isOverdue', params.isOverdue.toString());
     if (params.myTasks !== undefined) httpParams = httpParams.set('myTasks', params.myTasks.toString());
+    if (params.assigneeId) httpParams = httpParams.set('assigneeId', params.assigneeId);
+    if (params.role) httpParams = httpParams.set('role', params.role);
     if (params.page) httpParams = httpParams.set('page', params.page.toString());
     if (params.pageSize) httpParams = httpParams.set('pageSize', params.pageSize.toString());
 

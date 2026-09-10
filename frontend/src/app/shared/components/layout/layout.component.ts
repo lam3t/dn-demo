@@ -71,6 +71,11 @@ import { UserPickerItem } from '../../../core/models/user.models';
             <span class="nav-text">Cơ cấu & Điểm trường</span>
           </a>
 
+          <a routerLink="/reports" routerLinkActive="active" class="nav-link" title="Báo cáo & Xuất Excel">
+            <span class="material-symbols-outlined nav-icon">analytics</span>
+            <span class="nav-text">Báo cáo & Thống kê</span>
+          </a>
+
           <a routerLink="/notifications" routerLinkActive="active" class="nav-link">
             <span class="material-symbols-outlined nav-icon">notifications</span>
             <span class="nav-text">Thông báo</span>
@@ -342,6 +347,11 @@ import { UserPickerItem } from '../../../core/models/user.models';
                 <a routerLink="/org" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
                   <span class="material-symbols-outlined nav-icon">apartment</span>
                   <span class="nav-label">Cơ cấu & Điểm trường</span>
+                </a>
+
+                <a routerLink="/reports" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                  <span class="material-symbols-outlined nav-icon">analytics</span>
+                  <span class="nav-label">Báo cáo & Xuất Excel</span>
                 </a>
 
                 <a routerLink="/notifications" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">

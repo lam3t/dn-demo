@@ -124,20 +124,9 @@ export class AdminService {
    * 10. GET /api/locations/:id/summary for all locations
    */
   getLocationsWithSummary(): Observable<LocationSummaryItem[]> {
-    return this.http.get<{ success: boolean; data: LocationItem[] }>('/api/locations').pipe(
-      switchMap((res) => {
-        const locs = res.data || [];
-        if (locs.length === 0) return of([]);
-
-        const requests = locs.map((loc) =>
-          this.http
-            .get<{ success: boolean; data: LocationSummaryItem }>(`/api/locations/${loc.id}/summary`)
-            .pipe(map((r) => r.data))
-        );
-
-        return forkJoin(requests);
-      })
-    );
+    return this.http
+      .get<{ success: boolean; data: LocationSummaryItem[] }>('/api/locations')
+      .pipe(map((res) => res.data || []));
   }
 
   /**

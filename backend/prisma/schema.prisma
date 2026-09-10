@@ -119,6 +119,8 @@ model Location {
   tasks         Task[]
 
   @@unique([schoolId, code])
+  @@index([schoolId])
+  @@index([isMain])
 }
 
 model OrgUnit {
@@ -139,6 +141,8 @@ model OrgUnit {
   tasks       Task[]
 
   @@unique([schoolId, code])
+  @@index([schoolId])
+  @@index([parentId])
 }
 
 model User {
@@ -170,6 +174,11 @@ model User {
   notifications     Notification[]
   managedLocations  Location[]      @relation("LocationManager")
   adminAuditLogs    AdminAuditLog[]
+
+  @@index([schoolId])
+  @@index([primaryLocationId])
+  @@index([primaryOrgUnitId])
+  @@index([isActive])
 }
 
 model UserRole {
@@ -184,6 +193,11 @@ model UserRole {
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   scopeLocation   Location? @relation("ScopedLocation", fields: [scopeLocationId], references: [id], onDelete: SetNull)
   scopeOrgUnit    OrgUnit?  @relation("ScopedOrgUnit", fields: [scopeOrgUnitId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([role])
+  @@index([scopeLocationId])
+  @@index([scopeOrgUnitId])
 }
 
 model Plan {
@@ -205,6 +219,11 @@ model Plan {
   childrenPlans   Plan[]      @relation("PlanHierarchy")
   createdBy       User        @relation("PlanCreatedBy", fields: [createdById], references: [id])
   tasks           Task[]
+
+  @@index([schoolId])
+  @@index([parentPlanId])
+  @@index([level])
+  @@index([startDate, endDate])
 }
 
 model Task {
@@ -237,6 +256,18 @@ model Task {
   logs            TaskLog[]
   attachments     Attachment[]
   comments        Comment[]
+
+  @@index([schoolId])
+  @@index([planId])
+  @@index([locationId])
+  @@index([orgUnitId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([createdById])
+  @@index([createdAt])
+  @@index([schoolId, status])
+  @@index([planId, status])
+  @@index([dueDate, status])
 }
 
 model TaskAssignment {
@@ -251,6 +282,9 @@ model TaskAssignment {
   user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, userId, role])
+  @@index([taskId])
+  @@index([userId])
+  @@index([userId, role])
 }
 
 model TaskLog {
@@ -268,6 +302,9 @@ model TaskLog {
   task        Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   attachments Attachment[]
+
+  @@index([taskId])
+  @@index([createdAt])
 }
 
 model Attachment {
@@ -285,6 +322,10 @@ model Attachment {
   task         Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   taskLog      TaskLog?  @relation(fields: [taskLogId], references: [id], onDelete: SetNull)
   uploadedBy   User      @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([taskLogId])
+  @@index([uploadedById])
 }
 
 model Notification {
@@ -298,6 +339,9 @@ model Notification {
   createdAt DateTime         @default(now())
 
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
 }
 
 model Comment {
@@ -310,6 +354,9 @@ model Comment {
 
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([createdAt])
 }
 
 model AdminAuditLog {
@@ -322,5 +369,7 @@ model AdminAuditLog {
   createdAt   DateTime @default(now())
 
   actorUser   User     @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
-}
 
+  @@index([actorUserId])
+  @@index([createdAt])
+}

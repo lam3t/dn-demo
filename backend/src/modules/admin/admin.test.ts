@@ -10,6 +10,13 @@ async function runTests() {
   console.log('🧪 Bắt đầu chạy Tests cho Module Quản trị (Admin Module & Location Extensions)...');
 
   // 1. Đăng nhập tài khoản Quản trị hệ thống (Cô Hoàng Thị Mai Anh - GV Tin học kiêm Admin)
+  const htUser = await prisma.user.findFirst({ where: { email: 'hieutruong@phuoctan.edu.vn' } });
+  if (htUser) {
+    await prisma.userRole.deleteMany({
+      where: { userId: htUser.id, role: Role.ADMIN },
+    });
+  }
+
   const adminLogin = await request(app)
     .post('/api/auth/login')
     .send({ identifier: 'admin@phuoctan.edu.vn', password: '123456' });

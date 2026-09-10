@@ -1,5 +1,6 @@
 import prisma from '../../prisma';
 import { TaskStatus, TaskPriority, TaskAssignmentRole } from '@prisma/client';
+import appCache from '../../utils/cache';
 
 export class DashboardService {
   async getOverview(params: {
@@ -7,6 +8,12 @@ export class DashboardService {
     locationId?: string;
     orgUnitId?: string;
   }) {
+    const cacheKey = `dashboard:${params.schoolId || 'all'}:${params.locationId || 'all'}:${params.orgUnitId || 'all'}`;
+    const cached = appCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const where: any = {};
     if (params.schoolId) where.schoolId = params.schoolId;
     if (params.locationId) where.locationId = params.locationId;
@@ -32,29 +39,39 @@ export class DashboardService {
       TaskStatus.BO_SUNG,
     ];
 
-    // 1. Lấy toàn bộ tasks thỏa mãn filter
-    const allTasks = await prisma.task.findMany({
-      where,
-      include: {
-        location: { select: { id: true, name: true, code: true } },
-        orgUnit: { select: { id: true, name: true, code: true } },
-        assignments: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                fullName: true,
-                title: true,
-                phone: true,
-                avatarUrl: true,
-                primaryLocation: { select: { id: true, name: true } },
+    // 1. Lấy song song dữ liệu tasks, locations và orgUnits
+    const [allTasks, locations, orgUnits] = await Promise.all([
+      prisma.task.findMany({
+        where,
+        include: {
+          location: { select: { id: true, name: true, code: true } },
+          orgUnit: { select: { id: true, name: true, code: true } },
+          assignments: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  title: true,
+                  phone: true,
+                  avatarUrl: true,
+                  primaryLocation: { select: { id: true, name: true } },
+                },
               },
             },
           },
         },
-      },
-      orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
-    });
+        orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+      }),
+      prisma.location.findMany({
+        where: params.schoolId ? { schoolId: params.schoolId } : {},
+        orderBy: [{ isMain: 'desc' }, { name: 'asc' }],
+      }),
+      prisma.orgUnit.findMany({
+        where: params.schoolId ? { schoolId: params.schoolId } : {},
+        orderBy: [{ orderIndex: 'asc' }, { name: 'asc' }],
+      }),
+    ]);
 
     const totalTasks = allTasks.length;
 
@@ -122,29 +139,30 @@ export class DashboardService {
 
       if (reason) {
         const chuTriAssignment = t.assignments.find((a) => a.role === TaskAssignmentRole.CHU_TRI);
+        const chuTriUser = chuTriAssignment?.user;
+
         attentionTasks.push({
           id: t.id,
           code: t.code,
           title: t.title,
-          status: t.status,
           priority: t.priority,
-          progressPercent: t.progressPercent,
+          status: t.status,
           dueDate: t.dueDate,
-          isOverdue: isTaskOverdue,
-          reason,
-          priorityLevel,
-          locationName: t.location?.name,
-          orgUnitName: t.orgUnit?.name,
-          chuTri: chuTriAssignment
+          progressPercent: t.progressPercent,
+          locationName: t.location?.name || 'Toàn trường',
+          orgUnitName: t.orgUnit?.name || 'Chung',
+          chuTri: chuTriUser
             ? {
-                id: chuTriAssignment.user.id,
-                fullName: chuTriAssignment.user.fullName,
-                title: chuTriAssignment.user.title,
-                phone: chuTriAssignment.user.phone,
-                avatarUrl: chuTriAssignment.user.avatarUrl,
-                locationName: chuTriAssignment.user.primaryLocation?.name,
+                id: chuTriUser.id,
+                fullName: chuTriUser.fullName,
+                title: chuTriUser.title,
+                phone: chuTriUser.phone,
+                avatarUrl: chuTriUser.avatarUrl,
+                locationName: chuTriUser.primaryLocation?.name,
               }
             : null,
+          reason,
+          priorityLevel,
         });
       }
     });
@@ -158,11 +176,6 @@ export class DashboardService {
     });
 
     // 4. Phân tích theo Điểm trường (Breakdown by Location)
-    const locations = await prisma.location.findMany({
-      where: params.schoolId ? { schoolId: params.schoolId } : {},
-      orderBy: [{ isMain: 'desc' }, { name: 'asc' }],
-    });
-
     const breakdownByLocation = locations.map((loc) => {
       const locTasks = allTasks.filter((t) => t.locationId === loc.id);
       const totalLoc = locTasks.length;
@@ -194,11 +207,6 @@ export class DashboardService {
     });
 
     // 5. Phân tích theo Tổ chuyên môn (Breakdown by OrgUnit)
-    const orgUnits = await prisma.orgUnit.findMany({
-      where: params.schoolId ? { schoolId: params.schoolId } : {},
-      orderBy: [{ orderIndex: 'asc' }, { name: 'asc' }],
-    });
-
     const breakdownByOrgUnit = orgUnits.map((org) => {
       const orgTasks = allTasks.filter((t) => t.orgUnitId === org.id);
       const totalOrg = orgTasks.length;
@@ -228,7 +236,7 @@ export class DashboardService {
       };
     });
 
-    return {
+    const result = {
       totalTasks,
       byStatus,
       overdueCount,
@@ -241,6 +249,9 @@ export class DashboardService {
       breakdownByLocation,
       breakdownByOrgUnit,
     };
+
+    appCache.set(cacheKey, result, 15, ['dashboard', 'tasks']);
+    return result;
   }
 }
 

@@ -1553,22 +1553,52 @@ export class MyTasksComponent implements OnInit, OnDestroy {
   loadMyTasks() {
     this.isLoading.set(true);
     this.currentPage.set(1);
-    this.taskService.getTasks({ myTasks: true, pageSize: 50 }).subscribe({
-      next: (res) => {
-        this.isLoading.set(false);
-        this.allTasks.set(res.items);
+    const currentUser = this.authService.currentUser();
+    const currentUserId = currentUser?.id;
+    const currentPhone = currentUser?.phone;
+    const currentFullName = currentUser?.fullName;
 
-        // If ToTruong or BGH has waiting tasks, default to WAITING_CONFIRM group
-        if ((this.authService.isToTruong() || this.authService.isBGH()) && this.waitingConfirmCount() > 0) {
-          this.activeGroup.set('WAITING_CONFIRM');
-        } else {
-          this.activeGroup.set('ALL');
-        }
-      },
-      error: () => {
-        this.isLoading.set(false);
-      },
-    });
+    this.taskService
+      .getTasks({
+        myTasks: true,
+        assigneeId: currentUserId || undefined,
+        pageSize: 50,
+      })
+      .subscribe({
+        next: (res) => {
+          this.isLoading.set(false);
+          let items = res.items || [];
+
+          // Strict RACI filtering layer for personal tasks
+          if (currentUser) {
+            items = items.filter((t) => {
+              if (!t.assignments || t.assignments.length === 0) return false;
+              return t.assignments.some((a) => {
+                const uid = a.userId || a.user?.id;
+                const uphone = a.user?.phone;
+                const uName = a.user?.fullName;
+                return (
+                  (currentUserId && uid === currentUserId) ||
+                  (currentPhone && uphone === currentPhone) ||
+                  (currentFullName && uName === currentFullName)
+                );
+              });
+            });
+          }
+
+          this.allTasks.set(items);
+
+          // If ToTruong or BGH has waiting tasks, default to WAITING_CONFIRM group
+          if ((this.authService.isToTruong() || this.authService.isBGH()) && this.waitingConfirmCount() > 0) {
+            this.activeGroup.set('WAITING_CONFIRM');
+          } else {
+            this.activeGroup.set('ALL');
+          }
+        },
+        error: () => {
+          this.isLoading.set(false);
+        },
+      });
   }
 
   setGroup(group: MyTaskGroupType) {
@@ -1633,8 +1663,20 @@ export class MyTasksComponent implements OnInit, OnDestroy {
   }
 
   getMyRoleName(task: TaskItem): string {
-    const currentUserId = this.authService.currentUser()?.id;
-    const assignment = task.assignments.find((a) => a.userId === currentUserId);
+    const currentUser = this.authService.currentUser();
+    const currentUserId = currentUser?.id;
+    const currentPhone = currentUser?.phone;
+    const currentFullName = currentUser?.fullName;
+    const assignment = task.assignments?.find((a) => {
+      const uid = a.userId || a.user?.id;
+      const uphone = a.user?.phone;
+      const uname = a.user?.fullName;
+      return (
+        (currentUserId && uid === currentUserId) ||
+        (currentPhone && uphone === currentPhone) ||
+        (currentFullName && uname && uname.trim().toLowerCase() === currentFullName.trim().toLowerCase())
+      );
+    });
     if (!assignment) return 'Tham gia';
 
     switch (assignment.role) {
@@ -1652,8 +1694,20 @@ export class MyTasksComponent implements OnInit, OnDestroy {
   }
 
   getMyRoleBadgeClass(task: TaskItem): string {
-    const currentUserId = this.authService.currentUser()?.id;
-    const assignment = task.assignments.find((a) => a.userId === currentUserId);
+    const currentUser = this.authService.currentUser();
+    const currentUserId = currentUser?.id;
+    const currentPhone = currentUser?.phone;
+    const currentFullName = currentUser?.fullName;
+    const assignment = task.assignments?.find((a) => {
+      const uid = a.userId || a.user?.id;
+      const uphone = a.user?.phone;
+      const uname = a.user?.fullName;
+      return (
+        (currentUserId && uid === currentUserId) ||
+        (currentPhone && uphone === currentPhone) ||
+        (currentFullName && uname && uname.trim().toLowerCase() === currentFullName.trim().toLowerCase())
+      );
+    });
     if (!assignment) return 'role-other';
 
     switch (assignment.role) {

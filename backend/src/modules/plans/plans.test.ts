@@ -144,6 +144,12 @@ async function runTests() {
   if (duplicateRes.status === 201 && duplicateRes.body.data.id) {
     const dup = duplicateRes.body.data;
     console.log(`✓ PASS: Sao chép kế hoạch thành công: "${dup.title}" | Số task sao chép kèm theo: ${dup.tasks?.length} | Tiến độ khởi tạo lại: ${dup.progressPercent}%`);
+
+    // Dọn dẹp bản sao thử nghiệm để không lưu lại rác trong database
+    await request(app)
+      .delete(`/api/plans/${dup.id}`)
+      .set('Authorization', `Bearer ${token}`);
+    console.log(`✓ PASS: Dọn dẹp bản sao thử nghiệm (${dup.id}) thành công.`);
   } else {
     throw new Error(`FAIL: duplicate thất bại: ${JSON.stringify(duplicateRes.body)}`);
   }

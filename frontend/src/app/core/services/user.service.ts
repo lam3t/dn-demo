@@ -49,6 +49,14 @@ export class UserService {
       .pipe(map((res) => res.data || []));
   }
 
+  clearLocationsCache(): void {
+    this.locationsCache$ = undefined;
+  }
+
+  clearOrgUnitsCache(): void {
+    this.orgUnitsCache$ = undefined;
+  }
+
   getLocations(): Observable<LocationItem[]> {
     if (!this.locationsCache$) {
       this.locationsCache$ = this.http

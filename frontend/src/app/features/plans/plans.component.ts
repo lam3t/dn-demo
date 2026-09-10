@@ -20,12 +20,14 @@ import { LocationItem } from '../../core/models/user.models';
 
 interface PaperPlanRow {
   id: string;
+  planId?: string;
   timeLabel: string;
   startDate: string;
   endDate: string;
   focusContent: string;
   targetResult: string;
   saved: boolean;
+  isSaving?: boolean;
   generatedTaskId?: string;
 }
 
@@ -321,11 +323,12 @@ interface PaperPlanRow {
                           type="button"
                           class="btn-save-row tap-target"
                           [class.saved]="row.saved"
+                          [disabled]="row.isSaving"
                           (click)="savePaperRow(row)"
-                          title="Lưu dòng này"
+                          title="Lưu dòng này vào hệ thống kế hoạch"
                         >
-                          <span class="material-symbols-outlined">{{ row.saved ? 'check_circle' : 'save' }}</span>
-                          <span>{{ row.saved ? 'Đã lưu' : 'Lưu' }}</span>
+                          <span class="material-symbols-outlined">{{ row.isSaving ? 'sync' : (row.saved ? 'check_circle' : 'save') }}</span>
+                          <span>{{ row.isSaving ? 'Đang lưu...' : (row.saved ? 'Đã lưu' : 'Lưu') }}</span>
                         </button>
 
                         @if (row.saved) {
@@ -1701,19 +1704,80 @@ export class PlansComponent implements OnInit, OnDestroy {
   }
 
   deletePaperRow(id: string) {
-    this.paperRows.update((rows) => rows.filter((r) => r.id !== id));
-    this.persistPaperRows();
-    this.showToast('Đã xóa dòng kế hoạch.', 'info');
+    const row = this.paperRows().find((r) => r.id === id);
+    if (!row) return;
+
+    if (confirm(`Bạn có chắc chắn muốn xóa dòng kế hoạch "${row.timeLabel}"?`)) {
+      if (row.planId) {
+        this.planService.delete(row.planId).subscribe({
+          next: () => {
+            this.paperRows.update((rows) => rows.filter((r) => r.id !== id));
+            this.persistPaperRows();
+            this.showToast(`Đã xóa dòng "${row.timeLabel}" khỏi hệ thống kế hoạch.`, 'success');
+            this.loadTree();
+            this.loadAllPlans();
+          },
+          error: (err) => {
+            this.showToast(err.error?.message || 'Không thể xóa kế hoạch.', 'error');
+          },
+        });
+      } else {
+        this.paperRows.update((rows) => rows.filter((r) => r.id !== id));
+        this.persistPaperRows();
+        this.showToast('Đã xóa dòng kế hoạch.', 'info');
+      }
+    }
   }
 
   savePaperRow(row: PaperPlanRow) {
-    if (!row.focusContent.trim()) {
-      alert('Vui lòng nhập nội dung trọng tâm trước khi lưu dòng!');
+    if (!row.focusContent.trim() && !row.timeLabel.trim()) {
+      this.showToast('Vui lòng nhập thời gian và nội dung trọng tâm trước khi lưu!', 'error');
       return;
     }
-    row.saved = true;
-    this.persistPaperRows();
-    this.showToast(`Đã lưu dòng kế hoạch "${row.timeLabel}" thành công!`, 'success');
+
+    const payload = {
+      title: row.timeLabel.trim() || 'Lịch công tác tuần',
+      description: `Nội dung: ${row.focusContent.trim()}${row.targetResult.trim() ? '\nKết quả cần đạt: ' + row.targetResult.trim() : ''}`,
+      level: 'TUAN' as const,
+      startDate: row.startDate || new Date().toISOString().slice(0, 10),
+      endDate: row.endDate || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+      parentPlanId: this.paperTargetPlanId || undefined,
+    };
+
+    row.isSaving = true;
+
+    if (row.planId) {
+      this.planService.update(row.planId, payload).subscribe({
+        next: () => {
+          row.isSaving = false;
+          row.saved = true;
+          this.persistPaperRows();
+          this.showToast(`Đã cập nhật dòng kế hoạch "${row.timeLabel}"!`, 'success');
+          this.loadTree();
+          this.loadAllPlans();
+        },
+        error: (err) => {
+          row.isSaving = false;
+          this.showToast(err.error?.message || 'Lưu thất bại.', 'error');
+        },
+      });
+    } else {
+      this.planService.create(payload).subscribe({
+        next: (created) => {
+          row.isSaving = false;
+          row.planId = created.id;
+          row.saved = true;
+          this.persistPaperRows();
+          this.showToast(`Đã lưu dòng kế hoạch "${row.timeLabel}" vào hệ thống!`, 'success');
+          this.loadTree();
+          this.loadAllPlans();
+        },
+        error: (err) => {
+          row.isSaving = false;
+          this.showToast(err.error?.message || 'Lưu thất bại.', 'error');
+        },
+      });
+    }
   }
 
   createTaskFromPaperRow(row: PaperPlanRow) {
@@ -1905,7 +1969,7 @@ export class PlansComponent implements OnInit, OnDestroy {
   }
 
   onDeletePlan(node: PlanTreeNode) {
-    if (confirm(`Bạn có chắc chắn muốn xóa kế hoạch "${node.title}"?\nLưu ý: Kế hoạch chỉ được xóa khi không chứa công việc hoặc kế hoạch con trực thuộc.`)) {
+    if (confirm(`Bạn có chắc chắn muốn xóa kế hoạch "${node.title}"?`)) {
       this.planService.delete(node.id).subscribe({
         next: () => {
           this.showToast(`Đã xóa kế hoạch "${node.title}" thành công.`, 'success');
@@ -1913,7 +1977,7 @@ export class PlansComponent implements OnInit, OnDestroy {
           this.loadAllPlans();
         },
         error: (err) => {
-          this.showToast(err.error?.message || 'Không thể xóa kế hoạch. Vui lòng kiểm tra lại công việc trực thuộc.', 'error');
+          this.showToast(err.error?.message || 'Không thể xóa kế hoạch.', 'error');
         },
       });
     }
@@ -1923,7 +1987,7 @@ export class PlansComponent implements OnInit, OnDestroy {
     const editId = this.editingPlanId();
     if (!editId) return;
 
-    if (confirm(`Bạn có chắc chắn muốn xóa kế hoạch "${this.planFormTitle}"?\nLưu ý: Kế hoạch chỉ được xóa khi không chứa công việc hoặc kế hoạch con trực thuộc.`)) {
+    if (confirm(`Bạn có chắc chắn muốn xóa kế hoạch "${this.planFormTitle}"?`)) {
       this.isSubmittingPlan.set(true);
       this.planService.delete(editId).subscribe({
         next: () => {

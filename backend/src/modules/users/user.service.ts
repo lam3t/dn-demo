@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { AppError } from '../../middlewares/error.middleware';
 import { removeVietnameseAccents, calculateMatchScore } from '../../utils/vietnamese.utils';
 import { Role, TaskAssignmentRole, TaskStatus } from '@prisma/client';
+import appCache from '../../utils/cache';
 
 export interface UserSearchParams {
   search?: string;
@@ -26,60 +27,65 @@ export class UserService {
     const pageSize = Math.min(100, Math.max(1, Number(params.pageSize) || 20));
     const searchQuery = (params.search || '').trim();
 
-    const where: any = {
-      isActive: true,
-    };
+    // Cache toàn bộ user directory cho People Picker trong 30s
+    const dirCacheKey = `users:directory:${params.schoolId || 'all'}`;
+    let allUsers = appCache.get<any[]>(dirCacheKey);
 
-    if (params.schoolId) {
-      where.schoolId = params.schoolId;
+    if (!allUsers) {
+      allUsers = await prisma.user.findMany({
+        where: {
+          isActive: true,
+          ...(params.schoolId && { schoolId: params.schoolId }),
+        },
+        include: {
+          primaryLocation: { select: { id: true, name: true, code: true } },
+          primaryOrgUnit: { select: { id: true, name: true, code: true } },
+          roles: {
+            select: {
+              role: true,
+              scopeLocationId: true,
+              scopeOrgUnitId: true,
+              scopeLocation: { select: { id: true, name: true } },
+              scopeOrgUnit: { select: { id: true, name: true } },
+            },
+          },
+          taskAssignments: {
+            where: {
+              role: { in: [TaskAssignmentRole.CHU_TRI, TaskAssignmentRole.PHOI_HOP] },
+              task: {
+                status: {
+                  notIn: [TaskStatus.DONG, TaskStatus.HUY, TaskStatus.HOAN_THANH],
+                },
+              },
+            },
+            select: { id: true },
+          },
+        },
+      });
+      appCache.set(dirCacheKey, allUsers, 30, ['users', 'tasks']);
     }
 
+    // Lọc theo locationId, orgUnitId, role trong bộ nhớ
+    let filteredUsers = allUsers;
     if (params.locationId) {
-      where.OR = [
-        { primaryLocationId: params.locationId },
-        { roles: { some: { scopeLocationId: params.locationId } } },
-      ];
+      filteredUsers = filteredUsers.filter(
+        (u) =>
+          u.primaryLocationId === params.locationId ||
+          u.roles.some((r: any) => r.scopeLocationId === params.locationId)
+      );
     }
 
     if (params.orgUnitId) {
-      where.OR = [
-        { primaryOrgUnitId: params.orgUnitId },
-        { roles: { some: { scopeOrgUnitId: params.orgUnitId } } },
-      ];
+      filteredUsers = filteredUsers.filter(
+        (u) =>
+          u.primaryOrgUnitId === params.orgUnitId ||
+          u.roles.some((r: any) => r.scopeOrgUnitId === params.orgUnitId)
+      );
     }
 
     if (params.role) {
-      where.roles = { some: { role: params.role } };
+      filteredUsers = filteredUsers.filter((u) => u.roles.some((r: any) => r.role === params.role));
     }
-
-    // Lấy tất cả user phù hợp với filter ban đầu
-    const allUsers = await prisma.user.findMany({
-      where,
-      include: {
-        primaryLocation: { select: { id: true, name: true, code: true } },
-        primaryOrgUnit: { select: { id: true, name: true, code: true } },
-        roles: {
-          select: {
-            role: true,
-            scopeLocationId: true,
-            scopeOrgUnitId: true,
-            scopeLocation: { select: { id: true, name: true } },
-            scopeOrgUnit: { select: { id: true, name: true } },
-          },
-        },
-        taskAssignments: {
-          where: {
-            role: { in: [TaskAssignmentRole.CHU_TRI, TaskAssignmentRole.PHOI_HOP] },
-            task: {
-              status: {
-                notIn: [TaskStatus.DONG, TaskStatus.HUY, TaskStatus.HOAN_THANH],
-              },
-            },
-          },
-          select: { id: true },
-        },
-      },
-    });
 
     // Tính điểm và lọc theo tiếng Việt không dấu nếu có searchQuery
     let scoredUsers = allUsers.map((u) => {

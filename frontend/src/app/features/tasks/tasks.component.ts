@@ -376,7 +376,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
       <!-- TASK CREATE WIZARD (PROMPT 14) -->
       <app-task-create-wizard
         #taskWizard
-        (taskCreated)="onTaskCreated()"
+        (taskCreated)="onTaskCreated($event)"
       ></app-task-create-wizard>
     </div>
   `,
@@ -1281,8 +1281,11 @@ export class TasksComponent implements OnInit, OnDestroy {
     }
   }
 
-  onTaskCreated() {
+  onTaskCreated(created?: TaskItem) {
     this.loadTasks();
+    if (created && created.id) {
+      this.openTaskDetail(created.id);
+    }
   }
 
   openTaskDetail(id: string) {

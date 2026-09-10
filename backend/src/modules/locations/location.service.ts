@@ -1,13 +1,20 @@
 import prisma from '../../prisma';
 import { AppError } from '../../middlewares/error.middleware';
 import { TaskStatus } from '@prisma/client';
+import appCache from '../../utils/cache';
 
 export class LocationService {
   async getAll(schoolId?: string) {
+    const cacheKey = `locations:all:${schoolId || 'all'}`;
+    const cached = appCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const where: any = {};
     if (schoolId) where.schoolId = schoolId;
 
-    return prisma.location.findMany({
+    const locations = await prisma.location.findMany({
       where,
       orderBy: [{ isMain: 'desc' }, { name: 'asc' }],
       include: {
@@ -29,6 +36,64 @@ export class LocationService {
         },
       },
     });
+
+    const now = new Date();
+
+    const summaries = await Promise.all(
+      locations.map(async (loc) => {
+        const [inProgressTaskCount, overdueTaskCount, completedTaskCount] = await Promise.all([
+          prisma.task.count({
+            where: {
+              locationId: loc.id,
+              status: {
+                in: [
+                  TaskStatus.DA_GIAO,
+                  TaskStatus.DA_TIEP_NHAN,
+                  TaskStatus.DANG_THUC_HIEN,
+                  TaskStatus.CHO_KIEM_TRA,
+                  TaskStatus.BO_SUNG,
+                ],
+              },
+            },
+          }),
+          prisma.task.count({
+            where: {
+              locationId: loc.id,
+              dueDate: { lt: now },
+              status: {
+                notIn: [TaskStatus.HOAN_THANH, TaskStatus.XAC_NHAN, TaskStatus.DONG, TaskStatus.HUY],
+              },
+            },
+          }),
+          prisma.task.count({
+            where: {
+              locationId: loc.id,
+              status: {
+                in: [TaskStatus.HOAN_THANH, TaskStatus.XAC_NHAN, TaskStatus.DONG],
+              },
+            },
+          }),
+        ]);
+
+        return {
+          id: loc.id,
+          name: loc.name,
+          code: loc.code,
+          address: loc.address,
+          phone: loc.phone,
+          isMain: loc.isMain,
+          manager: loc.manager,
+          userCount: loc._count.users,
+          totalTaskCount: loc._count.tasks,
+          inProgressTaskCount,
+          overdueTaskCount,
+          completedTaskCount,
+        };
+      })
+    );
+
+    appCache.set(cacheKey, summaries, 30, ['locations', 'tasks']);
+    return summaries;
   }
 
   async getById(id: string) {
@@ -176,7 +241,7 @@ export class LocationService {
       });
     }
 
-    return prisma.location.create({
+    const created = await prisma.location.create({
       data: {
         schoolId: data.schoolId,
         name: data.name,
@@ -199,6 +264,9 @@ export class LocationService {
         },
       },
     });
+
+    appCache.invalidateTags(['locations', 'dashboard']);
+    return created;
   }
 
   async update(
@@ -224,21 +292,21 @@ export class LocationService {
       }
     }
 
-    if (data.isMain) {
+    if (data.isMain === true) {
       await prisma.location.updateMany({
         where: { schoolId: existing.schoolId, isMain: true, id: { not: id } },
         data: { isMain: false },
       });
     }
 
-    return prisma.location.update({
+    const updated = await prisma.location.update({
       where: { id },
       data: {
         ...(data.name && { name: data.name }),
         ...(data.code && { code: data.code.toUpperCase().trim() }),
         ...(data.address !== undefined && { address: data.address }),
         ...(data.phone !== undefined && { phone: data.phone }),
-        ...(data.isMain !== undefined && { isMain: data.isMain }),
+        ...(data.isMain !== undefined && { isMain: Boolean(data.isMain) }),
         ...(data.managerId !== undefined && { managerId: data.managerId }),
       },
       include: {
@@ -254,6 +322,9 @@ export class LocationService {
         },
       },
     });
+
+    appCache.invalidateTags(['locations', 'dashboard']);
+    return updated;
   }
 
   async delete(id: string) {
@@ -277,7 +348,9 @@ export class LocationService {
       );
     }
 
-    return prisma.location.delete({ where: { id } });
+    const deleted = await prisma.location.delete({ where: { id } });
+    appCache.invalidateTags(['locations', 'dashboard']);
+    return deleted;
   }
 }
 

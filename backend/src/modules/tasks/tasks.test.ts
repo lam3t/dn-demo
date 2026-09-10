@@ -174,33 +174,64 @@ async function runTests() {
     throw new Error(`FAIL: Lọc overdue thất bại`);
   }
 
-  // Lọc "Việc của tôi" (assigneeId)
+  // Lọc "Việc của tôi" (assigneeId và myTasks=true)
   const myTasksRes = await request(app)
-    .get(`/api/tasks?assigneeId=${dungUser.id}`)
+    .get(`/api/tasks?myTasks=true`)
     .set('Authorization', `Bearer ${dungToken}`);
 
   if (myTasksRes.status === 200) {
-    console.log(`✓ PASS: Lọc "Việc của tôi" thành công: ${myTasksRes.body.data.total} công việc.`);
+    console.log(`✓ PASS: Lọc "Việc của tôi" qua myTasks=true thành công: ${myTasksRes.body.data.total} công việc.`);
+  } else {
+    throw new Error(`FAIL: Lọc myTasks thất bại`);
   }
 
-  // 8. TEST GET /api/tasks/:id/full (CHI TIẾT ĐẦY ĐỦ KÈM TEL:, LOGS, ATTACHMENTS)
-  console.log('\n--- 7. Test GET /api/tasks/:id/full ---');
+  // 8. TEST POST /api/tasks/:id/comments (TRAO ĐỔI NỘI BỘ)
+  console.log('\n--- 7. Test POST /api/tasks/:id/comments (Trao đổi nội bộ) ---');
+  const addCommentRes = await request(app)
+    .post(`/api/tasks/${createdTask.id}/comments`)
+    .set('Authorization', `Bearer ${dungToken}`)
+    .send({ content: 'Đã hoàn tất rà soát bình chữa cháy tại Phân hiệu 1.' });
+
+  if (addCommentRes.status === 201 && addCommentRes.body.data.content) {
+    console.log(`✓ PASS: Thêm bình luận trao đổi thành công: "${addCommentRes.body.data.content}"`);
+  } else {
+    throw new Error(`FAIL: Thêm bình luận thất bại: ${JSON.stringify(addCommentRes.body)}`);
+  }
+
+  // 9. TEST PATCH /api/tasks/:id (SỬA NGÀY DỰ KIẾN / DUE DATE)
+  console.log('\n--- 8. Test PATCH /api/tasks/:id (Cập nhật Hạn hoàn thành) ---');
+  const newDueDate = new Date(Date.now() + 86400000 * 5).toISOString();
+  const updateTaskRes = await request(app)
+    .patch(`/api/tasks/${createdTask.id}`)
+    .set('Authorization', `Bearer ${htToken}`)
+    .send({ dueDate: newDueDate });
+
+  if (updateTaskRes.status === 200) {
+    console.log(`✓ PASS: Cập nhật dueDate thành công sang: ${updateTaskRes.body.data.dueDate}`);
+  } else {
+    throw new Error(`FAIL: Cập nhật task thất bại: ${JSON.stringify(updateTaskRes.body)}`);
+  }
+
+  // 10. TEST GET /api/tasks/:id/full (CHI TIẾT ĐẦY ĐỦ KÈM TEL:, LOGS, ATTACHMENTS, COMMENTS)
+  console.log('\n--- 9. Test GET /api/tasks/:id/full ---');
   const fullRes = await request(app)
     .get(`/api/tasks/${createdTask.id}/full`)
     .set('Authorization', `Bearer ${htToken}`);
 
-  if (fullRes.status === 200 && fullRes.body.data.assignments && fullRes.body.data.logs) {
+  if (fullRes.status === 200 && fullRes.body.data.assignments && fullRes.body.data.logs && fullRes.body.data.comments) {
     const full = fullRes.body.data;
     console.log(`✓ PASS: Lấy chi tiết đầy đủ Task "${full.title}":`);
-    console.log(`  - Số người phân công RACI: ${full.assignments.length} (Đầy đủ SĐT, Avatar, Điểm trường)`);
+    console.log(`  - Số người phân công RACI: ${full.assignments.length}`);
     console.log(`  - Số dòng nhật ký TaskLog: ${full.logs.length}`);
     console.log(`  - Số file minh chứng đính kèm: ${full.attachments.length}`);
-    full.assignments.forEach((a: any) => {
-      console.log(`    • [${a.role}] ${a.user.fullName} - SĐT gọi ngay: tel:${a.user.phone} (${a.user.primaryLocation?.name})`);
-    });
+    console.log(`  - Số bình luận trao đổi: ${full.comments.length}`);
   } else {
     throw new Error(`FAIL: GET /full thất bại: ${JSON.stringify(fullRes.body)}`);
   }
+
+  // Dọn dẹp task test
+  await prisma.task.deleteMany({ where: { title: { contains: 'PCCC trước năm học mới' } } });
+  console.log('✓ Đã dọn dẹp dữ liệu task kiểm thử.');
 
   console.log('\n🎉 TẤT CẢ TESTS CHO PROMPT 6 (TASKS MODULE) ĐÃ PASS 100%!');
   await prisma.$disconnect();

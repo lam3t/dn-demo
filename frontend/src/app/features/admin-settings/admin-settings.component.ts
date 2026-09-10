@@ -3471,7 +3471,7 @@ export class AdminSettingsComponent implements OnInit {
       code: loc.code,
       address: loc.address || '',
       phone: loc.phone || '',
-      isMain: loc.isMain,
+      isMain: Boolean(loc.isMain),
       managerId: loc.manager?.id || null,
     };
     this.selectedLocationManagerName = loc.manager?.fullName || '';
@@ -3496,6 +3496,7 @@ export class AdminSettingsComponent implements OnInit {
           this.isSubmitting.set(false);
           this.showLocationModal.set(false);
           this.showAlert('Cập nhật điểm trường thành công.');
+          this.userService.clearLocationsCache();
           this.loadLocationsSummary();
           this.loadCommonMetadata();
         },
@@ -3510,6 +3511,7 @@ export class AdminSettingsComponent implements OnInit {
           this.isSubmitting.set(false);
           this.showLocationModal.set(false);
           this.showAlert('Tạo điểm trường mới thành công.');
+          this.userService.clearLocationsCache();
           this.loadLocationsSummary();
           this.loadCommonMetadata();
         },
@@ -3531,6 +3533,7 @@ export class AdminSettingsComponent implements OnInit {
       this.adminService.deleteLocation(loc.id).subscribe({
         next: () => {
           this.showAlert('Xoá điểm trường thành công.');
+          this.userService.clearLocationsCache();
           this.loadLocationsSummary();
           this.loadCommonMetadata();
         },

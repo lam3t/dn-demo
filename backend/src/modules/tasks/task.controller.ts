@@ -13,12 +13,15 @@ export class TaskController {
         orgUnitId,
         planId,
         overdue,
+        isOverdue,
+        myTasks,
         search,
         page,
         pageSize,
       } = req.query;
 
       const schoolId = req.user?.schoolId;
+      const currentUserId = req.user?.id;
 
       const result = await taskService.getAll({
         schoolId,
@@ -29,6 +32,9 @@ export class TaskController {
         orgUnitId: orgUnitId as string,
         planId: planId as string,
         overdue: overdue as any,
+        isOverdue: isOverdue as any,
+        myTasks: myTasks as any,
+        currentUserId,
         search: search as string,
         page: page ? Number(page) : 1,
         pageSize: pageSize ? Number(pageSize) : 20,
@@ -135,6 +141,24 @@ export class TaskController {
         success: true,
         message: 'Cập nhật công việc thành công.',
         data: task,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async addComment(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { content } = req.body;
+      const userId = req.user!.id;
+
+      const comment = await taskService.addComment(id, userId, content);
+
+      res.status(201).json({
+        success: true,
+        message: 'Thêm trao đổi thành công.',
+        data: comment,
       });
     } catch (error) {
       next(error);

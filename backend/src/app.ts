@@ -1,5 +1,6 @@
 import express, { Express } from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import path from 'path';
 import healthRoutes from './routes/health.routes';
 import authRoutes from './modules/auth/auth.routes';
@@ -16,6 +17,9 @@ import schoolRoutes from './modules/school/school.routes';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
 
 const app: Express = express();
+
+// Gzip/Deflate compression for fast network throughput
+app.use(compression());
 
 // CORS configuration
 const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:4200';

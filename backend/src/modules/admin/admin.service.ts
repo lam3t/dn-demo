@@ -3,6 +3,7 @@ import prisma from '../../prisma';
 import { AppError } from '../../middlewares/error.middleware';
 import { Role, TaskAssignmentRole, TaskStatus } from '@prisma/client';
 import { removeVietnameseAccents, calculateMatchScore } from '../../utils/vietnamese.utils';
+import appCache from '../../utils/cache';
 import {
   CreateAdminUserDto,
   UpdateAdminUserDto,
@@ -33,6 +34,7 @@ export class AdminService {
           detail: detail || null,
         },
       });
+      appCache.invalidateTags(['users', 'locations', 'tasks', 'dashboard']);
     } catch (err) {
       console.error('Lỗi khi ghi AdminAuditLog:', err);
     }

@@ -1,6 +1,7 @@
 import prisma from '../../prisma';
 import { AppError } from '../../middlewares/error.middleware';
 import { PlanLevel, TaskPriority, TaskStatus, TaskAssignmentRole } from '@prisma/client';
+import appCache from '../../utils/cache';
 
 const PLAN_LEVEL_ORDER: Record<PlanLevel, number> = {
   NAM: 0,
@@ -86,6 +87,8 @@ export class PlanService {
       data: { progressPercent: newProgress },
     });
 
+    appCache.invalidateTags(['plans', 'dashboard']);
+
     // Lan truyền đệ quy lên kế hoạch cha nếu có
     if (plan.parentPlanId) {
       await this.recalculatePlanProgress(plan.parentPlanId);
@@ -129,6 +132,12 @@ export class PlanService {
    * Lấy cây kế hoạch đầy đủ lồng nhau kèm danh sách Task con ở mỗi cấp
    */
   async getTree(rootPlanId?: string, schoolId?: string): Promise<PlanTreeNode[]> {
+    const cacheKey = `plans:tree:${rootPlanId || 'root'}:${schoolId || 'all'}`;
+    const cached = appCache.get<PlanTreeNode[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     let whereCondition: any = {};
     if (schoolId) whereCondition.schoolId = schoolId;
 
@@ -203,11 +212,9 @@ export class PlanService {
       }
     });
 
-    if (rootPlanId && nodesMap.has(rootPlanId)) {
-      return [nodesMap.get(rootPlanId)!];
-    }
-
-    return tree;
+    const result = rootPlanId && nodesMap.has(rootPlanId) ? [nodesMap.get(rootPlanId)!] : tree;
+    appCache.set(cacheKey, result, 30, ['plans', 'tasks']);
+    return result;
   }
 
   /**
@@ -292,6 +299,7 @@ export class PlanService {
       await this.recalculatePlanProgress(plan.parentPlanId);
     }
 
+    appCache.invalidateTags(['plans', 'dashboard']);
     return plan;
   }
 
@@ -341,33 +349,62 @@ export class PlanService {
       await this.recalculatePlanProgress(updated.parentPlanId);
     }
 
+    appCache.invalidateTags(['plans', 'dashboard']);
     return updated;
   }
 
   /**
-   * Xóa kế hoạch
+   * Xóa kế hoạch (Hỗ trợ xóa đệ quy kế hoạch con và giải phóng công việc trực thuộc)
    */
   async delete(id: string) {
     const existing = await prisma.plan.findUnique({
       where: { id },
-      include: {
-        _count: { select: { childrenPlans: true, tasks: true } },
-      },
     });
 
     if (!existing) {
       throw new AppError('Không tìm thấy kế hoạch.', 404);
     }
 
-    if (existing._count.childrenPlans > 0 || existing._count.tasks > 0) {
-      throw new AppError(
-        'Không thể xóa kế hoạch đang có kế hoạch con hoặc công việc trực thuộc.',
-        400
-      );
+    const parentId = existing.parentPlanId;
+
+    // Helper đệ quy lấy toàn bộ ID kế hoạch con các cấp
+    const getAllDescendantIds = async (planId: string): Promise<string[]> => {
+      const children = await prisma.plan.findMany({
+        where: { parentPlanId: planId },
+        select: { id: true },
+      });
+      let ids: string[] = [];
+      for (const child of children) {
+        ids.push(child.id);
+        const subIds = await getAllDescendantIds(child.id);
+        ids = ids.concat(subIds);
+      }
+      return ids;
+    };
+
+    const descendantIds = await getAllDescendantIds(id);
+    const allPlanIdsToDelete = [id, ...descendantIds];
+
+    // Xóa các task trực thuộc các kế hoạch bị xóa để tránh rác CSDL
+    const tasksInPlans = await prisma.task.findMany({
+      where: { planId: { in: allPlanIdsToDelete } },
+      select: { id: true },
+    });
+    const taskIds = tasksInPlans.map((t) => t.id);
+    if (taskIds.length > 0) {
+      await prisma.comment.deleteMany({ where: { taskId: { in: taskIds } } });
+      await prisma.attachment.deleteMany({ where: { taskId: { in: taskIds } } });
+      await prisma.taskLog.deleteMany({ where: { taskId: { in: taskIds } } });
+      await prisma.taskAssignment.deleteMany({ where: { taskId: { in: taskIds } } });
+      await prisma.task.deleteMany({ where: { id: { in: taskIds } } });
     }
 
-    const parentId = existing.parentPlanId;
-    await prisma.plan.delete({ where: { id } });
+    // Xóa các kế hoạch
+    for (let i = allPlanIdsToDelete.length - 1; i >= 0; i--) {
+      await prisma.plan.delete({ where: { id: allPlanIdsToDelete[i] } }).catch(() => {});
+    }
+
+    appCache.invalidateTags(['plans', 'tasks', 'dashboard']);
 
     if (parentId) {
       await this.recalculatePlanProgress(parentId);
@@ -472,6 +509,7 @@ export class PlanService {
     // Cập nhật lại tiến độ kế hoạch
     await this.recalculatePlanProgress(planId);
 
+    appCache.invalidateTags(['plans', 'tasks', 'dashboard']);
     return createdTasks;
   }
 
@@ -602,6 +640,7 @@ export class PlanService {
       }
     }
 
+    appCache.invalidateTags(['plans', 'tasks', 'dashboard']);
     return this.getById(newRootPlan.id);
   }
 }

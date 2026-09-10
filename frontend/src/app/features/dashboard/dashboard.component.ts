@@ -1353,18 +1353,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   applyUserDefaultLocation() {
-    const user = this.authService.currentUser();
-    if (!user) return;
-
-    if (this.authService.isHieuTruong()) {
-      // Hiệu trưởng xem toàn trường mặc định
-      this.selectedLocationId = '';
-    } else if (this.authService.isPHT() || this.authService.isToTruong() || this.authService.isGiaoVien()) {
-      // PHT/Tổ trưởng/GV nếu có primaryLocationId thì focus vào phân hiệu của mình
-      if (user.primaryLocationId) {
-        this.selectedLocationId = user.primaryLocationId;
-      }
-    }
+    // Mặc định luôn là '' (Toàn trường) để Dashboard là cái nhìn tổng quan điều hành chung của cả trường
+    this.selectedLocationId = '';
   }
 
   getRoleBannerClass(): string {

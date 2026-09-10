@@ -2,6 +2,7 @@ import prisma from '../../prisma';
 import { AppError } from '../../middlewares/error.middleware';
 import { TaskStatus, TaskPriority, TaskAssignmentRole, Role } from '@prisma/client';
 import { planService } from '../plans/plan.service';
+import appCache from '../../utils/cache';
 
 export interface TaskQueryParams {
   status?: TaskStatus;
@@ -11,6 +12,9 @@ export interface TaskQueryParams {
   orgUnitId?: string;
   planId?: string;
   overdue?: boolean | string;
+  isOverdue?: boolean | string;
+  myTasks?: boolean | string;
+  currentUserId?: string;
   search?: string;
   page?: number;
   pageSize?: number;
@@ -42,57 +46,86 @@ export class TaskService {
    * Lấy danh sách công việc theo bộ lọc đa năng (Việc của tôi, trạng thái, quá hạn...)
    */
   async getAll(params: TaskQueryParams) {
+    const cacheKey = `tasks:query:${JSON.stringify(params)}`;
+    const cached = appCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const page = Math.max(1, Number(params.page) || 1);
     const pageSize = Math.min(100, Math.max(1, Number(params.pageSize) || 20));
 
-    const where: any = {};
+    const conditions: any[] = [];
 
     if (params.schoolId) {
-      where.schoolId = params.schoolId;
+      conditions.push({ schoolId: params.schoolId });
     }
 
     if (params.status) {
-      where.status = params.status;
+      conditions.push({ status: params.status });
     }
 
     if (params.locationId) {
-      where.locationId = params.locationId;
+      conditions.push({ locationId: params.locationId });
     }
 
     if (params.orgUnitId) {
-      where.orgUnitId = params.orgUnitId;
+      conditions.push({ orgUnitId: params.orgUnitId });
     }
 
     if (params.planId) {
-      where.planId = params.planId;
+      conditions.push({ planId: params.planId });
     }
 
-    if (params.search) {
-      where.OR = [
-        { title: { contains: params.search, mode: 'insensitive' } },
-        { code: { contains: params.search, mode: 'insensitive' } },
-        { description: { contains: params.search, mode: 'insensitive' } },
-      ];
+    if (params.search && params.search.trim()) {
+      const q = params.search.trim();
+      conditions.push({
+        OR: [
+          { title: { contains: q, mode: 'insensitive' } },
+          { code: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+        ],
+      });
     }
 
-    // Lọc theo người được phân công (assigneeId & role)
-    if (params.assigneeId) {
-      where.assignments = {
-        some: {
-          userId: params.assigneeId,
-          ...(params.role && { role: params.role }),
+    // Lọc Việc của tôi / Phân công RACI (Chủ trì, Phối hợp, Kiểm tra, Nắm bắt, Phê duyệt)
+    const isMyTasks = params.myTasks === true || params.myTasks === 'true';
+    const targetUserId = params.assigneeId || (isMyTasks ? params.currentUserId : undefined);
+
+    if (targetUserId) {
+      conditions.push({
+        assignments: {
+          some: {
+            userId: targetUserId,
+            ...(params.role && { role: params.role }),
+          },
         },
-      };
+      });
+    } else if (isMyTasks) {
+      // Nếu yêu cầu myTasks=true nhưng chưa đăng nhập hoặc không xác định được user -> Trả về rỗng, tuyệt đối không trả việc toàn trường
+      conditions.push({
+        id: 'NO_USER_IDENTIFIER_FOR_MY_TASKS',
+      });
     }
 
     // Lọc công việc Quá hạn: dueDate < now và status chưa hoàn thành/đóng
-    if (params.overdue === true || params.overdue === 'true') {
+    const isOverdueQuery =
+      params.overdue === true ||
+      params.overdue === 'true' ||
+      params.isOverdue === true ||
+      params.isOverdue === 'true';
+
+    if (isOverdueQuery) {
       const now = new Date();
-      where.dueDate = { lt: now };
-      where.status = {
-        notIn: [TaskStatus.HOAN_THANH, TaskStatus.XAC_NHAN, TaskStatus.DONG, TaskStatus.HUY],
-      };
+      conditions.push({
+        dueDate: { lt: now },
+        status: {
+          notIn: [TaskStatus.HOAN_THANH, TaskStatus.XAC_NHAN, TaskStatus.DONG, TaskStatus.HUY],
+        },
+      });
     }
+
+    const where = conditions.length > 0 ? { AND: conditions } : {};
 
     const [total, items] = await Promise.all([
       prisma.task.count({ where }),
@@ -151,13 +184,16 @@ export class TaskService {
       };
     });
 
-    return {
+    const result = {
       items: enrichedItems,
       total,
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
     };
+
+    appCache.set(cacheKey, result, 10, ['tasks']);
+    return result;
   }
 
   /**
@@ -322,6 +358,7 @@ export class TaskService {
       await planService.recalculatePlanProgress(task.planId);
     }
 
+    appCache.invalidateTags(['tasks', 'dashboard', 'plans']);
     return task;
   }
 
@@ -377,6 +414,7 @@ export class TaskService {
       }),
     ]);
 
+    appCache.invalidateTags(['tasks', 'dashboard', 'users']);
     return this.getByIdFull(taskId);
   }
 
@@ -417,10 +455,15 @@ export class TaskService {
     // 1. Kiểm tra điều kiện khi chuyển sang CHO_KIEM_TRA
     if (targetStatus === TaskStatus.CHO_KIEM_TRA) {
       const canSubmitForReview =
-        isHieuTruongOrAdmin || isCreator || userRoleInTask === TaskAssignmentRole.CHU_TRI;
+        isHieuTruongOrAdmin ||
+        isPHT ||
+        isCreator ||
+        userRoleInTask === TaskAssignmentRole.CHU_TRI ||
+        userRoleInTask === TaskAssignmentRole.PHOI_HOP ||
+        task.assignments.length === 0;
 
       if (!canSubmitForReview) {
-        throw new AppError('Chỉ người Chủ trì công việc mới có quyền gửi yêu cầu kiểm tra.', 403);
+        throw new AppError('Chỉ người được phân công hoặc phụ trách công việc mới có quyền gửi yêu cầu kiểm tra.', 403);
       }
 
       // RÀNG BUỘC MINH CHỨNG: Nếu yêu cầu minh chứng mà chưa đính kèm tệp nào -> Chặn
@@ -507,6 +550,7 @@ export class TaskService {
       await planService.recalculatePlanProgress(task.planId);
     }
 
+    appCache.invalidateTags(['tasks', 'dashboard', 'plans']);
     return this.getByIdFull(taskId);
   }
 
@@ -544,6 +588,7 @@ export class TaskService {
       await planService.recalculatePlanProgress(task.planId);
     }
 
+    appCache.invalidateTags(['tasks', 'dashboard', 'plans']);
     return updatedTask;
   }
 
@@ -568,7 +613,7 @@ export class TaskService {
       throw new AppError('Không tìm thấy công việc.', 404);
     }
 
-    return prisma.task.update({
+    const result = await prisma.task.update({
       where: { id },
       data: {
         ...(data.title && { title: data.title }),
@@ -581,6 +626,44 @@ export class TaskService {
         ...(data.requireAttachment !== undefined && { requireAttachment: data.requireAttachment }),
       },
     });
+
+    appCache.invalidateTags(['tasks', 'dashboard', 'plans']);
+    return result;
+  }
+
+  /**
+   * Thêm bình luận / trao đổi nội bộ trong công việc
+   */
+  async addComment(taskId: string, userId: string, content: string) {
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) {
+      throw new AppError('Không tìm thấy công việc.', 404);
+    }
+    if (!content || !content.trim()) {
+      throw new AppError('Nội dung trao đổi không được để trống.', 400);
+    }
+
+    const comment = await prisma.comment.create({
+      data: {
+        taskId,
+        userId,
+        content: content.trim(),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            title: true,
+            avatarUrl: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    appCache.invalidateTags(['tasks']);
+    return comment;
   }
 
   /**
@@ -599,6 +682,7 @@ export class TaskService {
       await planService.recalculatePlanProgress(planId);
     }
 
+    appCache.invalidateTags(['tasks', 'dashboard', 'plans']);
     return { success: true };
   }
 }

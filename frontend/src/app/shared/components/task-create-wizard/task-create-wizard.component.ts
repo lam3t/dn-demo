@@ -1195,13 +1195,13 @@ export class TaskCreateWizardComponent implements OnInit {
   taskRequireAttachment = false;
 
   // Form Fields - Step 2 (RACI)
-  selectedChuTriId = signal<string | null>(null);
+  selectedChuTriId: string | null = null;
   chuTriUser = signal<UserPickerItem | null>(null);
 
-  selectedPhoiHopIds = signal<string[]>([]);
+  selectedPhoiHopIds: string[] = [];
   phoiHopUsers = signal<UserPickerItem[]>([]);
 
-  selectedKiemTraId = signal<string | null>(null);
+  selectedKiemTraId: string | null = null;
   kiemTraUser = signal<UserPickerItem | null>(null);
 
   isFromPlan = false;
@@ -1322,7 +1322,7 @@ export class TaskCreateWizardComponent implements OnInit {
 
   private validateStep2(): boolean {
     this.errorMessage.set(null);
-    if (!this.selectedChuTriId()) {
+    if (!this.selectedChuTriId) {
       this.errorMessage.set('Bắt buộc phải chọn đúng 1 người chịu trách nhiệm CHỦ TRÌ.');
       return false;
     }
@@ -1331,14 +1331,17 @@ export class TaskCreateWizardComponent implements OnInit {
 
   onChuTriChange(users: UserPickerItem[]) {
     this.chuTriUser.set(users.length > 0 ? users[0] : null);
+    this.selectedChuTriId = users.length > 0 ? users[0].id : null;
   }
 
   onPhoiHopChange(users: UserPickerItem[]) {
     this.phoiHopUsers.set(users);
+    this.selectedPhoiHopIds = users.map((u) => u.id);
   }
 
   onKiemTraChange(users: UserPickerItem[]) {
     this.kiemTraUser.set(users.length > 0 ? users[0] : null);
+    this.selectedKiemTraId = users.length > 0 ? users[0].id : null;
   }
 
   submitCreateTask() {
@@ -1348,15 +1351,15 @@ export class TaskCreateWizardComponent implements OnInit {
     this.errorMessage.set(null);
 
     const assignments: Array<{ userId: string; role: TaskAssignmentRole; note?: string }> = [
-      { userId: this.selectedChuTriId()!, role: 'CHU_TRI', note: 'Chịu trách nhiệm chính' },
+      { userId: this.selectedChuTriId!, role: 'CHU_TRI', note: 'Chịu trách nhiệm chính' },
     ];
 
-    this.selectedPhoiHopIds().forEach((uid) => {
+    (this.selectedPhoiHopIds || []).forEach((uid) => {
       assignments.push({ userId: uid, role: 'PHOI_HOP', note: 'Phối hợp thực hiện' });
     });
 
-    if (this.selectedKiemTraId()) {
-      assignments.push({ userId: this.selectedKiemTraId()!, role: 'KIEM_TRA', note: 'Kiểm tra chất lượng' });
+    if (this.selectedKiemTraId) {
+      assignments.push({ userId: this.selectedKiemTraId!, role: 'KIEM_TRA', note: 'Kiểm tra chất lượng' });
     }
 
     const payload = {
@@ -1417,11 +1420,11 @@ export class TaskCreateWizardComponent implements OnInit {
     this.taskPriority = 'TRUNG_BINH';
     this.taskRequireAttachment = false;
 
-    this.selectedChuTriId.set(null);
+    this.selectedChuTriId = null;
     this.chuTriUser.set(null);
-    this.selectedPhoiHopIds.set([]);
+    this.selectedPhoiHopIds = [];
     this.phoiHopUsers.set([]);
-    this.selectedKiemTraId.set(null);
+    this.selectedKiemTraId = null;
     this.kiemTraUser.set(null);
   }
 
