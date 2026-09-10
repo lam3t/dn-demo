@@ -79,17 +79,11 @@ import { UserPickerItem } from '../../../core/models/user.models';
             }
           </a>
 
-          @if (authService.isHieuTruong()) {
-            <a routerLink="/admin-settings" routerLinkActive="active" class="nav-link admin-link" title="Cấu hình hệ thống (Prompt 18B)">
+          @if (authService.isAdmin()) {
+            <a routerLink="/admin-settings" routerLinkActive="active" class="nav-link admin-link" title="Cấu hình hệ thống">
               <span class="material-symbols-outlined nav-icon admin-icon">admin_panel_settings</span>
               <span class="nav-text">Cấu hình hệ thống</span>
               <span class="sidebar-admin-badge">Admin</span>
-            </a>
-          } @else {
-            <a (click)="switchAndGoToAdmin()" class="nav-link admin-link locked-role-nav" title="Dành cho Hiệu trưởng / Quản trị. Bấm để chuyển nhanh sang Cô Phạm Thị Nam">
-              <span class="material-symbols-outlined nav-icon">admin_panel_settings</span>
-              <span class="nav-text">Cấu hình hệ thống</span>
-              <span class="sidebar-lock-tag">Hiệu trưởng</span>
             </a>
           }
         </nav>
@@ -198,7 +192,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
           </div>
 
           <div class="mobile-actions">
-            @if (authService.isHieuTruong()) {
+            @if (authService.isAdmin()) {
               <a routerLink="/admin-settings" routerLinkActive="admin-active" class="mobile-icon-btn admin-mobile-btn" title="Cấu hình hệ thống">
                 <span class="material-symbols-outlined">admin_panel_settings</span>
               </a>
@@ -358,17 +352,11 @@ import { UserPickerItem } from '../../../core/models/user.models';
                   }
                 </a>
 
-                @if (authService.isHieuTruong()) {
+                @if (authService.isAdmin()) {
                   <a routerLink="/admin-settings" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item admin-item">
                     <span class="material-symbols-outlined nav-icon admin-icon">admin_panel_settings</span>
-                    <span class="nav-label">Cấu hình hệ thống (Prompt 18B)</span>
+                    <span class="nav-label">Cấu hình hệ thống</span>
                     <span class="drawer-admin-tag">Admin</span>
-                  </a>
-                } @else {
-                  <a (click)="switchAndGoToAdminFromDrawer()" class="drawer-nav-item locked-item">
-                    <span class="material-symbols-outlined nav-icon">admin_panel_settings</span>
-                    <span class="nav-label">Cấu hình hệ thống (Prompt 18B)</span>
-                    <span class="drawer-lock-tag">Hiệu trưởng</span>
                   </a>
                 }
               </nav>
@@ -1634,9 +1622,9 @@ export class LayoutComponent implements OnInit, OnDestroy {
   }
 
   switchAndGoToAdmin(): void {
-    const hieuTruongAcc = this.authService.demoAccounts.find((a) => a.role === 'HIEU_TRUONG');
-    if (hieuTruongAcc) {
-      this.authService.switchDemoAccount(hieuTruongAcc.identifier).subscribe({
+    const adminAcc = this.authService.demoAccounts.find((a) => a.role === 'ADMIN');
+    if (adminAcc) {
+      this.authService.switchDemoAccount(adminAcc.identifier).subscribe({
         next: () => {
           this.router.navigate(['/admin-settings']);
         },
@@ -1653,6 +1641,8 @@ export class LayoutComponent implements OnInit, OnDestroy {
   getRolePillClass(): string {
     const role = this.authService.activeRole()?.role;
     switch (role) {
+      case 'ADMIN':
+        return 'pill-admin';
       case 'HIEU_TRUONG':
         return 'pill-hieu-truong';
       case 'PHO_HIEU_TRUONG':
@@ -1668,6 +1658,8 @@ export class LayoutComponent implements OnInit, OnDestroy {
   getRoleIcon(): string {
     const role = this.authService.activeRole()?.role;
     switch (role) {
+      case 'ADMIN':
+        return 'admin_panel_settings';
       case 'HIEU_TRUONG':
         return 'stars';
       case 'PHO_HIEU_TRUONG':

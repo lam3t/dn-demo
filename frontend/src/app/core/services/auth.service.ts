@@ -66,6 +66,17 @@ export const DEMO_ACCOUNTS: DemoAccountInfo[] = [
     color: '#059669',
     icon: 'person',
   },
+  {
+    name: 'Hoàng Thị Mai Anh',
+    role: 'ADMIN',
+    roleTitle: 'Quản trị HT (GV Tin)',
+    scopeName: 'Toàn trường (GV Tin học)',
+    identifier: '0909999999',
+    avatar: 'https://ui-avatars.com/api/?name=Hoang+Thi+Mai+Anh&background=7C3AED&color=fff',
+    desc: 'Giáo viên Tin học kiêm Quản trị hệ thống • Cấu hình tài khoản, Phân quyền & Điểm trường',
+    color: '#7C3AED',
+    icon: 'admin_panel_settings',
+  },
 ];
 
 @Injectable({
@@ -87,12 +98,17 @@ export class AuthService {
 
   isBGH = computed(() => {
     const role = this.activeRoleSignal()?.role;
-    return role === 'HIEU_TRUONG' || role === 'PHO_HIEU_TRUONG' || role === 'ADMIN';
+    return role === 'HIEU_TRUONG' || role === 'PHO_HIEU_TRUONG';
   });
 
   isHieuTruong = computed(() => {
     const role = this.activeRoleSignal()?.role;
-    return role === 'HIEU_TRUONG' || role === 'ADMIN';
+    return role === 'HIEU_TRUONG';
+  });
+
+  isAdmin = computed(() => {
+    const role = this.activeRoleSignal()?.role;
+    return role === 'ADMIN';
   });
 
   isPHT = computed(() => {

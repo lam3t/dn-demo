@@ -5,9 +5,9 @@ import { Role } from '@prisma/client';
 
 const router = Router();
 
-// Tất cả các route bên dưới chỉ cho phép ADMIN và HIEU_TRUONG
+// Tất cả các route quản trị bên dưới chỉ cho phép ADMIN (Giáo viên IT kiêm Quản trị hệ thống)
 router.use(requireAuth);
-router.use(requireRole(Role.ADMIN, Role.HIEU_TRUONG));
+router.use(requireRole(Role.ADMIN));
 
 // 1. Quản lý tài khoản
 router.get('/users', (req, res, next) => adminController.getUsers(req, res, next));

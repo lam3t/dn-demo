@@ -61,7 +61,7 @@ export const routes: Routes = [
       {
         path: 'admin-settings',
         canActivate: [authGuard],
-        data: { roles: ['ADMIN', 'HIEU_TRUONG'] },
+        data: { roles: ['ADMIN'] },
         loadComponent: () =>
           import('./features/admin-settings/admin-settings.component').then(
             (m) => m.AdminSettingsComponent

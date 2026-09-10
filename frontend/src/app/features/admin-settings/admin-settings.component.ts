@@ -35,16 +35,16 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc';
           <p class="page-subtitle">Quản lý danh sách tài khoản, gán quyền & phạm vi, cơ sở điểm trường và nhân sự trực thuộc.</p>
         </div>
 
-        @if (!authService.isHieuTruong()) {
+        @if (!authService.isAdmin()) {
           <div class="role-warning-banner">
             <span class="material-symbols-outlined warn-icon">info</span>
             <div class="warn-content">
               <span class="warn-title">Bạn đang truy cập với vai trò: <strong>{{ authService.activeRole()?.roleTitle || 'Cán bộ' }}</strong></span>
-              <span class="warn-desc">Phân hệ Quản trị & Cấu hình hệ thống yêu cầu quyền Quản trị hoặc Hiệu trưởng.</span>
+              <span class="warn-desc">Phân hệ Quản trị & Cấu hình hệ thống chỉ dành riêng cho Giáo viên Tin học kiêm Quản trị hệ thống (Admin).</span>
             </div>
-            <button type="button" class="btn-switch-principal tap-target" (click)="switchToPrincipalAccount()">
-              <span class="material-symbols-outlined">stars</span>
-              <span>Chuyển sang Cô Phạm Thị Nam (Hiệu trưởng)</span>
+            <button type="button" class="btn-switch-principal tap-target" (click)="switchToAdminAccount()">
+              <span class="material-symbols-outlined">admin_panel_settings</span>
+              <span>Chuyển sang Cô Hoàng Thị Mai Anh (GV Tin học - Quản trị HT)</span>
             </button>
           </div>
         }
@@ -3674,5 +3674,17 @@ export class AdminSettingsComponent implements OnInit {
     if (count <= 2) return 'workload-light';
     if (count <= 5) return 'workload-medium';
     return 'workload-heavy';
+  }
+
+  switchToAdminAccount(): void {
+    const adminAcc = this.authService.demoAccounts.find((a) => a.role === 'ADMIN');
+    if (adminAcc) {
+      this.authService.switchDemoAccount(adminAcc.identifier).subscribe({
+        next: () => {
+          this.loadUsers();
+          this.loadLocationsSummary();
+        },
+      });
+    }
   }
 }

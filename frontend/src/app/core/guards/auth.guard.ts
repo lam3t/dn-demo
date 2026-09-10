@@ -14,10 +14,7 @@ export const authGuard: CanActivateFn = (route, state) => {
   const expectedRoles = route.data?.['roles'] as string[];
   if (expectedRoles && expectedRoles.length > 0) {
     const activeRole = authService.activeRole()?.role;
-    const isAllowed =
-      activeRole === 'ADMIN' ||
-      activeRole === 'HIEU_TRUONG' ||
-      (activeRole && expectedRoles.includes(activeRole));
+    const isAllowed = activeRole && expectedRoles.includes(activeRole);
 
     if (!isAllowed) {
       router.navigate(['/my-tasks']);

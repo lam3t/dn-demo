@@ -233,12 +233,12 @@ async function main() {
     locPh2.id
   );
 
-  // 4.2 Quản trị hệ thống
+  // 4.2 Quản trị hệ thống (Giáo viên Tin học kiêm Quản trị hệ thống)
   const uAdmin = await createUser(
-    'Bùi Thanh Tùng',
+    'Hoàng Thị Mai Anh',
     'admin@phuoctan.edu.vn',
     '0909999999',
-    'Quản trị hệ thống - GV Tin học',
+    'Giáo viên Tin học (Kiêm Quản trị hệ thống)',
     Role.ADMIN,
     locMain.id,
     orgToanTin.id

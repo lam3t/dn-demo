@@ -67,17 +67,12 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
  * Middleware kiểm tra vai trò người dùng (requireRole)
  */
 export const requireRole = (...allowedRoles: Role[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, _res: Response, next: NextFunction) => {
     if (!req.user) {
       return next(new AppError('Yêu cầu xác thực trước khi kiểm tra quyền.', 401));
     }
 
     const userRoles = req.user.roles.map((r) => r.role);
-
-    // ADMIN và HIEU_TRUONG luôn có toàn quyền
-    if (userRoles.includes(Role.ADMIN) || userRoles.includes(Role.HIEU_TRUONG)) {
-      return next();
-    }
 
     const hasPermission = allowedRoles.some((role) => userRoles.includes(role));
     if (!hasPermission) {

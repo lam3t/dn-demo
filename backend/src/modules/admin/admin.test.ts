@@ -9,7 +9,19 @@ import { Role } from '@prisma/client';
 async function runTests() {
   console.log('🧪 Bắt đầu chạy Tests cho Module Quản trị (Admin Module & Location Extensions)...');
 
-  // 1. Đăng nhập tài khoản Hiệu trưởng (Có quyền Admin)
+  // 1. Đăng nhập tài khoản Quản trị hệ thống (Cô Hoàng Thị Mai Anh - GV Tin học kiêm Admin)
+  const adminLogin = await request(app)
+    .post('/api/auth/login')
+    .send({ identifier: 'admin@phuoctan.edu.vn', password: '123456' });
+
+  if (adminLogin.status !== 200) {
+    throw new Error('Đăng nhập Quản trị hệ thống (Admin) thất bại!');
+  }
+  const htToken = adminLogin.body.data.accessToken; // Sử dụng admin token cho các luồng quản trị
+  const adminUser = adminLogin.body.data.user;
+  const schoolId = adminUser.schoolId;
+
+  // 2. Đăng nhập tài khoản Hiệu trưởng (KHÔNG có quyền Quản trị hệ thống)
   const htLogin = await request(app)
     .post('/api/auth/login')
     .send({ identifier: 'hieutruong@phuoctan.edu.vn', password: '123456' });
@@ -17,11 +29,9 @@ async function runTests() {
   if (htLogin.status !== 200) {
     throw new Error('Đăng nhập Hiệu trưởng thất bại!');
   }
-  const htToken = htLogin.body.data.accessToken;
-  const htUser = htLogin.body.data.user;
-  const schoolId = htUser.schoolId;
+  const principalToken = htLogin.body.data.accessToken;
 
-  // 2. Đăng nhập tài khoản Giáo viên (KHÔNG có quyền Admin)
+  // 3. Đăng nhập tài khoản Giáo viên (KHÔNG có quyền Quản trị hệ thống)
   const gvLogin = await request(app)
     .post('/api/auth/login')
     .send({ identifier: 'binh.nv@phuoctan.edu.vn', password: '123456' });
@@ -34,7 +44,7 @@ async function runTests() {
   // ==========================================
   // PHẦN 1: TEST KIỂM SOÁT TRUY CẬP (RBAC)
   // ==========================================
-  console.log('\n--- 1. Test Quyền truy cập Admin (requireRole: ADMIN, HIEU_TRUONG) ---');
+  console.log('\n--- 1. Test Quyền truy cập Admin (Chỉ dành riêng cho Role.ADMIN) ---');
 
   // 1.1 Giáo viên gọi GET /api/admin/users -> 403 Forbidden
   const gvForbiddenRes = await request(app)
@@ -47,15 +57,26 @@ async function runTests() {
     throw new Error(`FAIL: Mong đợi 403 nhưng nhận ${gvForbiddenRes.status}: ${JSON.stringify(gvForbiddenRes.body)}`);
   }
 
-  // 1.2 Hiệu trưởng gọi GET /api/admin/users -> 200 OK
-  const htUsersRes = await request(app)
+  // 1.2 Hiệu trưởng gọi GET /api/admin/users -> 403 Forbidden (HT không làm cấu hình hệ thống)
+  const htForbiddenRes = await request(app)
+    .get('/api/admin/users')
+    .set('Authorization', `Bearer ${principalToken}`);
+
+  if (htForbiddenRes.status === 403) {
+    console.log('✓ PASS: Hiệu trưởng bị chặn 403 Forbidden (Đúng yêu cầu: HT không làm việc cấu hình hệ thống).');
+  } else {
+    throw new Error(`FAIL: Hiệu trưởng phải bị chặn 403 nhưng nhận ${htForbiddenRes.status}: ${JSON.stringify(htForbiddenRes.body)}`);
+  }
+
+  // 1.3 Quản trị viên (Cô giáo IT) gọi GET /api/admin/users -> 200 OK
+  const adminUsersRes = await request(app)
     .get('/api/admin/users')
     .set('Authorization', `Bearer ${htToken}`);
 
-  if (htUsersRes.status === 200 && Array.isArray(htUsersRes.body.data.items)) {
-    console.log(`✓ PASS: Hiệu trưởng truy cập thành công danh sách ${htUsersRes.body.data.total} tài khoản.`);
+  if (adminUsersRes.status === 200 && Array.isArray(adminUsersRes.body.data.items)) {
+    console.log(`✓ PASS: Cô giáo IT (Admin) truy cập thành công danh sách ${adminUsersRes.body.data.total} tài khoản.`);
   } else {
-    throw new Error(`FAIL: Hiệu trưởng không lấy được danh sách user: ${JSON.stringify(htUsersRes.body)}`);
+    throw new Error(`FAIL: Admin không lấy được danh sách user: ${JSON.stringify(adminUsersRes.body)}`);
   }
 
   // ==========================================
@@ -360,10 +381,10 @@ async function runTests() {
     .set('Authorization', `Bearer ${htToken}`)
     .send({
       phone: '0251.3888.999',
-      managerId: htUser.id,
+      managerId: adminUser.id,
     });
 
-  if (patchLocRes.status === 200 && patchLocRes.body.data.manager?.id === htUser.id) {
+  if (patchLocRes.status === 200 && patchLocRes.body.data.manager?.id === adminUser.id) {
     console.log(`✓ PASS: PATCH /api/locations/:id cập nhật người phụ trách (${patchLocRes.body.data.manager.fullName}) và SĐT thành công.`);
   } else {
     throw new Error(`FAIL: PATCH /api/locations/:id thất bại: ${JSON.stringify(patchLocRes.body)}`);
