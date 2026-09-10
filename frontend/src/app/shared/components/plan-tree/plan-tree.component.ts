@@ -195,7 +195,7 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
                             </tr>
                           </thead>
                           <tbody>
-                            @for (task of node.tasks; track task.id) {
+                            @for (task of getPagedNodeTasks(node); track task.id) {
                               <tr class="task-row tap-target" (click)="onTaskClick(task)">
                                 <td class="col-title">
                                   <div class="task-title-cell">
@@ -282,7 +282,7 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
 
                       <!-- MOBILE CARDS LIST (<768px) -->
                       <div class="child-tasks-cards-mobile hide-on-desktop">
-                        @for (task of node.tasks; track task.id) {
+                        @for (task of getPagedNodeTasks(node); track task.id) {
                           <div class="child-task-card-m tap-target" (click)="onTaskClick(task)">
                             <div class="card-m-top">
                               <span class="m-title">{{ task.title }}</span>
@@ -310,6 +310,45 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
                           </div>
                         }
                       </div>
+
+                      <!-- INLINE TASK PAGINATION FOR PLAN NODE -->
+                      @if ((node.tasks?.length || 0) > getNodeTaskPageSize(node.id)) {
+                        <div class="tree-task-pagination-bar" (click)="$event.stopPropagation()">
+                          <span class="pagination-summary">
+                            Hiển thị <strong>{{ (getNodeTaskPage(node.id) - 1) * getNodeTaskPageSize(node.id) + 1 }}</strong> -
+                            <strong>{{ Math.min(getNodeTaskPage(node.id) * getNodeTaskPageSize(node.id), (node.tasks?.length || 0)) }}</strong> /
+                            <strong>{{ (node.tasks?.length || 0) }}</strong> công việc
+                          </span>
+
+                          <div class="pagination-page-actions">
+                            <button
+                              type="button"
+                              class="tree-page-btn tap-target"
+                              [disabled]="getNodeTaskPage(node.id) === 1"
+                              (click)="setNodeTaskPage(node.id, getNodeTaskPage(node.id) - 1, $event)"
+                              title="Trang trước"
+                            >
+                              <span class="material-symbols-outlined">chevron_left</span>
+                              <span>Trước</span>
+                            </button>
+
+                            <span class="tree-page-tag">
+                              Trang {{ getNodeTaskPage(node.id) }} / {{ getNodeTotalTaskPages(node) }}
+                            </span>
+
+                            <button
+                              type="button"
+                              class="tree-page-btn tap-target"
+                              [disabled]="getNodeTaskPage(node.id) === getNodeTotalTaskPages(node)"
+                              (click)="setNodeTaskPage(node.id, getNodeTaskPage(node.id) + 1, $event)"
+                              title="Trang sau"
+                            >
+                              <span>Sau</span>
+                              <span class="material-symbols-outlined">chevron_right</span>
+                            </button>
+                          </div>
+                        </div>
+                      }
                     </div>
                   }
 
@@ -1038,20 +1077,11 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
                 display: inline-flex;
                 align-items: center;
                 gap: 3px;
-                padding: 1px 6px;
+                padding: 2px 6px;
                 border-radius: 4px;
-                background: #FFFFFF;
-                border: 1px solid #BFDBFE;
+                background: #EEF4FC;
                 color: #1F3864;
                 text-decoration: none;
-                font-size: 0.72rem;
-                font-weight: 600;
-                margin-left: 4px;
-
-                .material-symbols-outlined {
-                  font-size: 13px;
-                  color: #1F3864;
-                }
 
                 &:hover {
                   background: #1F3864;
@@ -1060,6 +1090,73 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
                 }
               }
             }
+          }
+        }
+      }
+
+      /* INLINE TASK PAGINATION FOR PLAN NODE */
+      .tree-task-pagination-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px 14px;
+        background: #F8FAFC;
+        border-top: 1px solid #E2E8F0;
+        border-radius: 0 0 10px 10px;
+        margin-top: 4px;
+        flex-wrap: wrap;
+
+        .pagination-summary {
+          font-size: 0.76rem;
+          color: #64748B;
+
+          strong {
+            color: #1F3864;
+          }
+        }
+
+        .pagination-page-actions {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+
+          .tree-page-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 4px 8px;
+            font-size: 0.74rem;
+            font-weight: 600;
+            color: #1F3864;
+            background: #FFFFFF;
+            border: 1px solid #CBD5E1;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+
+            .material-symbols-outlined {
+              font-size: 14px;
+            }
+
+            &:hover:not(:disabled) {
+              background: #EEF4FC;
+              border-color: #1F3864;
+            }
+
+            &:disabled {
+              opacity: 0.4;
+              cursor: not-allowed;
+            }
+          }
+
+          .tree-page-tag {
+            font-size: 0.74rem;
+            font-weight: 700;
+            color: #1F3864;
+            background: #EEF4FC;
+            padding: 3px 8px;
+            border-radius: 6px;
           }
         }
       }
@@ -1267,6 +1364,42 @@ export class PlanTreeComponent implements OnChanges {
       return false;
     }
     return new Date(task.dueDate).getTime() < Date.now();
+  }
+
+  Math = Math;
+  nodeTaskPages = signal<Record<string, number>>({});
+  nodeTaskPageSizes = signal<Record<string, number>>({});
+
+  getNodeTaskPage(nodeId: string): number {
+    return this.nodeTaskPages()[nodeId] || 1;
+  }
+
+  getNodeTaskPageSize(nodeId: string): number {
+    return this.nodeTaskPageSizes()[nodeId] || 5;
+  }
+
+  getNodeTotalTaskPages(node: PlanTreeNode): number {
+    const total = node.tasks?.length || 0;
+    const size = this.getNodeTaskPageSize(node.id);
+    return Math.max(1, Math.ceil(total / size));
+  }
+
+  getPagedNodeTasks(node: PlanTreeNode): any[] {
+    const tasks = node.tasks || [];
+    const page = this.getNodeTaskPage(node.id);
+    const size = this.getNodeTaskPageSize(node.id);
+    return tasks.slice((page - 1) * size, page * size);
+  }
+
+  setNodeTaskPage(nodeId: string, page: number, event?: Event) {
+    if (event) event.stopPropagation();
+    this.nodeTaskPages.update((map) => ({ ...map, [nodeId]: page }));
+  }
+
+  setNodeTaskPageSize(nodeId: string, size: number, event?: Event) {
+    if (event) event.stopPropagation();
+    this.nodeTaskPageSizes.update((map) => ({ ...map, [nodeId]: size }));
+    this.setNodeTaskPage(nodeId, 1);
   }
 
   openUserContact(user: any, event: Event) {

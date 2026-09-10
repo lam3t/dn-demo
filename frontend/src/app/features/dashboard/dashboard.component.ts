@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
@@ -256,7 +256,7 @@ import { LocationItem } from '../../core/models/user.models';
                   </p>
                 </div>
               } @else {
-                @for (task of (data.attentionTasks || []); track task.id) {
+                @for (task of pagedAttentionTasks(); track task.id) {
                   <div class="attention-task-card tap-target" (click)="goToTaskDetail(task.id)">
                     <!-- URGENCY REASON BANNER -->
                     <div class="urgency-banner" [ngClass]="getUrgencyClass(task.priorityLevel)">
@@ -334,6 +334,40 @@ import { LocationItem } from '../../core/models/user.models';
                 }
               }
             </div>
+
+            <!-- ATTENTION TASKS PAGINATION -->
+            @if ((data.attentionTasks || []).length > attentionPageSize()) {
+              <div class="attention-pagination-bar">
+                <span class="pagination-info">
+                  Hiển thị <strong>{{ (attentionPage() - 1) * attentionPageSize() + 1 }}</strong> -
+                  <strong>{{ Math.min(attentionPage() * attentionPageSize(), (data.attentionTasks || []).length) }}</strong> trên
+                  <strong>{{ (data.attentionTasks || []).length }}</strong> việc
+                </span>
+                <div class="pagination-controls">
+                  <button
+                    type="button"
+                    class="page-nav-btn tap-target"
+                    [disabled]="attentionPage() === 1"
+                    (click)="attentionPage.set(attentionPage() - 1)"
+                    title="Trang trước"
+                  >
+                    <span class="material-symbols-outlined">chevron_left</span>
+                    <span>Trước</span>
+                  </button>
+                  <span class="page-current-tag">Trang {{ attentionPage() }} / {{ totalAttentionPages() }}</span>
+                  <button
+                    type="button"
+                    class="page-nav-btn tap-target"
+                    [disabled]="attentionPage() === totalAttentionPages()"
+                    (click)="attentionPage.set(attentionPage() + 1)"
+                    title="Trang sau"
+                  >
+                    <span>Sau</span>
+                    <span class="material-symbols-outlined">chevron_right</span>
+                  </button>
+                </div>
+              </div>
+            }
           </div>
 
           <!-- RIGHT COLUMN: PROGRESS BREAKDOWNS (CAMPUS & ORG UNITS) -->
@@ -1000,6 +1034,74 @@ import { LocationItem } from '../../core/models/user.models';
             }
           }
         }
+
+        /* PAGINATION FOR ATTENTION LIST */
+        .attention-pagination-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 12px 16px;
+          background: #F8FAFC;
+          border-top: 1px solid #E2E8F0;
+          border-radius: 0 0 16px 16px;
+          margin-top: 8px;
+          flex-wrap: wrap;
+
+          .pagination-info {
+            font-size: 0.8rem;
+            color: #64748B;
+
+            strong {
+              color: #1F3864;
+            }
+          }
+
+          .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            .page-nav-btn {
+              display: inline-flex;
+              align-items: center;
+              gap: 4px;
+              padding: 5px 10px;
+              font-size: 0.78rem;
+              font-weight: 600;
+              color: #1F3864;
+              background: #FFFFFF;
+              border: 1px solid #CBD5E1;
+              border-radius: 8px;
+              cursor: pointer;
+              transition: all 0.2s ease;
+
+              .material-symbols-outlined {
+                font-size: 16px;
+              }
+
+              &:hover:not(:disabled) {
+                background: #EEF4FC;
+                border-color: #1F3864;
+                color: #1F3864;
+              }
+
+              &:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+              }
+            }
+
+            .page-current-tag {
+              font-size: 0.78rem;
+              font-weight: 700;
+              color: #1F3864;
+              background: #EEF4FC;
+              padding: 4px 8px;
+              border-radius: 6px;
+            }
+          }
+        }
       }
 
       /* BREAKDOWNS (CAMPUS & ORG) */
@@ -1327,12 +1429,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private contactCardService = inject(ContactCardService);
   private router = inject(Router);
 
+  Math = Math;
+
   selectedLocationId = '';
   locations = signal<LocationItem[]>([]);
 
   isLoading = signal(true);
   loadError = signal(false);
   overviewData = signal<DashboardOverviewData | null>(null);
+
+  // Pagination for Attention Tasks
+  attentionPage = signal(1);
+  attentionPageSize = signal(4);
+
+  totalAttentionPages = computed(() => {
+    const tasks = this.overviewData()?.attentionTasks || [];
+    return Math.max(1, Math.ceil(tasks.length / this.attentionPageSize()));
+  });
+
+  pagedAttentionTasks = computed(() => {
+    const tasks = this.overviewData()?.attentionTasks || [];
+    const page = this.attentionPage();
+    const size = this.attentionPageSize();
+    return tasks.slice((page - 1) * size, page * size);
+  });
 
   private accountSub?: Subscription;
 
@@ -1401,6 +1521,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   loadDashboardData() {
     this.isLoading.set(true);
     this.loadError.set(false);
+    this.attentionPage.set(1);
     this.dashboardService
       .getOverview({ locationId: this.selectedLocationId || undefined })
       .subscribe({
