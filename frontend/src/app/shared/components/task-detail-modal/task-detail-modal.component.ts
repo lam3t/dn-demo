@@ -395,6 +395,13 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                   }
                 </div>
 
+                @if (actionSuccess()) {
+                  <div class="action-success-banner">
+                    <span class="material-symbols-outlined">check_circle</span>
+                    <span>{{ actionSuccess() }}</span>
+                  </div>
+                }
+
                 @if (actionError()) {
                   <div class="action-error-banner">
                     <span class="material-symbols-outlined">error</span>
@@ -1190,6 +1197,20 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
           }
         }
 
+        .action-success-banner {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 10px;
+          background: #ECFDF5;
+          border: 1px solid #A7F3D0;
+          border-radius: 8px;
+          color: #065F46;
+          font-size: 0.78rem;
+          font-weight: 700;
+          margin-top: 10px;
+        }
+
         .action-error-banner {
           display: flex;
           align-items: center;
@@ -1389,6 +1410,7 @@ export class TaskDetailModalComponent implements OnInit {
 
   // Workflow action state
   actionError = signal<string | null>(null);
+  actionSuccess = signal<string | null>(null);
 
   ngOnInit() {}
 
@@ -1510,11 +1532,14 @@ export class TaskDetailModalComponent implements OnInit {
     const t = this.task();
     if (!t) return;
     this.actionError.set(null);
+    this.actionSuccess.set(null);
 
     this.taskService.updateStatus(t.id, status, note).subscribe({
       next: (updated) => {
+        this.actionSuccess.set('Đã chuyển trạng thái công việc thành công!');
         this.loadTask(t.id);
         this.taskUpdated.emit(updated);
+        setTimeout(() => this.actionSuccess.set(null), 3000);
       },
       error: (err) => {
         this.actionError.set(err.error?.message || 'Không thể chuyển trạng thái.');

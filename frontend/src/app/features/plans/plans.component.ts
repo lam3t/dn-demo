@@ -60,6 +60,14 @@ interface PaperPlanRow {
         </div>
       </header>
 
+      <!-- TOAST NOTIFICATION -->
+      @if (toastMessage()) {
+        <div class="plans-toast-banner" [ngClass]="toastType()">
+          <span class="material-symbols-outlined">{{ toastType() === 'success' ? 'check_circle' : 'info' }}</span>
+          <span>{{ toastMessage() }}</span>
+        </div>
+      }
+
       <!-- STATS HERO SUMMARY CARDS -->
       <section class="stats-summary-grid">
         <div class="stat-card">
@@ -215,7 +223,7 @@ interface PaperPlanRow {
             <div class="paper-target-plan-box">
               <label class="field-label">Gắn vào Kế hoạch mẹ:</label>
               <select class="plan-target-select" [(ngModel)]="paperTargetPlanId">
-                <option [ngValue]="null">-- Chọn kế hoạch (hoặc tạo mới bên dưới) --</option>
+                <option value="">-- Chọn kế hoạch mẹ --</option>
                 @for (p of allPlans(); track p.id) {
                   <option [value]="p.id">[{{ p.level }}] {{ p.title }}</option>
                 }
@@ -410,7 +418,7 @@ interface PaperPlanRow {
                 <div class="form-group">
                   <label class="form-label">Kế hoạch cấp trên (Cha)</label>
                   <select class="form-select" [(ngModel)]="planFormParentId">
-                    <option [ngValue]="null">-- Cấp cao nhất (Không có cha) --</option>
+                    <option value="">-- Cấp cao nhất (Không có cha) --</option>
                     @for (p of availableParentPlans(); track p.id) {
                       <option [value]="p.id">[{{ p.level }}] {{ p.title }}</option>
                     }
@@ -583,6 +591,37 @@ interface PaperPlanRow {
         flex-direction: column;
         gap: 20px;
         padding: 4px 0 32px 0;
+      }
+
+      /* TOAST BANNER */
+      .plans-toast-banner {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 18px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+        animation: fadeIn 0.2s ease;
+
+        &.success {
+          background: #ECFDF5;
+          color: #065F46;
+          border: 1.5px solid #A7F3D0;
+        }
+
+        &.error {
+          background: #FEF2F2;
+          color: #991B1B;
+          border: 1.5px solid #FECACA;
+        }
+
+        &.info {
+          background: #EEF4FC;
+          color: #1F3864;
+          border: 1.5px solid #BFDBFE;
+        }
       }
 
       /* HEADER */
@@ -1446,6 +1485,11 @@ export class PlansComponent implements OnInit, OnDestroy {
   activeTab = signal<'tree' | 'paper'>('tree');
   isLoading = signal(false);
 
+  // Toast Feedback State
+  toastMessage = signal<string | null>(null);
+  toastType = signal<'success' | 'info' | 'error'>('success');
+  private toastTimer?: any;
+
   // Trees & Plans Data
   treeNodes = signal<PlanTreeNode[]>([]);
   allPlans = signal<PlanItem[]>([]);
@@ -1458,37 +1502,12 @@ export class PlansComponent implements OnInit, OnDestroy {
   averageProgress = signal(0);
   activeSchoolYearTitle = signal('Năm học 2026-2027');
 
+  // Storage key for paper table persistence
+  private readonly STORAGE_KEY = 'tn_edu_paper_rows';
+
   // Paper Table Data
-  paperTargetPlanId: string | null = null;
-  paperRows = signal<PaperPlanRow[]>([
-    {
-      id: '1',
-      timeLabel: 'Tuần 1 (01/09 - 07/09)',
-      startDate: '2026-09-01',
-      endDate: '2026-09-07',
-      focusContent: 'Tổ chức Lễ Khai giảng năm học mới & Ổn định nền nếp dạy học tại 3 điểm trường.',
-      targetResult: '100% học sinh tham dự, các phân hiệu phân công TKB và biên bản bàn giao CSVC hoàn tất.',
-      saved: true,
-    },
-    {
-      id: '2',
-      timeLabel: 'Tuần 2 (08/09 - 14/09)',
-      startDate: '2026-09-08',
-      endDate: '2026-09-14',
-      focusContent: 'Kiểm tra hệ thống phòng cháy chữa cháy, an toàn điện và phòng chống bão lũ mùa mưa.',
-      targetResult: 'Biên bản kiểm tra CSVC tại Phân hiệu 1, Phân hiệu 2 có chữ ký Tổ trưởng.',
-      saved: true,
-    },
-    {
-      id: '3',
-      timeLabel: 'Tuần 3 (15/09 - 21/09)',
-      startDate: '2026-09-15',
-      endDate: '2026-09-21',
-      focusContent: 'Họp Tổ chuyên môn cụm liên phân hiệu: Thống nhất kế hoạch dạy học & đề kiểm tra.',
-      targetResult: 'Kế hoạch bài dạy đã duyệt, biên bản sinh hoạt chuyên môn nộp BGH.',
-      saved: false,
-    },
-  ]);
+  paperTargetPlanId = '';
+  paperRows = signal<PaperPlanRow[]>([]);
 
   // Plan Create/Edit Modal State
   showPlanModal = signal(false);
@@ -1516,6 +1535,7 @@ export class PlansComponent implements OnInit, OnDestroy {
   private accountSub?: Subscription;
 
   ngOnInit() {
+    this.paperRows.set(this.loadPaperRowsFromStorage());
     this.loadAllPlans();
     this.loadTree();
 
@@ -1527,6 +1547,16 @@ export class PlansComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.accountSub?.unsubscribe();
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+  }
+
+  showToast(message: string, type: 'success' | 'info' | 'error' = 'success') {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.toastMessage.set(message);
+    this.toastType.set(type);
+    this.toastTimer = setTimeout(() => {
+      this.toastMessage.set(null);
+    }, 4000);
   }
 
   loadTree() {
@@ -1538,8 +1568,9 @@ export class PlansComponent implements OnInit, OnDestroy {
         this.computeStats(nodes);
         this.isLoading.set(false);
       },
-      error: () => {
+      error: (err) => {
         this.isLoading.set(false);
+        this.showToast(err.error?.message || 'Không thể tải cây kế hoạch.', 'error');
       },
     });
   }
@@ -1588,7 +1619,52 @@ export class PlansComponent implements OnInit, OnDestroy {
     return this.allPlans().filter((p) => p.id !== this.editingPlanId());
   });
 
-  // Paper Table Actions
+  // Paper Table Actions & LocalStorage Persistence
+  private loadPaperRowsFromStorage(): PaperPlanRow[] {
+    try {
+      const saved = localStorage.getItem(this.STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [
+      {
+        id: '1',
+        timeLabel: 'Tuần 1 (01/09 - 07/09)',
+        startDate: '2026-09-01',
+        endDate: '2026-09-07',
+        focusContent: 'Tổ chức Lễ Khai giảng năm học mới & Ổn định nền nếp dạy học tại 3 điểm trường.',
+        targetResult: '100% học sinh tham dự, các phân hiệu phân công TKB và biên bản bàn giao CSVC hoàn tất.',
+        saved: true,
+      },
+      {
+        id: '2',
+        timeLabel: 'Tuần 2 (08/09 - 14/09)',
+        startDate: '2026-09-08',
+        endDate: '2026-09-14',
+        focusContent: 'Kiểm tra hệ thống phòng cháy chữa cháy, an toàn điện và phòng chống bão lũ mùa mưa.',
+        targetResult: 'Biên bản kiểm tra CSVC tại Phân hiệu 1, Phân hiệu 2 có chữ ký Tổ trưởng.',
+        saved: true,
+      },
+      {
+        id: '3',
+        timeLabel: 'Tuần 3 (15/09 - 21/09)',
+        startDate: '2026-09-15',
+        endDate: '2026-09-21',
+        focusContent: 'Họp Tổ chuyên môn cụm liên phân hiệu: Thống nhất kế hoạch dạy học & đề kiểm tra.',
+        targetResult: 'Kế hoạch bài dạy đã duyệt, biên bản sinh hoạt chuyên môn nộp BGH.',
+        saved: false,
+      },
+    ];
+  }
+
+  private persistPaperRows() {
+    try {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.paperRows()));
+    } catch (e) {}
+  }
+
   addPaperRow() {
     const currentCount = this.paperRows().length;
     const nextWeek = currentCount + 1;
@@ -1602,10 +1678,13 @@ export class PlansComponent implements OnInit, OnDestroy {
       saved: false,
     };
     this.paperRows.update((rows) => [...rows, newRow]);
+    this.persistPaperRows();
   }
 
   deletePaperRow(id: string) {
     this.paperRows.update((rows) => rows.filter((r) => r.id !== id));
+    this.persistPaperRows();
+    this.showToast('Đã xóa dòng kế hoạch.', 'info');
   }
 
   savePaperRow(row: PaperPlanRow) {
@@ -1614,6 +1693,8 @@ export class PlansComponent implements OnInit, OnDestroy {
       return;
     }
     row.saved = true;
+    this.persistPaperRows();
+    this.showToast(`Đã lưu dòng kế hoạch "${row.timeLabel}" thành công!`, 'success');
   }
 
   createTaskFromPaperRow(row: PaperPlanRow) {
@@ -1656,13 +1737,13 @@ export class PlansComponent implements OnInit, OnDestroy {
 
     this.planService.generateTasks(this.paperTargetPlanId, tasksData).subscribe({
       next: (tasks) => {
-        alert(`Đã tạo thành công ${tasks.length} công việc từ bảng kế hoạch giấy!`);
+        this.showToast(`Đã tạo thành công ${tasks.length} công việc từ bảng kế hoạch!`, 'success');
         this.loadTree();
         this.loadAllPlans();
         this.activeTab.set('tree');
       },
       error: (err) => {
-        alert(err.error?.message || 'Không thể tạo việc hàng loạt. Vui lòng thử lại.');
+        this.showToast(err.error?.message || 'Không thể tạo việc hàng loạt. Vui lòng thử lại.', 'error');
       },
     });
   }
@@ -1679,6 +1760,7 @@ export class PlansComponent implements OnInit, OnDestroy {
   }
 
   onTaskCreatedFromWizard() {
+    this.showToast('Giao việc từ kế hoạch thành công!', 'success');
     this.loadTree();
     this.loadAllPlans();
   }
@@ -1746,11 +1828,16 @@ export class PlansComponent implements OnInit, OnDestroy {
     this.isSubmittingPlan.set(true);
     this.planModalError.set(null);
 
+    const parentId =
+      !this.planFormParentId || this.planFormParentId === 'null' || this.planFormParentId === 'undefined'
+        ? null
+        : this.planFormParentId;
+
     const payload = {
       title: this.planFormTitle.trim(),
       description: this.planFormDescription.trim() || undefined,
       level: this.planFormLevel,
-      parentPlanId: this.planFormParentId || null,
+      parentPlanId: parentId,
       startDate: this.planFormStartDate,
       endDate: this.planFormEndDate,
     };
@@ -1761,6 +1848,7 @@ export class PlansComponent implements OnInit, OnDestroy {
         next: () => {
           this.isSubmittingPlan.set(false);
           this.closePlanModal();
+          this.showToast(`Đã cập nhật kế hoạch "${payload.title}" thành công!`, 'success');
           this.loadTree();
           this.loadAllPlans();
         },
@@ -1771,11 +1859,15 @@ export class PlansComponent implements OnInit, OnDestroy {
       });
     } else {
       this.planService.create(payload).subscribe({
-        next: () => {
+        next: (created) => {
           this.isSubmittingPlan.set(false);
           this.closePlanModal();
+          this.showToast(`Đã lập kế hoạch "${created.title}" thành công!`, 'success');
           this.loadTree();
           this.loadAllPlans();
+          if (parentId && this.treeComponent) {
+            this.treeComponent.expandNode(parentId);
+          }
         },
         error: (err) => {
           this.isSubmittingPlan.set(false);
@@ -1789,12 +1881,12 @@ export class PlansComponent implements OnInit, OnDestroy {
     if (confirm(`Bạn có chắc chắn muốn xóa kế hoạch "${node.title}"?\nLưu ý: Kế hoạch chỉ được xóa khi không chứa công việc hoặc kế hoạch con trực thuộc.`)) {
       this.planService.delete(node.id).subscribe({
         next: () => {
+          this.showToast(`Đã xóa kế hoạch "${node.title}" thành công.`, 'success');
           this.loadTree();
           this.loadAllPlans();
-          alert(`Đã xóa kế hoạch "${node.title}" thành công.`);
         },
         error: (err) => {
-          alert(err.error?.message || 'Không thể xóa kế hoạch. Vui lòng kiểm tra lại công việc trực thuộc.');
+          this.showToast(err.error?.message || 'Không thể xóa kế hoạch. Vui lòng kiểm tra lại công việc trực thuộc.', 'error');
         },
       });
     }
@@ -1810,9 +1902,9 @@ export class PlansComponent implements OnInit, OnDestroy {
         next: () => {
           this.isSubmittingPlan.set(false);
           this.closePlanModal();
+          this.showToast('Đã xóa kế hoạch thành công.', 'success');
           this.loadTree();
           this.loadAllPlans();
-          alert('Đã xóa kế hoạch thành công.');
         },
         error: (err) => {
           this.isSubmittingPlan.set(false);
@@ -1858,12 +1950,12 @@ export class PlansComponent implements OnInit, OnDestroy {
     };
 
     this.planService.duplicate(this.duplicateSourceId, options).subscribe({
-      next: () => {
+      next: (dup) => {
         this.isSubmittingDuplicate.set(false);
         this.closeDuplicateModal();
+        this.showToast(`Đã sao chép thành công sang kế hoạch "${dup.title}"!`, 'success');
         this.loadTree();
         this.loadAllPlans();
-        alert('Đã sao chép kế hoạch thành công!');
       },
       error: (err) => {
         this.isSubmittingDuplicate.set(false);

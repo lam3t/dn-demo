@@ -45,7 +45,7 @@ export class PlanService {
     const parentOrder = PLAN_LEVEL_ORDER[parent.level];
     const childOrder = PLAN_LEVEL_ORDER[level];
 
-    if (childOrder <= parentOrder) {
+    if (childOrder < parentOrder || (childOrder === parentOrder && level !== PlanLevel.THANG && level !== PlanLevel.TUAN)) {
       throw new AppError(
         `Cấp kế hoạch không hợp lệ! Kế hoạch "${level}" không thể là con của Kế hoạch "${parent.level}".`,
         400

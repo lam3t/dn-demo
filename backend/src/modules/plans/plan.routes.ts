@@ -15,38 +15,38 @@ router.get('/:id', (req, res, next) => planController.getById(req, res, next));
 // Tạo/sửa/xóa kế hoạch
 router.post(
   '/',
-  requireRole(Role.ADMIN, Role.HIEU_TRUONG, Role.PHO_HIEU_TRUONG, Role.TO_TRUONG),
+  requireRole(Role.ADMIN, Role.HIEU_TRUONG, Role.PHO_HIEU_TRUONG, Role.TO_TRUONG, Role.GIAO_VIEN, Role.NHAN_VIEN),
   (req, res, next) => planController.create(req, res, next)
 );
 
 router.put(
   '/:id',
-  requireRole(Role.ADMIN, Role.HIEU_TRUONG, Role.PHO_HIEU_TRUONG, Role.TO_TRUONG),
+  requireRole(Role.ADMIN, Role.HIEU_TRUONG, Role.PHO_HIEU_TRUONG, Role.TO_TRUONG, Role.GIAO_VIEN, Role.NHAN_VIEN),
   (req, res, next) => planController.update(req, res, next)
 );
 
 router.patch(
   '/:id',
-  requireRole(Role.ADMIN, Role.HIEU_TRUONG, Role.PHO_HIEU_TRUONG, Role.TO_TRUONG),
+  requireRole(Role.ADMIN, Role.HIEU_TRUONG, Role.PHO_HIEU_TRUONG, Role.TO_TRUONG, Role.GIAO_VIEN, Role.NHAN_VIEN),
   (req, res, next) => planController.update(req, res, next)
 );
 
 router.delete(
   '/:id',
-  requireRole(Role.ADMIN, Role.HIEU_TRUONG, Role.PHO_HIEU_TRUONG),
+  requireRole(Role.ADMIN, Role.HIEU_TRUONG, Role.PHO_HIEU_TRUONG, Role.TO_TRUONG, Role.GIAO_VIEN),
   (req, res, next) => planController.delete(req, res, next)
 );
 
 // Tạo nhanh công việc từ kế hoạch & Sao chép kế hoạch
 router.post(
   '/:id/generate-tasks',
-  requireRole(Role.ADMIN, Role.HIEU_TRUONG, Role.PHO_HIEU_TRUONG, Role.TO_TRUONG),
+  requireRole(Role.ADMIN, Role.HIEU_TRUONG, Role.PHO_HIEU_TRUONG, Role.TO_TRUONG, Role.GIAO_VIEN, Role.NHAN_VIEN),
   (req, res, next) => planController.generateTasks(req, res, next)
 );
 
 router.post(
   '/:id/duplicate',
-  requireRole(Role.ADMIN, Role.HIEU_TRUONG, Role.PHO_HIEU_TRUONG, Role.TO_TRUONG),
+  requireRole(Role.ADMIN, Role.HIEU_TRUONG, Role.PHO_HIEU_TRUONG, Role.TO_TRUONG, Role.GIAO_VIEN, Role.NHAN_VIEN),
   (req, res, next) => planController.duplicate(req, res, next)
 );
 

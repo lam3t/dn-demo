@@ -5,6 +5,8 @@ import {
   EventEmitter,
   inject,
   signal,
+  OnChanges,
+  SimpleChanges,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
@@ -1128,7 +1130,7 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
     `,
   ],
 })
-export class PlanTreeComponent {
+export class PlanTreeComponent implements OnChanges {
   private router = inject(Router);
   private contactCardService = inject(ContactCardService);
 
@@ -1144,6 +1146,14 @@ export class PlanTreeComponent {
   // Track expanded state of nodes by ID
   expandedNodeIds = signal<Set<string>>(new Set<string>());
 
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['nodes'] && this.nodes && this.nodes.length > 0) {
+      if (this.expandedNodeIds().size === 0) {
+        this.expandAll();
+      }
+    }
+  }
+
   hasChildrenOrTasks(node: PlanTreeNode): boolean {
     const hasKids = !!(node.children && node.children.length > 0);
     const hasTasks = !!(node.tasks && node.tasks.length > 0);
@@ -1152,6 +1162,12 @@ export class PlanTreeComponent {
 
   isExpanded(nodeId: string): boolean {
     return this.expandedNodeIds().has(nodeId);
+  }
+
+  expandNode(nodeId: string) {
+    const current = new Set(this.expandedNodeIds());
+    current.add(nodeId);
+    this.expandedNodeIds.set(current);
   }
 
   toggleNode(nodeId: string, event: Event) {
