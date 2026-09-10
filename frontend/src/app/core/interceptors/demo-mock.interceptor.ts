@@ -20,7 +20,7 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
     catchError((error: HttpErrorResponse) => {
       // If backend API returns error (500, 502, 503, 504, 404, 0 connection error on Vercel without PostgreSQL)
       if (req.url.startsWith('/api')) {
-        const url = req.url;
+        const url = req.urlWithParams || req.url;
         const method = req.method.toUpperCase();
 
         // 0. AUTH & LOGIN (Demo Account Switcher Support)
@@ -36,6 +36,23 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
                   u.id === identifier
               ) || MOCK_USERS[0];
 
+            const userProfile = {
+              ...foundUser,
+              schoolId: 'school-phuoc-tan',
+              schoolName: 'Trường TH và THCS Phước Tân',
+              primaryLocationId: foundUser.primaryLocation?.id,
+              primaryLocationName: foundUser.primaryLocation?.name,
+              primaryOrgUnitId: foundUser.primaryOrgUnit?.id,
+              primaryOrgUnitName: foundUser.primaryOrgUnit?.name,
+              roles: (foundUser.roles || []).map((r: any) => ({
+                role: r.role,
+                scopeLocationId: r.scopeLocation?.id || r.scopeLocationId || (r.role === 'PHO_HIEU_TRUONG' ? foundUser.primaryLocation?.id : null),
+                scopeLocationName: r.scopeLocation?.name || r.scopeLocationName || (r.role === 'PHO_HIEU_TRUONG' ? foundUser.primaryLocation?.name : undefined),
+                scopeOrgUnitId: r.scopeOrgUnit?.id || r.scopeOrgUnitId || (r.role === 'TO_TRUONG' ? foundUser.primaryOrgUnit?.id : null),
+                scopeOrgUnitName: r.scopeOrgUnit?.name || r.scopeOrgUnitName || (r.role === 'TO_TRUONG' ? foundUser.primaryOrgUnit?.name : undefined),
+              })),
+            };
+
             return of(
               new HttpResponse({
                 status: 200,
@@ -44,7 +61,7 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
                   data: {
                     accessToken: `mock-jwt-token-${foundUser.id}`,
                     refreshToken: `mock-refresh-token-${foundUser.id}`,
-                    user: foundUser,
+                    user: userProfile,
                   },
                   message: 'Đăng nhập thành công (Chế độ mô phỏng demo).',
                 },
@@ -459,17 +476,17 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
 
         // 5. DASHBOARD
         if (url.includes('/api/dashboard/overview')) {
-          const locMatch = url.match(/[?&]locationId=([^&]+)/);
-          const orgMatch = url.match(/[?&]orgUnitId=([^&]+)/);
-          const locationId = locMatch ? locMatch[1] : '';
-          const orgUnitId = orgMatch ? orgMatch[1] : '';
+          const locationId = req.params.get('locationId') || (url.match(/[?&]locationId=([^&]+)/)?.[1]) || '';
+          const orgUnitId = req.params.get('orgUnitId') || (url.match(/[?&]orgUnitId=([^&]+)/)?.[1]) || '';
+          const userId = req.params.get('userId') || (url.match(/[?&]userId=([^&]+)/)?.[1]) || '';
+          const role = req.params.get('role') || (url.match(/[?&]role=([^&]+)/)?.[1]) || '';
 
-          let tasks = MOCK_TASKS;
+          let tasks = [...MOCK_TASKS];
           if (locationId) {
-            tasks = tasks.filter((t) => t.location?.id === locationId || (t as any).locationId === locationId);
+            tasks = tasks.filter((t) => t.location?.id === locationId || (t as any).locationId === locationId || (locationId === 'loc-main' && (!t.location || t.location.id === 'loc-main')));
           }
           if (orgUnitId) {
-            tasks = tasks.filter((t) => t.orgUnit?.id === orgUnitId || (t as any).orgUnitId === orgUnitId);
+            tasks = tasks.filter((t) => t.orgUnit?.id === orgUnitId || (t as any).orgUnitId === orgUnitId || (orgUnitId === 'org-bgh' && (!t.orgUnit || t.orgUnit.id === 'org-bgh')));
           }
 
           const completedStatuses = ['HOAN_THANH', 'XAC_NHAN', 'DONG'];
@@ -501,16 +518,28 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
 
           const attentionTasks = tasks
             .filter((t) => t.isOverdue || t.status === 'CHO_KIEM_TRA' || t.status === 'BO_SUNG' || t.priority === 'KHAN_CAP' || t.priority === 'CAO')
-            .slice(0, 15)
             .map((t) => {
               const chuTriAsg = t.assignments?.find((a) => a.role === 'CHU_TRI');
               const chuTriUser = chuTriAsg?.user;
               let reason = 'Đang thực hiện đúng tiến độ';
-              if (t.isOverdue) reason = 'Đã quá hạn hoàn thành';
-              else if (t.status === 'CHO_KIEM_TRA') reason = 'Đã nộp minh chứng, chờ nghiệm thu';
-              else if (t.status === 'BO_SUNG') reason = 'Yêu cầu bổ sung thông tin/minh chứng';
-              else if (t.priority === 'KHAN_CAP') reason = 'Nhiệm vụ khẩn cấp';
-              else if (t.priority === 'CAO') reason = 'Nhiệm vụ trọng tâm';
+              let priorityLevel = 1;
+
+              if (t.isOverdue) {
+                reason = 'Đã quá hạn hoàn thành';
+                priorityLevel = 4;
+              } else if (t.status === 'BO_SUNG') {
+                reason = 'Yêu cầu bổ sung thông tin/minh chứng';
+                priorityLevel = 3;
+              } else if (t.status === 'CHO_KIEM_TRA') {
+                reason = 'Đã nộp minh chứng, chờ nghiệm thu';
+                priorityLevel = 2;
+              } else if (t.priority === 'KHAN_CAP') {
+                reason = 'Nhiệm vụ khẩn cấp';
+                priorityLevel = 2;
+              } else if (t.priority === 'CAO') {
+                reason = 'Nhiệm vụ trọng tâm';
+                priorityLevel = 1;
+              }
 
               return {
                 id: t.id,
@@ -522,7 +551,7 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
                 dueDate: t.dueDate,
                 isOverdue: Boolean(t.isOverdue),
                 reason,
-                priorityLevel: t.priority === 'KHAN_CAP' ? 3 : t.priority === 'CAO' ? 2 : 1,
+                priorityLevel,
                 locationName: t.location?.name || 'Điểm chính',
                 orgUnitName: t.orgUnit?.name || 'Ban Giám hiệu',
                 chuTri: chuTriUser
@@ -538,9 +567,18 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
               };
             });
 
+          // Sort attention tasks by highest urgency first, then earliest due date
+          attentionTasks.sort((a, b) => {
+            if (b.priorityLevel !== a.priorityLevel) {
+              return b.priorityLevel - a.priorityLevel;
+            }
+            return new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime();
+          });
+
           const breakdownByLocation = MOCK_LOCATIONS.map((loc) => {
             const locTasks = MOCK_TASKS.filter(
-              (t) => t.location?.id === loc.id || (t as any).locationId === loc.id || (loc.id === 'loc-main' && !t.location)
+              (t) => (t.location?.id === loc.id || (t as any).locationId === loc.id || (loc.id === 'loc-main' && !t.location)) &&
+                     (!orgUnitId || t.orgUnit?.id === orgUnitId || (t as any).orgUnitId === orgUnitId)
             );
             const cCount = locTasks.filter((t) => completedStatuses.includes(t.status)).length;
             const pCount = locTasks.filter((t) => inProgressStatuses.includes(t.status)).length;
@@ -562,7 +600,8 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
 
           const breakdownByOrgUnit = MOCK_ORG_UNITS.map((org) => {
             const orgTasks = MOCK_TASKS.filter(
-              (t) => t.orgUnit?.id === org.id || (t as any).orgUnitId === org.id || (org.id === 'org-bgh' && !t.orgUnit)
+              (t) => (t.orgUnit?.id === org.id || (t as any).orgUnitId === org.id || (org.id === 'org-bgh' && !t.orgUnit)) &&
+                     (!locationId || t.location?.id === locationId || (t as any).locationId === locationId || (locationId === 'loc-main' && !t.location))
             );
             const cCount = orgTasks.filter((t) => completedStatuses.includes(t.status)).length;
             const pCount = orgTasks.filter((t) => inProgressStatuses.includes(t.status)).length;
@@ -588,7 +627,7 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
             completedCount,
             inProgressCount,
             pendingReviewCount,
-            attentionTasks,
+            attentionTasks: attentionTasks.slice(0, 15),
             breakdownByLocation,
             breakdownByOrgUnit,
           };

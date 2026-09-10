@@ -9,10 +9,17 @@ import { DashboardOverviewData } from '../models/dashboard.models';
 export class DashboardService {
   private http = inject(HttpClient);
 
-  getOverview(params?: { locationId?: string; orgUnitId?: string }): Observable<DashboardOverviewData> {
+  getOverview(params?: {
+    locationId?: string;
+    orgUnitId?: string;
+    userId?: string;
+    role?: string;
+  }): Observable<DashboardOverviewData> {
     let httpParams = new HttpParams();
     if (params?.locationId) httpParams = httpParams.set('locationId', params.locationId);
     if (params?.orgUnitId) httpParams = httpParams.set('orgUnitId', params.orgUnitId);
+    if (params?.userId) httpParams = httpParams.set('userId', params.userId);
+    if (params?.role) httpParams = httpParams.set('role', params.role);
 
     return this.http
       .get<{ success: boolean; data: DashboardOverviewData }>('/api/dashboard/overview', {

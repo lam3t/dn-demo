@@ -1396,7 +1396,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   applyUserDefaultLocation() {
-    // Mặc định luôn là '' (Toàn trường) để Dashboard là cái nhìn tổng quan điều hành chung của cả trường
+    const user = this.authService.currentUser();
+    const activeRole = this.authService.activeRole();
+
+    // Phó Hiệu trưởng phụ trách phân hiệu: tự động chuyển về điểm trường phụ trách
+    if (this.authService.isPHT()) {
+      const phtLoc = activeRole?.scopeLocationId || user?.primaryLocationId;
+      if (phtLoc) {
+        this.selectedLocationId = phtLoc;
+        return;
+      }
+    }
+
+    // Giáo viên ở phân hiệu (ví dụ: Cô Nhung ở Phân hiệu 1): tự động chuyển về phân hiệu phụ trách
+    if (this.authService.isGiaoVien()) {
+      const gvLoc = activeRole?.scopeLocationId || user?.primaryLocationId;
+      if (gvLoc && gvLoc !== 'loc-main') {
+        this.selectedLocationId = gvLoc;
+        return;
+      }
+    }
+
+    // Hiệu trưởng, Tổ trưởng (quản lý bộ môn 3 cơ sở), Admin: mặc định Toàn trường
     this.selectedLocationId = '';
   }
 
@@ -1445,8 +1466,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.isLoading.set(true);
     this.loadError.set(false);
     this.attentionPage.set(1);
+
+    const user = this.authService.currentUser();
+    const activeRole = this.authService.activeRole();
+
     this.dashboardService
-      .getOverview({ locationId: this.selectedLocationId || undefined })
+      .getOverview({
+        locationId: this.selectedLocationId || undefined,
+        orgUnitId: this.authService.isToTruong() ? (activeRole?.scopeOrgUnitId || user?.primaryOrgUnitId || undefined) : undefined,
+        userId: user?.id,
+        role: activeRole?.role,
+      })
       .subscribe({
         next: (data) => {
           this.isLoading.set(false);

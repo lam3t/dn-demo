@@ -993,6 +993,28 @@ export const MOCK_TASKS: TaskItem[] = [
       { id: 'asg-11', role: 'KIEM_TRA', user: MOCK_USERS[0], userId: 'u-hieutruong', taskId: 'task-5', assignedAt: '2026-09-04T08:00:00.000Z' },
     ],
   },
+  {
+    id: 'task-ph2-1',
+    schoolId: 'school-phuoc-tan',
+    title: 'Lắp đặt bổ sung hệ thống lọc nước sạch học đường và bình chữa cháy tại Phân hiệu 2',
+    code: 'CV-CSVC-05',
+    description: 'Nghiệm thu 04 bồn lọc nước RO và 12 bình chữa cháy bột trang bị cho các dãy phòng học Phân hiệu 2.',
+    status: 'HOAN_THANH',
+    priority: 'CAO',
+    dueDate: '2026-09-05T17:00:00.000Z',
+    progressPercent: 100,
+    completedAt: '2026-09-05T14:30:00.000Z',
+    requireAttachment: true,
+    createdById: 'u-hieutruong',
+    createdAt: '2026-08-25T08:00:00.000Z',
+    updatedAt: '2026-09-05T14:30:00.000Z',
+    location: { id: 'loc-ph2', name: 'Phân hiệu 2 (Vườn Dừa)', code: 'PHAN_HIEU_2', phone: '02513888003' },
+    orgUnit: { id: 'org-vanphong', name: 'Tổ Văn phòng', code: 'VAN_PHONG' },
+    assignments: [
+      { id: 'asg-ph2-1', role: 'CHU_TRI', user: MOCK_USERS[3], userId: 'u-pht-ph2', taskId: 'task-ph2-1', assignedAt: '2026-08-25T08:00:00.000Z' },
+      { id: 'asg-ph2-2', role: 'PHE_DUYET', user: MOCK_USERS[0], userId: 'u-hieutruong', taskId: 'task-ph2-1', assignedAt: '2026-08-25T08:00:00.000Z' },
+    ],
+  },
 ];
 
 export const MOCK_NOTIFICATIONS: NotificationItem[] = [

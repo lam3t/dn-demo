@@ -40,7 +40,7 @@ export class DashboardService {
     ];
 
     // 1. Lấy song song dữ liệu tasks, locations và orgUnits
-    const [allTasks, locations, orgUnits] = await Promise.all([
+    const [allTasks, allSchoolTasks, locations, orgUnits] = await Promise.all([
       prisma.task.findMany({
         where,
         include: {
@@ -62,6 +62,16 @@ export class DashboardService {
           },
         },
         orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+      }),
+      prisma.task.findMany({
+        where: params.schoolId ? { schoolId: params.schoolId } : {},
+        select: {
+          id: true,
+          status: true,
+          dueDate: true,
+          locationId: true,
+          orgUnitId: true,
+        },
       }),
       prisma.location.findMany({
         where: params.schoolId ? { schoolId: params.schoolId } : {},
@@ -177,7 +187,9 @@ export class DashboardService {
 
     // 4. Phân tích theo Điểm trường (Breakdown by Location)
     const breakdownByLocation = locations.map((loc) => {
-      const locTasks = allTasks.filter((t) => t.locationId === loc.id);
+      const locTasks = allSchoolTasks.filter(
+        (t) => t.locationId === loc.id && (!params.orgUnitId || t.orgUnitId === params.orgUnitId)
+      );
       const totalLoc = locTasks.length;
 
       const completed = locTasks.filter((t) => completedStatuses.includes(t.status)).length;
@@ -208,7 +220,9 @@ export class DashboardService {
 
     // 5. Phân tích theo Tổ chuyên môn (Breakdown by OrgUnit)
     const breakdownByOrgUnit = orgUnits.map((org) => {
-      const orgTasks = allTasks.filter((t) => t.orgUnitId === org.id);
+      const orgTasks = allSchoolTasks.filter(
+        (t) => t.orgUnitId === org.id && (!params.locationId || t.locationId === params.locationId)
+      );
       const totalOrg = orgTasks.length;
 
       const completed = orgTasks.filter((t) => completedStatuses.includes(t.status)).length;

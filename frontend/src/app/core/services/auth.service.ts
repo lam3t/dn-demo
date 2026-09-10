@@ -2,7 +2,7 @@ import { Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, Subject, tap, catchError, throwError, of } from 'rxjs';
-import { UserProfile, ActiveContextRole, LoginResponse } from '../models/auth.models';
+import { UserProfile, ActiveContextRole, LoginResponse, RoleType, UserRoleItem } from '../models/auth.models';
 
 const ACCESS_TOKEN_KEY = 'tn_edu_access_token';
 const REFRESH_TOKEN_KEY = 'tn_edu_refresh_token';
@@ -153,13 +153,15 @@ export class AuthService {
   }
 
   private setDefaultActiveRole(user: UserProfile) {
-    const primary = user.roles[0];
+    const primary: UserRoleItem = (user.roles && user.roles.length > 0)
+      ? user.roles[0]
+      : { role: 'GIAO_VIEN' };
     const active: ActiveContextRole = {
       role: primary.role,
       roleTitle: this.getRoleVietnameseName(primary.role),
-      scopeName: primary.scopeLocationName || primary.scopeOrgUnitName || user.primaryLocationName,
-      scopeLocationId: primary.scopeLocationId,
-      scopeOrgUnitId: primary.scopeOrgUnitId,
+      scopeName: primary.scopeLocationName || primary.scopeOrgUnitName || user.primaryLocationName || user.schoolName || 'Toàn trường',
+      scopeLocationId: primary.scopeLocationId || user.primaryLocationId || null,
+      scopeOrgUnitId: primary.scopeOrgUnitId || user.primaryOrgUnitId || null,
     };
     this.setActiveRole(active);
   }
