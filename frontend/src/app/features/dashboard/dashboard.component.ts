@@ -8,6 +8,7 @@ import { UserService } from '../../core/services/user.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ContactCardService } from '../../core/services/contact-card.service';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
+import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
 import {
   DashboardOverviewData,
   AttentionTaskItem,
@@ -19,7 +20,7 @@ import { LocationItem } from '../../core/models/user.models';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, StatusBadgeComponent],
+  imports: [CommonModule, FormsModule, RouterModule, StatusBadgeComponent, PaginationComponent],
   template: `
     <div class="dashboard-page">
       <!-- ROLE-TAILORED BANNER & WORKSPACE CONTEXT -->
@@ -335,52 +336,18 @@ import { LocationItem } from '../../core/models/user.models';
               }
             </div>
 
-            <!-- ATTENTION TASKS PAGINATION (MATCHING PLAN TREE STYLE) -->
+            <!-- ATTENTION TASKS PAGINATION (USING SYSTEM STANDARD PAGINATION) -->
             @if ((data.attentionTasks || []).length > attentionPageSize()) {
-              <div class="attention-pagination-bar" (click)="$event.stopPropagation()">
-                <span class="pagination-summary">
-                  Hiển thị <strong>{{ (attentionPage() - 1) * attentionPageSize() + 1 }}</strong> -
-                  <strong>{{ Math.min(attentionPage() * attentionPageSize(), (data.attentionTasks || []).length) }}</strong> /
-                  <strong>{{ (data.attentionTasks || []).length }}</strong> công việc
-                </span>
-
-                <div class="pagination-page-actions">
-                  <button
-                    type="button"
-                    class="tree-page-btn tap-target"
-                    [disabled]="attentionPage() === 1"
-                    (click)="prevAttentionPage($event)"
-                    title="Trang trước"
-                  >
-                    <span class="material-symbols-outlined">chevron_left</span>
-                    <span>Trước</span>
-                  </button>
-
-                  <div class="page-numbers-list">
-                    @for (p of getAttentionPagesArray(); track p) {
-                      <button
-                        type="button"
-                        class="tree-page-btn num-btn tap-target"
-                        [class.active]="p === attentionPage()"
-                        (click)="setAttentionPage(p, $event)"
-                        [title]="'Trang ' + p"
-                      >
-                        {{ p }}
-                      </button>
-                    }
-                  </div>
-
-                  <button
-                    type="button"
-                    class="tree-page-btn tap-target"
-                    [disabled]="attentionPage() === totalAttentionPages()"
-                    (click)="nextAttentionPage($event)"
-                    title="Trang sau"
-                  >
-                    <span>Sau</span>
-                    <span class="material-symbols-outlined">chevron_right</span>
-                  </button>
-                </div>
+              <div class="attention-pagination-wrapper" (click)="$event.stopPropagation()">
+                <app-pagination
+                  [totalItems]="(data.attentionTasks || []).length"
+                  [pageSize]="attentionPageSize()"
+                  [currentPage]="attentionPage()"
+                  [pageSizeOptions]="[4, 8, 12]"
+                  itemName="công việc"
+                  (pageChange)="onAttentionPageChange($event)"
+                  (pageSizeChange)="onAttentionPageSizeChange($event)"
+                ></app-pagination>
               </div>
             }
           </div>
@@ -1050,91 +1017,9 @@ import { LocationItem } from '../../core/models/user.models';
           }
         }
 
-        /* PAGINATION FOR ATTENTION LIST (IDENTICAL STYLE TO PLAN TREE) */
-        .attention-pagination-bar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          padding: 8px 14px;
-          background: #F8FAFC;
-          border: 1px solid #E2E8F0;
-          border-radius: 10px;
-          margin-top: 4px;
-          flex-wrap: wrap;
-
-          .pagination-summary {
-            font-size: 0.76rem;
-            color: #64748B;
-
-            strong {
-              color: #1F3864;
-              font-weight: 700;
-            }
-          }
-
-          .pagination-page-actions {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-
-            .page-numbers-list {
-              display: flex;
-              align-items: center;
-              gap: 4px;
-            }
-
-            .tree-page-btn {
-              display: inline-flex;
-              align-items: center;
-              justify-content: center;
-              gap: 3px;
-              padding: 4px 8px;
-              min-height: 28px;
-              font-size: 0.74rem;
-              font-weight: 600;
-              color: #1F3864;
-              background: #FFFFFF;
-              border: 1px solid #CBD5E1;
-              border-radius: 6px;
-              cursor: pointer;
-              transition: all 0.15s ease;
-
-              .material-symbols-outlined {
-                font-size: 15px;
-                color: #1F3864;
-              }
-
-              &:hover:not(:disabled) {
-                background: #EEF4FC;
-                border-color: #1F3864;
-              }
-
-              &.active {
-                background: #1F3864;
-                color: #FFFFFF;
-                border-color: #1F3864;
-                font-weight: 700;
-                box-shadow: 0 1px 4px rgba(31, 56, 100, 0.25);
-              }
-
-              &.num-btn {
-                min-width: 28px;
-                padding: 3px 6px;
-              }
-
-              &:disabled {
-                opacity: 0.4;
-                cursor: not-allowed;
-                background: #F8FAFC;
-                color: #94A3B8;
-
-                .material-symbols-outlined {
-                  color: #94A3B8;
-                }
-              }
-            }
-          }
+        /* PAGINATION FOR ATTENTION LIST */
+        .attention-pagination-wrapper {
+          margin-top: 12px;
         }
       }
 
@@ -1476,11 +1361,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   attentionPage = signal(1);
   attentionPageSize = signal(4);
 
-  totalAttentionPages = computed(() => {
-    const tasks = this.overviewData()?.attentionTasks || [];
-    return Math.max(1, Math.ceil(tasks.length / this.attentionPageSize()));
-  });
-
   pagedAttentionTasks = computed(() => {
     const tasks = this.overviewData()?.attentionTasks || [];
     const page = this.attentionPage();
@@ -1488,35 +1368,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return tasks.slice((page - 1) * size, page * size);
   });
 
-  setAttentionPage(page: number, event?: Event) {
-    if (event) event.stopPropagation();
-    const max = this.totalAttentionPages();
-    if (page >= 1 && page <= max) {
-      this.attentionPage.set(page);
-    }
+  onAttentionPageChange(page: number) {
+    this.attentionPage.set(page);
   }
 
-  prevAttentionPage(event?: Event) {
-    if (event) event.stopPropagation();
-    if (this.attentionPage() > 1) {
-      this.attentionPage.set(this.attentionPage() - 1);
-    }
-  }
-
-  nextAttentionPage(event?: Event) {
-    if (event) event.stopPropagation();
-    if (this.attentionPage() < this.totalAttentionPages()) {
-      this.attentionPage.set(this.attentionPage() + 1);
-    }
-  }
-
-  getAttentionPagesArray(): number[] {
-    const total = this.totalAttentionPages();
-    const arr: number[] = [];
-    for (let i = 1; i <= total; i++) {
-      arr.push(i);
-    }
-    return arr;
+  onAttentionPageSizeChange(size: number) {
+    this.attentionPageSize.set(size);
+    this.attentionPage.set(1);
   }
 
   private accountSub?: Subscription;
