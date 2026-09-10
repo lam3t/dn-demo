@@ -151,6 +151,18 @@ import { LocationItem } from '../../core/models/user.models';
             <div class="skeleton-line w-80"></div>
           </div>
         </div>
+      } @else if (loadError() && !overviewData()) {
+        <div class="dashboard-error-card">
+          <div class="error-illustration-box">
+            <span class="material-symbols-outlined error-icon">cloud_off</span>
+          </div>
+          <h3 class="error-title">Không thể tải dữ liệu Tổng quan điều hành</h3>
+          <p class="error-desc">Phiên làm việc hoặc kết nối máy chủ cần làm mới. Vui lòng bấm nút bên dưới để tải lại dữ liệu.</p>
+          <button type="button" class="btn-retry tap-target" (click)="loadDashboardData()">
+            <span class="material-symbols-outlined">refresh</span>
+            <span>Tải lại dữ liệu ngay</span>
+          </button>
+        </div>
       } @else if (overviewData(); as data) {
         <!-- 1. 4 LARGE METRIC CARDS -->
         <div class="metrics-grid">
@@ -162,7 +174,7 @@ import { LocationItem } from '../../core/models/user.models';
             <div class="metric-content">
               <span class="metric-label">Tổng số công việc</span>
               <div class="metric-number-row">
-                <span class="metric-number">{{ data.totalTasks }}</span>
+                <span class="metric-number">{{ data.totalTasks || 0 }}</span>
                 <span class="metric-unit">công việc</span>
               </div>
               <span class="metric-hint">Trong toàn bộ kế hoạch</span>
@@ -177,7 +189,7 @@ import { LocationItem } from '../../core/models/user.models';
             <div class="metric-content">
               <span class="metric-label">Đang thực hiện</span>
               <div class="metric-number-row">
-                <span class="metric-number text-amber">{{ data.inProgressCount }}</span>
+                <span class="metric-number text-amber">{{ data.inProgressCount || 0 }}</span>
                 <span class="metric-unit">công việc</span>
               </div>
               <span class="metric-hint">Đã giao & đang triển khai</span>
@@ -192,7 +204,7 @@ import { LocationItem } from '../../core/models/user.models';
             <div class="metric-content">
               <span class="metric-label">Đã hoàn thành</span>
               <div class="metric-number-row">
-                <span class="metric-number text-green">{{ data.completedCount }}</span>
+                <span class="metric-number text-green">{{ data.completedCount || 0 }}</span>
                 <span class="metric-badge-rate">{{ getOverallCompletionRate() }}%</span>
               </div>
               <span class="metric-hint">Đã nghiệm thu & đóng</span>
@@ -200,18 +212,18 @@ import { LocationItem } from '../../core/models/user.models';
           </div>
 
           <!-- CARD 4: QUÁ HẠN -->
-          <div class="metric-card card-overdue" [class.has-overdue]="data.overdueCount > 0">
+          <div class="metric-card card-overdue" [class.has-overdue]="(data.overdueCount || 0) > 0">
             <div class="metric-icon-box icon-red">
               <span class="material-symbols-outlined">error</span>
             </div>
             <div class="metric-content">
               <span class="metric-label">Quá hạn cần xử lý</span>
               <div class="metric-number-row">
-                <span class="metric-number text-red">{{ data.overdueCount }}</span>
+                <span class="metric-number text-red">{{ data.overdueCount || 0 }}</span>
                 <span class="metric-unit">công việc</span>
               </div>
-              <span class="metric-hint" [class.text-red-bold]="data.overdueCount > 0">
-                {{ data.overdueCount > 0 ? 'Cần đôn đốc ngay' : 'Đúng tiến độ' }}
+              <span class="metric-hint" [class.text-red-bold]="(data.overdueCount || 0) > 0">
+                {{ (data.overdueCount || 0) > 0 ? 'Cần đôn đốc ngay' : 'Đúng tiến độ' }}
               </span>
             </div>
           </div>
@@ -227,12 +239,12 @@ import { LocationItem } from '../../core/models/user.models';
                 <h2 class="panel-title">Việc cần quan tâm</h2>
               </div>
               <span class="attention-count-badge">
-                {{ data.attentionTasks.length }} công việc
+                {{ (data.attentionTasks || []).length }} công việc
               </span>
             </div>
 
             <div class="attention-list">
-              @if (data.attentionTasks.length === 0) {
+              @if ((data.attentionTasks || []).length === 0) {
                 <div class="friendly-empty-state" style="padding: 30px 16px; margin: 0;">
                   <svg class="empty-svg-illustration" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 70px; height: 70px;">
                     <circle cx="60" cy="60" r="50" fill="#DCFCE7" />
@@ -244,7 +256,7 @@ import { LocationItem } from '../../core/models/user.models';
                   </p>
                 </div>
               } @else {
-                @for (task of data.attentionTasks; track task.id) {
+                @for (task of (data.attentionTasks || []); track task.id) {
                   <div class="attention-task-card tap-target" (click)="goToTaskDetail(task.id)">
                     <!-- URGENCY REASON BANNER -->
                     <div class="urgency-banner" [ngClass]="getUrgencyClass(task.priorityLevel)">
@@ -337,7 +349,7 @@ import { LocationItem } from '../../core/models/user.models';
               </div>
 
               <div class="breakdown-list">
-                @for (loc of data.breakdownByLocation; track loc.id) {
+                @for (loc of (data.breakdownByLocation || []); track loc.id) {
                   <div class="breakdown-item">
                     <div class="breakdown-info-row">
                       <div class="breakdown-name-box">
@@ -388,11 +400,11 @@ import { LocationItem } from '../../core/models/user.models';
                   <span class="material-symbols-outlined title-icon text-indigo">account_tree</span>
                   <h2 class="panel-title">Tiến độ theo Tổ chuyên môn</h2>
                 </div>
-                <span class="panel-sub-label">{{ data.breakdownByOrgUnit.length }} tổ</span>
+                <span class="panel-sub-label">{{ (data.breakdownByOrgUnit || []).length }} tổ</span>
               </div>
 
               <div class="breakdown-list">
-                @for (org of data.breakdownByOrgUnit; track org.id) {
+                @for (org of (data.breakdownByOrgUnit || []); track org.id) {
                   <div class="breakdown-item">
                     <div class="breakdown-info-row">
                       <strong class="breakdown-name">{{ org.name }}</strong>
@@ -507,6 +519,73 @@ import { LocationItem } from '../../core/models/user.models';
             .material-symbols-outlined {
               font-size: 18px;
             }
+          }
+        }
+      }
+
+      /* ERROR CARD */
+      .dashboard-error-card {
+        background: #FFFFFF;
+        border: 1px solid #FECDD3;
+        border-radius: 16px;
+        padding: 40px 24px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 4px 16px rgba(225, 29, 72, 0.04);
+
+        .error-illustration-box {
+          width: 56px;
+          height: 56px;
+          border-radius: 50%;
+          background: #FFE4E6;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          .error-icon {
+            font-size: 28px;
+            color: #E11D48;
+          }
+        }
+
+        .error-title {
+          margin: 0;
+          font-size: 1.15rem;
+          font-weight: 800;
+          color: #1E293B;
+        }
+
+        .error-desc {
+          margin: 0;
+          font-size: 0.88rem;
+          color: #64748B;
+          max-width: 480px;
+        }
+
+        .btn-retry {
+          margin-top: 6px;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 10px 20px;
+          background: #1F3864;
+          color: #FFFFFF;
+          border: none;
+          border-radius: 10px;
+          font-size: 0.88rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.15s ease;
+
+          &:hover {
+            background: #2E5EAA;
+          }
+
+          .material-symbols-outlined {
+            font-size: 18px;
           }
         }
       }
@@ -1252,6 +1331,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   locations = signal<LocationItem[]>([]);
 
   isLoading = signal(true);
+  loadError = signal(false);
   overviewData = signal<DashboardOverviewData | null>(null);
 
   private accountSub?: Subscription;
@@ -1330,15 +1410,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   loadDashboardData() {
     this.isLoading.set(true);
+    this.loadError.set(false);
     this.dashboardService
       .getOverview({ locationId: this.selectedLocationId || undefined })
       .subscribe({
         next: (data) => {
           this.isLoading.set(false);
+          this.loadError.set(false);
           this.overviewData.set(data);
         },
         error: () => {
           this.isLoading.set(false);
+          this.loadError.set(true);
         },
       });
   }
@@ -1349,8 +1432,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   getOverallCompletionRate(): number {
     const d = this.overviewData();
-    if (!d || d.totalTasks === 0) return 0;
-    return Math.round((d.completedCount / d.totalTasks) * 100);
+    if (!d || !d.totalTasks || d.totalTasks <= 0) return 0;
+    return Math.round(((d.completedCount || 0) / d.totalTasks) * 100) || 0;
   }
 
   getUrgencyClass(level: number): string {

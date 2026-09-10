@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map, shareReplay } from 'rxjs';
+import { Observable, map, shareReplay, catchError, throwError } from 'rxjs';
 import { UserPickerItem, LocationItem, OrgUnitItem, OrgTreeNode } from '../models/user.models';
 
 export interface UserSearchResponse {
@@ -54,7 +54,11 @@ export class UserService {
       this.locationsCache$ = this.http
         .get<{ success: boolean; data: LocationItem[] }>('/api/locations')
         .pipe(
-          map((res) => res.data || []),
+          map((res) => res?.data || []),
+          catchError((err) => {
+            this.locationsCache$ = undefined;
+            return throwError(() => err);
+          }),
           shareReplay(1)
         );
     }
@@ -66,7 +70,11 @@ export class UserService {
       this.orgUnitsCache$ = this.http
         .get<{ success: boolean; data: OrgUnitItem[] }>('/api/org/units')
         .pipe(
-          map((res) => res.data || []),
+          map((res) => res?.data || []),
+          catchError((err) => {
+            this.orgUnitsCache$ = undefined;
+            return throwError(() => err);
+          }),
           shareReplay(1)
         );
     }
