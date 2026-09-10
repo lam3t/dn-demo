@@ -5,12 +5,6 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { UserProfile, ActiveContextRole, UserRoleItem } from '../../core/models/auth.models';
 
-interface DemoAccount {
-  name: string;
-  roleTitle: string;
-  identifier: string;
-  avatar: string;
-}
 
 @Component({
   selector: 'app-login',
@@ -108,18 +102,22 @@ interface DemoAccount {
             </div>
 
             <div class="demo-grid">
-              @for (acc of demoAccounts; track acc.identifier) {
+              @for (acc of authService.demoAccounts; track acc.identifier) {
                 <button
                   type="button"
-                  class="demo-account-btn"
+                  class="demo-account-btn tap-target"
+                  [class.admin-card]="acc.role === 'ADMIN'"
                   (click)="fillDemoAccount(acc.identifier)"
-                  [title]="acc.name + ' (' + acc.roleTitle + ')'"
+                  [title]="acc.name + ' (' + acc.roleTitle + ') - ' + acc.desc"
                 >
                   <img [src]="acc.avatar" [alt]="acc.name" class="demo-avatar" />
                   <div class="demo-info">
                     <span class="demo-name">{{ acc.name }}</span>
-                    <span class="demo-role">{{ acc.roleTitle }}</span>
+                    <span class="demo-role" [style.color]="acc.color">{{ acc.roleTitle }}</span>
                   </div>
+                  @if (acc.role === 'ADMIN') {
+                    <span class="admin-chip">Admin</span>
+                  }
                 </button>
               }
             </div>
@@ -429,6 +427,20 @@ interface DemoAccount {
               transform: translateY(-1px);
             }
 
+            &:last-child:nth-child(odd) {
+              grid-column: span 2;
+            }
+
+            &.admin-card {
+              background: #FAF5FF;
+              border-color: #E9D5FF;
+
+              &:hover {
+                background: #F3E8FF;
+                border-color: #D8B4FE;
+              }
+            }
+
             .demo-avatar {
               width: 32px;
               height: 32px;
@@ -440,6 +452,7 @@ interface DemoAccount {
               display: flex;
               flex-direction: column;
               overflow: hidden;
+              flex: 1;
 
               .demo-name {
                 font-size: 0.78rem;
@@ -453,11 +466,23 @@ interface DemoAccount {
               .demo-role {
                 font-size: 0.7rem;
                 color: #1F3864;
-                font-weight: 500;
+                font-weight: 600;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
               }
+            }
+
+            .admin-chip {
+              font-size: 0.62rem;
+              font-weight: 700;
+              padding: 2px 6px;
+              border-radius: 4px;
+              background: #7C3AED;
+              color: #FFFFFF;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              flex-shrink: 0;
             }
           }
         }
@@ -640,36 +665,10 @@ export class LoginComponent {
   availableRoles = signal<UserRoleItem[]>([]);
   rememberRoleChoice = true;
 
-  demoAccounts: DemoAccount[] = [
-    {
-      name: 'Phạm Thị Nam',
-      roleTitle: 'Hiệu trưởng',
-      identifier: '0903111222',
-      avatar: 'https://ui-avatars.com/api/?name=Pham+Thi+Nam&background=1F3864&color=fff',
-    },
-    {
-      name: 'Lê Hoàng Long',
-      roleTitle: 'PHT – Phân hiệu 1',
-      identifier: '0903333444',
-      avatar: 'https://ui-avatars.com/api/?name=L%C3%AA+Ho%C3%A0ng+Long&background=1F3864&color=fff',
-    },
-    {
-      name: 'Vũ Đình Dũng',
-      roleTitle: 'Tổ trưởng Toán-Tin',
-      identifier: '0912111001',
-      avatar: 'https://ui-avatars.com/api/?name=V%C5%A9+%C4%90%C3%ACnh+D%C5%A9ng&background=1F3864&color=fff',
-    },
-    {
-      name: 'Bùi Thị Hồng Nhung',
-      roleTitle: 'Giáo viên Toán (PH1)',
-      identifier: '0914202001',
-      avatar: 'https://ui-avatars.com/api/?name=B%C3%B9i+Th%E1%BB%8B+H%E1%BB%93ng+Nhung&background=1F3864&color=fff',
-    },
-  ];
-
   fillDemoAccount(identifier: string) {
     this.identifier = identifier;
     this.password = '123456';
+    this.onLogin();
   }
 
   onLogin() {
