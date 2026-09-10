@@ -111,7 +111,7 @@ export interface TaskItem {
   completedAt?: string | null;
   createdById: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
   isOverdue?: boolean;
   plan?: { id: string; title: string; level: string } | null;
   location?: { id: string; name: string; code: string; phone?: string } | null;

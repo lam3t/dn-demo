@@ -878,7 +878,264 @@ async function main() {
     pheDuyetId: uHieuTruong.id,
   });
 
-  console.log('✓ Đã tạo 16 công việc đa dạng trạng thái (Quá hạn, Chờ kiểm tra, Bổ sung, Hoàn thành, Đóng...)');
+  // 17. CV-017: Ma trận đề kiểm tra Toán
+  await createTaskItem({
+    code: 'CV-017',
+    title: 'Xây dựng ma trận & đề kiểm tra giữa kỳ I môn Toán Khối 6-9 dùng chung toàn trường',
+    description: 'Thống nhất 1 ma trận, 1 chuẩn đề và hướng dẫn chấm cho cả 3 điểm trường (122 lớp)',
+    planId: p2.id,
+    locationId: locPh1.id,
+    orgUnitId: orgToanTin.id,
+    priority: TaskPriority.CAO,
+    status: TaskStatus.CHO_KIEM_TRA,
+    progressPercent: 90,
+    startDate: new Date('2026-09-01'),
+    dueDate: new Date('2026-09-15'),
+    createdById: uHieuTruong.id,
+    chuTriId: createdTeachers[10].id, // Bùi Thị Hồng Nhung
+    phoiHopIds: [createdTeachers[0].id, createdTeachers[20].id],
+    kiemTraId: uTTToanTin.id,
+    pheDuyetId: uPHTChuyenMon.id,
+  });
+
+  // 18. CV-018: Bồi dưỡng HS năng khiếu Toán
+  await createTaskItem({
+    code: 'CV-018',
+    title: 'Bồi dưỡng học sinh năng khiếu Toán Khối 8 chuẩn bị thi chọn đội tuyển cấp trường',
+    description: 'Lập danh sách 25 học sinh xuất sắc 3 cơ sở và biên soạn chuyên đề hình học nâng cao',
+    planId: p2.id,
+    locationId: locPh1.id,
+    orgUnitId: orgToanTin.id,
+    priority: TaskPriority.CAO,
+    status: TaskStatus.DANG_THUC_HIEN,
+    progressPercent: 60,
+    startDate: new Date('2026-09-02'),
+    dueDate: new Date('2026-09-22'),
+    createdById: uTTToanTin.id,
+    chuTriId: createdTeachers[10].id, // Bùi Thị Hồng Nhung
+    kiemTraId: uTTToanTin.id,
+  });
+
+  // 19. CV-019: Tiếng Anh Cambridge
+  await createTaskItem({
+    code: 'CV-019',
+    title: 'Khảo sát trình độ đầu vào Tiếng Anh chuẩn Cambridge và tăng cường kỹ năng nói cho HS Khối 6',
+    description: 'Hoàn tất khảo sát 31 lớp Khối 6 cả 3 cơ sở và xây dựng lộ trình tăng cường phát âm',
+    planId: p2.id,
+    locationId: locMain.id,
+    orgUnitId: orgTiengAnh.id,
+    priority: TaskPriority.CAO,
+    status: TaskStatus.HOAN_THANH,
+    progressPercent: 100,
+    completedAt: new Date('2026-09-06'),
+    startDate: new Date('2026-08-28'),
+    dueDate: new Date('2026-09-06'),
+    createdById: uPHTChuyenMon.id,
+    chuTriId: uTTTiengAnh.id,
+    kiemTraId: uPHTChuyenMon.id,
+  });
+
+  // 20. CV-020: English Speaking Club
+  await createTaskItem({
+    code: 'CV-020',
+    title: 'Thành lập Câu lạc bộ Tiếng Anh (English Speaking Club) sinh hoạt trực tuyến kết nối 3 điểm trường',
+    description: 'Tổ chức sinh hoạt chuyên đề Hello New Friends với hơn 150 học sinh 3 điểm trường tham gia',
+    planId: p2.id,
+    locationId: locPh1.id,
+    orgUnitId: orgTiengAnh.id,
+    priority: TaskPriority.TRUNG_BINH,
+    status: TaskStatus.DANG_THUC_HIEN,
+    progressPercent: 55,
+    startDate: new Date('2026-09-02'),
+    dueDate: new Date('2026-09-22'),
+    createdById: uTTTiengAnh.id,
+    chuTriId: uTTTiengAnh.id,
+    phoiHopIds: [createdTeachers[14].id, createdTeachers[23].id],
+  });
+
+  // 21. CV-021: Thiết bị KHTN
+  await createTaskItem({
+    code: 'CV-021',
+    title: 'Phân loại và lập danh mục thiết bị hóa chất thực hành môn KHTN (Lý - Hóa - Sinh) 3 điểm trường',
+    description: 'Kiểm kê toàn bộ hóa chất, dụng cụ thí nghiệm, tiêu hủy hóa chất hết hạn an toàn',
+    planId: p1.id,
+    locationId: locMain.id,
+    orgUnitId: orgKHTN.id,
+    priority: TaskPriority.CAO,
+    status: TaskStatus.HOAN_THANH,
+    progressPercent: 100,
+    completedAt: new Date('2026-09-05'),
+    startDate: new Date('2026-08-26'),
+    dueDate: new Date('2026-09-05'),
+    createdById: uPHTChuyenMon.id,
+    chuTriId: uTTKHTN.id,
+    kiemTraId: uPHTChuyenMon.id,
+  });
+
+  // 22. CV-022: Ngày hội STEM
+  await createTaskItem({
+    code: 'CV-022',
+    title: 'Tổ chức ngày hội STEM và cuộc thi Sáng tạo Khoa học Kỹ thuật thanh thiếu niên cấp trường',
+    description: 'Phát động cuộc thi chế tạo mô hình STEM bảo vệ môi trường cho học sinh 3 phân hiệu',
+    planId: p2.id,
+    locationId: locPh1.id,
+    orgUnitId: orgKHTN.id,
+    priority: TaskPriority.CAO,
+    status: TaskStatus.DANG_THUC_HIEN,
+    progressPercent: 45,
+    startDate: new Date('2026-09-03'),
+    dueDate: new Date('2026-09-27'),
+    createdById: uTTKHTN.id,
+    chuTriId: uTTKHTN.id,
+    phoiHopIds: [createdTeachers[5].id, createdTeachers[15].id, createdTeachers[24].id],
+  });
+
+  // 23. CV-023: Bán trú PH1
+  await createTaskItem({
+    code: 'CV-023',
+    title: 'Khảo sát nhu cầu học bán trú và lập danh sách đăng ký suất ăn dinh dưỡng Khối 6-7 Phân hiệu 1',
+    description: 'Hoàn tất thủ tục hồ sơ 820 học sinh ăn bán trú trưa tại bếp ăn Phân hiệu 1',
+    planId: p1.id,
+    locationId: locPh1.id,
+    orgUnitId: orgVanPhong.id,
+    priority: TaskPriority.TRUNG_BINH,
+    status: TaskStatus.HOAN_THANH,
+    progressPercent: 100,
+    completedAt: new Date('2026-09-05'),
+    startDate: new Date('2026-08-28'),
+    dueDate: new Date('2026-09-05'),
+    createdById: uPHTPhanHieu1.id,
+    chuTriId: uPHTPhanHieu1.id,
+  });
+
+  // 24. CV-024: Bàn ghế PH2
+  await createTaskItem({
+    code: 'CV-024',
+    title: 'Tiếp nhận và phân bổ 30 bộ bàn ghế học sinh đạt chuẩn từ Điểm chính sang Phân hiệu 2',
+    description: 'Bố trí bổ sung bàn ghế cho 2 phòng học mới sửa chữa phục vụ năm học mới',
+    planId: p1.id,
+    locationId: locPh2.id,
+    orgUnitId: orgVanPhong.id,
+    priority: TaskPriority.TRUNG_BINH,
+    status: TaskStatus.HOAN_THANH,
+    progressPercent: 100,
+    completedAt: new Date('2026-09-04'),
+    startDate: new Date('2026-08-27'),
+    dueDate: new Date('2026-09-04'),
+    createdById: uPHTPhanHieu2.id,
+    chuTriId: uPHTPhanHieu2.id,
+  });
+
+  // 25. CV-025: Lọc nước RO PH2
+  await createTaskItem({
+    code: 'CV-025',
+    title: 'Lắp đặt bổ sung hệ thống lọc nước sạch học đường và bình chữa cháy tại Phân hiệu 2',
+    description: 'Nghiệm thu 04 bồn lọc nước RO và 12 bình chữa cháy bột trang bị cho các dãy phòng học Phân hiệu 2',
+    planId: p1.id,
+    locationId: locPh2.id,
+    orgUnitId: orgVanPhong.id,
+    priority: TaskPriority.CAO,
+    status: TaskStatus.HOAN_THANH,
+    progressPercent: 100,
+    completedAt: new Date('2026-09-05'),
+    startDate: new Date('2026-08-25'),
+    dueDate: new Date('2026-09-05'),
+    createdById: uHieuTruong.id,
+    chuTriId: uPHTPhanHieu2.id,
+    pheDuyetId: uHieuTruong.id,
+  });
+
+  // 26. CV-026: Khám sức khỏe PH2
+  await createTaskItem({
+    code: 'CV-026',
+    title: 'Tổ chức khám sức khỏe định kỳ và phân loại thể lực cho 844 học sinh Phân hiệu 2',
+    description: 'Phối hợp Trạm Y tế Phường Phước Tân khám mắt, nha học đường và thể lực',
+    planId: p1.id,
+    locationId: locPh2.id,
+    orgUnitId: orgVanPhong.id,
+    priority: TaskPriority.TRUNG_BINH,
+    status: TaskStatus.DA_GIAO,
+    progressPercent: 20,
+    startDate: new Date('2026-09-08'),
+    dueDate: new Date('2026-09-29'),
+    createdById: uPHTPhanHieu2.id,
+    chuTriId: uPHTPhanHieu2.id,
+  });
+
+  // 27. CV-027: Ma trận đề Ngữ văn
+  await createTaskItem({
+    code: 'CV-027',
+    title: 'Thống nhất khung ma trận đề kiểm tra đánh giá định kỳ môn Ngữ văn và Lịch sử - Địa lý Khối 6-9',
+    description: 'Chuẩn hóa định dạng đề kiểm tra tự luận kết hợp trắc nghiệm theo Thông tư 22/BGDĐT',
+    planId: p2.id,
+    locationId: locMain.id,
+    orgUnitId: orgVanSuDia.id,
+    priority: TaskPriority.CAO,
+    status: TaskStatus.HOAN_THANH,
+    progressPercent: 100,
+    completedAt: new Date('2026-09-07'),
+    startDate: new Date('2026-08-27'),
+    dueDate: new Date('2026-09-07'),
+    createdById: uPHTChuyenMon.id,
+    chuTriId: uTTVanSuDia.id,
+    kiemTraId: uPHTChuyenMon.id,
+  });
+
+  // 28. CV-028: Hội khỏe Phù Đổng
+  await createTaskItem({
+    code: 'CV-028',
+    title: 'Thành lập các đội tuyển Thể dục thể thao (Bóng đá, Bóng rổ, Cầu lông) chuẩn bị Hội khỏe Phù Đổng',
+    description: 'Tổ chức tuyển chọn 60 vận động viên học sinh tiêu biểu từ cả 3 điểm trường và bắt đầu lịch tập huấn',
+    planId: p2.id,
+    locationId: locMain.id,
+    orgUnitId: orgTheNhacHoa.id,
+    priority: TaskPriority.TRUNG_BINH,
+    status: TaskStatus.DANG_THUC_HIEN,
+    progressPercent: 55,
+    startDate: new Date('2026-09-04'),
+    dueDate: new Date('2026-09-26'),
+    createdById: uPHTChuyenMon.id,
+    chuTriId: uTTTheNhacHoa.id,
+    kiemTraId: uPHTChuyenMon.id,
+  });
+
+  // 29. CV-029: Tài chính Quý III
+  await createTaskItem({
+    code: 'CV-029',
+    title: 'Lập dự toán thu chi ngân sách năm học 2026-2027 & Công khai tài chính quý III',
+    description: 'Tổng hợp định mức chi tiêu nội bộ sau sáp nhập, phân bổ nguồn kinh phí hoạt động cho 3 điểm trường',
+    planId: p3.id,
+    locationId: locMain.id,
+    orgUnitId: orgVanPhong.id,
+    priority: TaskPriority.CAO,
+    status: TaskStatus.CHO_KIEM_TRA,
+    progressPercent: 85,
+    startDate: new Date('2026-08-25'),
+    dueDate: new Date('2026-09-15'),
+    createdById: uHieuTruong.id,
+    chuTriId: uTTVanPhong.id,
+    pheDuyetId: uHieuTruong.id,
+  });
+
+  // 30. CV-030: Bảo dưỡng máy tính PH1
+  await createTaskItem({
+    code: 'CV-030',
+    title: 'Bảo dưỡng định kỳ, vệ sinh quạt tản nhiệt và cài đặt phần mềm học tập phòng Tin học Phân hiệu 1',
+    description: 'Hoàn tất cài đặt phần mềm lập trình Scratch và ứng dụng văn phòng trên 42 máy tính phòng thực hành',
+    planId: p1.id,
+    locationId: locPh1.id,
+    orgUnitId: orgToanTin.id,
+    priority: TaskPriority.TRUNG_BINH,
+    status: TaskStatus.HOAN_THANH,
+    progressPercent: 100,
+    completedAt: new Date('2026-09-06'),
+    startDate: new Date('2026-08-30'),
+    dueDate: new Date('2026-09-06'),
+    createdById: uTTToanTin.id,
+    chuTriId: createdTeachers[11].id, // Võ Minh Trí
+  });
+
+  console.log('✓ Đã tạo 30 công việc đa dạng trạng thái (Quá hạn, Chờ kiểm tra, Bổ sung, Hoàn thành, Đóng...)');
 
   // 7. TẠO MỘT SỐ THÔNG BÁO VÀ BÌNH LUẬN MẪU
   await prisma.notification.createMany({
