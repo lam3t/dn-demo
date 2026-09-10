@@ -580,6 +580,9 @@ export class ContactMiniCardComponent implements OnInit, OnChanges {
   ngOnInit() {
     if (this.user) {
       this.userData.set(this.user);
+      if (!this.user.phone && (this.user.id || this.userId)) {
+        this.loadUser(this.user.id || this.userId!);
+      }
     } else if (this.userId) {
       this.loadUser(this.userId);
     }
@@ -588,6 +591,9 @@ export class ContactMiniCardComponent implements OnInit, OnChanges {
   ngOnChanges(changes: SimpleChanges) {
     if (changes['user'] && this.user) {
       this.userData.set(this.user);
+      if (!this.user.phone && (this.user.id || this.userId)) {
+        this.loadUser(this.user.id || this.userId!);
+      }
     } else if (changes['userId'] && this.userId) {
       this.loadUser(this.userId);
     }
@@ -599,12 +605,16 @@ export class ContactMiniCardComponent implements OnInit, OnChanges {
       this.loadUser(userOrId);
     } else {
       this.userData.set(userOrId);
+      if (!userOrId.phone && userOrId.id) {
+        this.loadUser(userOrId.id);
+      }
     }
     this.isOpen.set(true);
   }
 
   close() {
     this.isOpen.set(false);
+    this.userData.set(null);
     this.closed.emit();
   }
 
@@ -613,7 +623,13 @@ export class ContactMiniCardComponent implements OnInit, OnChanges {
     this.userService.getUserById(id).subscribe({
       next: (data) => {
         this.isLoading.set(false);
-        this.userData.set(data);
+        if (data) {
+          const current = this.userData();
+          this.userData.set({
+            ...(current || {}),
+            ...data,
+          } as UserPickerItem);
+        }
       },
       error: () => {
         this.isLoading.set(false);

@@ -1554,8 +1554,8 @@ export class OrgComponent implements OnInit, OnDestroy {
 
   openUserContact(user: any, event: Event) {
     event.stopPropagation();
-    if (user && user.id) {
-      this.contactCardService.open(user.id);
+    if (user) {
+      this.contactCardService.open(user);
     }
   }
 

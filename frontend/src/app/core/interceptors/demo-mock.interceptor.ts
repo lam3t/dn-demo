@@ -997,6 +997,20 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
           if (url.includes('/recent-collaborators')) {
             return of(new HttpResponse({ status: 200, body: { success: true, data: MOCK_USERS.slice(0, 5) } }));
           }
+
+          // Check if URL is requesting a single user by ID: /api/users/:id or /api/admin/users/:id
+          const userMatch = url.match(/\/api\/(?:admin\/)?users\/([a-zA-Z0-9_\-\.]+)(?:\?|$)/);
+          if (userMatch && userMatch[1] && userMatch[1] !== 'search' && !userMatch[1].startsWith('?')) {
+            const targetId = userMatch[1];
+            const foundUser = MOCK_USERS.find(
+              (u) =>
+                u.id === targetId ||
+                u.phone === targetId ||
+                (u.email && u.email.toLowerCase() === targetId.toLowerCase())
+            ) || MOCK_USERS[0];
+            return of(new HttpResponse({ status: 200, body: { success: true, data: foundUser } }));
+          }
+
           return of(
             new HttpResponse({
               status: 200,

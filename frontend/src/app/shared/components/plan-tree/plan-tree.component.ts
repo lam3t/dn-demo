@@ -223,7 +223,7 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
                                       [title]="'Xem liên hệ: ' + chuTri.fullName"
                                     >
                                       <img
-                                        [src]="chuTri.avatarUrl || 'assets/images/default-avatar.svg'"
+                                        [src]="chuTri.avatarUrl || 'https://ui-avatars.com/api/?name=' + chuTri.fullName + '&background=1F3864&color=fff'"
                                         class="user-avatar-mini"
                                         [alt]="chuTri.fullName"
                                       />
@@ -296,7 +296,7 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
                               <div class="card-m-holder" (click)="$event.stopPropagation()">
                                 <span class="m-holder-label">Chủ trì:</span>
                                 <div class="m-holder-chip" (click)="openUserContact(chuTri, $event)">
-                                  <img [src]="chuTri.avatarUrl || 'assets/images/default-avatar.svg'" class="m-avatar" alt="" />
+                                  <img [src]="chuTri.avatarUrl || 'https://ui-avatars.com/api/?name=' + chuTri.fullName + '&background=1F3864&color=fff'" class="m-avatar" [alt]="chuTri.fullName" />
                                   <span class="m-name">{{ chuTri.fullName }}</span>
                                   @if (chuTri.phone) {
                                     <a [href]="'tel:' + chuTri.phone" class="m-call" (click)="$event.stopPropagation()" [title]="'Gọi ngay: ' + chuTri.phone">
@@ -1404,8 +1404,8 @@ export class PlanTreeComponent implements OnChanges {
 
   openUserContact(user: any, event: Event) {
     event.stopPropagation();
-    if (user && user.id) {
-      this.contactCardService.open(user.id);
+    if (user) {
+      this.contactCardService.open(user);
     }
   }
 

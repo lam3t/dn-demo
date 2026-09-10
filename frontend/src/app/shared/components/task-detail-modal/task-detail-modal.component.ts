@@ -262,7 +262,7 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                         <div class="mention-header">Gợi ý người liên quan (@mention):</div>
                         @for (u of filteredMentionUsers(); track u.id) {
                           <div class="mention-item" (click)="selectMentionUser(u)">
-                            <img [src]="u.avatarUrl || 'assets/images/default-avatar.svg'" class="mini-avatar" alt="" />
+                            <img [src]="u.avatarUrl || 'https://ui-avatars.com/api/?name=' + u.fullName + '&background=1F3864&color=fff'" class="mini-avatar" [alt]="u.fullName" />
                             <div class="mention-name-box">
                               <span class="m-name">{{ u.fullName }}</span>
                               <span class="m-role">{{ u.title || 'Giáo viên' }}</span>
@@ -296,7 +296,7 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                   @for (c of task()!.comments; track c.id) {
                     <div class="comment-bubble">
                       <img
-                        [src]="c.user?.avatarUrl || 'assets/images/default-avatar.svg'"
+                        [src]="c.user?.avatarUrl || 'https://ui-avatars.com/api/?name=' + (c.user?.fullName || 'User') + '&background=1F3864&color=fff'"
                         class="comment-avatar"
                         [alt]="c.user?.fullName"
                       />
@@ -458,7 +458,7 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                   @if (chuTriAssignment(); as a) {
                     <div class="raci-person-card tap-target" (click)="openContact(a.user, $event)">
                       <img
-                        [src]="a.user.avatarUrl || 'assets/images/default-avatar.svg'"
+                        [src]="a.user.avatarUrl || 'https://ui-avatars.com/api/?name=' + a.user.fullName + '&background=1F3864&color=fff'"
                         class="raci-avatar"
                         [alt]="a.user.fullName"
                       />
@@ -487,7 +487,7 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                       @for (a of phoiHopAssignments(); track a.id) {
                         <div class="raci-person-card tap-target" (click)="openContact(a.user, $event)">
                           <img
-                            [src]="a.user.avatarUrl || 'assets/images/default-avatar.svg'"
+                            [src]="a.user.avatarUrl || 'https://ui-avatars.com/api/?name=' + a.user.fullName + '&background=1F3864&color=fff'"
                             class="raci-avatar"
                             [alt]="a.user.fullName"
                           />
@@ -512,11 +512,11 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                   <div class="raci-role-group">
                     <span class="role-badge badge-kiemtra">KIỂM TRA / NGHIỆM THU</span>
                     <div class="raci-person-card tap-target" (click)="openContact(a.user, $event)">
-                      <img
-                        [src]="a.user.avatarUrl || 'assets/images/default-avatar.svg'"
-                        class="raci-avatar"
-                        [alt]="a.user.fullName"
-                      />
+                        <img
+                          [src]="a.user.avatarUrl || 'https://ui-avatars.com/api/?name=' + a.user.fullName + '&background=1F3864&color=fff'"
+                          class="raci-avatar"
+                          [alt]="a.user.fullName"
+                        />
                       <div class="raci-name-box">
                         <strong class="raci-name">{{ a.user.fullName }}</strong>
                         <span class="raci-sub">{{ a.user.title }}</span>
@@ -1879,8 +1879,8 @@ export class TaskDetailModalComponent implements OnInit {
 
   openContact(user: any, event: Event) {
     event.stopPropagation();
-    if (user && user.id) {
-      this.contactCardService.open(user.id);
+    if (user) {
+      this.contactCardService.open(user);
     }
   }
 
