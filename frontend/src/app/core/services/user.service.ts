@@ -79,9 +79,9 @@ export class UserService {
       .pipe(map((res) => res.data || []));
   }
 
-  getUserById(id: string): Observable<UserPickerItem> {
+  getUserById(id: string): Observable<UserPickerItem | null> {
     return this.http
       .get<{ success: boolean; data: UserPickerItem }>(`/api/users/${id}`)
-      .pipe(map((res) => res.data));
+      .pipe(map((res) => res?.data || null));
   }
 }

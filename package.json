@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "TN EDU – Quản lý Kế hoạch & Công việc Trường Phổ thông (Monorepo)",
   "scripts": {
-    "build": "npm --prefix frontend install && npm --prefix frontend run build",
+    "postinstall": "npm --prefix backend run prisma:generate",
+    "build": "npm --prefix backend install && npm --prefix backend run prisma:generate && npm --prefix frontend install && npm --prefix frontend run build",
+    "vercel-build": "npm --prefix backend install && npm --prefix backend run prisma:generate && npm --prefix frontend install && npm --prefix frontend run build",
     "build:backend": "npm --prefix backend install && npm --prefix backend run prisma:generate",
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend start",

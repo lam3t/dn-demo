@@ -21,10 +21,10 @@ export class NotificationService {
     return this.http
       .get<{ success: boolean; data: NotificationListResponse }>('/api/notifications', { params: httpParams })
       .pipe(
-        map((res) => res.data),
+        map((res) => res?.data),
         tap((data) => {
-          this.unreadCount.set(data.unreadCount || 0);
-          this.notifications.set(data.items || []);
+          this.unreadCount.set(data?.unreadCount || 0);
+          this.notifications.set(data?.items || []);
         })
       );
   }
