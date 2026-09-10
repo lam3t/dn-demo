@@ -264,7 +264,107 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
         // 4. PLANS
         if (url.includes('/api/plans')) {
           if (url.includes('/api/plans/tree')) {
-            return of(new HttpResponse({ status: 200, body: { success: true, data: MOCK_PLAN_TREE } }));
+            const rootMatch = url.match(/[?&]rootPlanId=([^&]+)/);
+            const rootPlanId = rootMatch ? rootMatch[1] : undefined;
+
+            // Dynamically build plan tree with actual child tasks
+            const planTasksM1 = MOCK_TASKS.slice(0, 8).map((t) => ({
+              ...t,
+              planId: 'plan-m1',
+              plan: MOCK_PLANS.find((p) => p.id === 'plan-m1'),
+            }));
+            const planTasksM2 = MOCK_TASKS.slice(8, 18).map((t) => ({
+              ...t,
+              planId: 'plan-m2',
+              plan: MOCK_PLANS.find((p) => p.id === 'plan-m2'),
+            }));
+            const planTasksM3 = MOCK_TASKS.slice(18, 25).map((t) => ({
+              ...t,
+              planId: 'plan-m3',
+              plan: MOCK_PLANS.find((p) => p.id === 'plan-m3'),
+            }));
+
+            const nodeM1 = {
+              id: 'plan-m1',
+              title: '1. Ổn định tổ chức bộ máy và nhân sự sau sáp nhập 3 điểm trường',
+              description: 'Kiện toàn các tổ chuyên môn, ban hành quy chế làm việc và phân công nhiệm vụ',
+              level: 'THANG' as any,
+              startDate: '2026-08-15',
+              endDate: '2026-09-15',
+              progressPercent: 90,
+              taskCount: planTasksM1.length,
+              completedTaskCount: planTasksM1.filter((t) => t.status === 'HOAN_THANH' || t.status === 'DONG').length,
+              tasks: planTasksM1 as any[],
+              children: [],
+            };
+
+            const nodeM2 = {
+              id: 'plan-m2',
+              title: '2. Hoàn thiện và công khai Kế hoạch giáo dục nhà trường',
+              description: 'Xây dựng ma trận dạy học, phân phối chương trình và các chuyên đề đổi mới PPDH',
+              level: 'THANG' as any,
+              startDate: '2026-08-20',
+              endDate: '2026-09-20',
+              progressPercent: 75,
+              taskCount: planTasksM2.length,
+              completedTaskCount: planTasksM2.filter((t) => t.status === 'HOAN_THANH' || t.status === 'DONG').length,
+              tasks: planTasksM2 as any[],
+              children: [],
+            };
+
+            const nodeM3 = {
+              id: 'plan-m3',
+              title: '3. Kiểm tra chuyên đề đổi mới phương pháp dạy học & KTĐG',
+              description: 'Kiểm tra hồ sơ giáo án, sinh hoạt chuyên môn cụm trường và hoạt động trải nghiệm',
+              level: 'THANG' as any,
+              startDate: '2026-09-01',
+              endDate: '2026-09-30',
+              progressPercent: 45,
+              taskCount: planTasksM3.length,
+              completedTaskCount: planTasksM3.filter((t) => t.status === 'HOAN_THANH' || t.status === 'DONG').length,
+              tasks: planTasksM3 as any[],
+              children: [],
+            };
+
+            const monthPlans = [nodeM1, nodeM2, nodeM3];
+            const term1TasksCount = monthPlans.reduce((sum, p) => sum + p.taskCount, 0);
+            const term1CompletedCount = monthPlans.reduce((sum, p) => sum + p.completedTaskCount, 0);
+
+            const nodeTerm1: any = {
+              id: 'plan-term1',
+              title: 'Kế hoạch Học kỳ I (Năm học 2026 - 2027)',
+              description: 'Trọng tâm ổn định bộ máy, chuẩn hóa cơ sở vật chất và nâng cao chất lượng dạy học',
+              level: 'HOC_KY' as any,
+              startDate: '2026-08-15',
+              endDate: '2027-01-15',
+              progressPercent: 55,
+              taskCount: term1TasksCount,
+              completedTaskCount: term1CompletedCount,
+              tasks: [] as any[],
+              children: monthPlans,
+            };
+
+            const nodeYear: any = {
+              id: 'plan-year',
+              title: 'Kế hoạch Chiến lược & Hoạt động Năm học 2026 - 2027',
+              description: 'Kế hoạch tổng thể vận hành trường TH và THCS Phước Tân sau sáp nhập 3 điểm trường',
+              level: 'NAM' as any,
+              startDate: '2026-08-01',
+              endDate: '2027-05-31',
+              progressPercent: 42,
+              taskCount: term1TasksCount,
+              completedTaskCount: term1CompletedCount,
+              tasks: [] as any[],
+              children: [nodeTerm1],
+            };
+
+            let resultTree: any[] = [nodeYear];
+            if (rootPlanId === 'plan-term1') resultTree = [nodeTerm1];
+            else if (rootPlanId === 'plan-m1') resultTree = [nodeM1];
+            else if (rootPlanId === 'plan-m2') resultTree = [nodeM2];
+            else if (rootPlanId === 'plan-m3') resultTree = [nodeM3];
+
+            return of(new HttpResponse({ status: 200, body: { success: true, data: resultTree } }));
           }
           if (url.includes('/duplicate')) {
             const body = (req.body || {}) as any;
@@ -359,7 +459,141 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
 
         // 5. DASHBOARD
         if (url.includes('/api/dashboard/overview')) {
-          return of(new HttpResponse({ status: 200, body: { success: true, data: MOCK_DASHBOARD_OVERVIEW } }));
+          const locMatch = url.match(/[?&]locationId=([^&]+)/);
+          const orgMatch = url.match(/[?&]orgUnitId=([^&]+)/);
+          const locationId = locMatch ? locMatch[1] : '';
+          const orgUnitId = orgMatch ? orgMatch[1] : '';
+
+          let tasks = MOCK_TASKS;
+          if (locationId) {
+            tasks = tasks.filter((t) => t.location?.id === locationId || (t as any).locationId === locationId);
+          }
+          if (orgUnitId) {
+            tasks = tasks.filter((t) => t.orgUnit?.id === orgUnitId || (t as any).orgUnitId === orgUnitId);
+          }
+
+          const completedStatuses = ['HOAN_THANH', 'XAC_NHAN', 'DONG'];
+          const inProgressStatuses = ['DA_GIAO', 'DA_TIEP_NHAN', 'DANG_THUC_HIEN'];
+          const pendingReviewStatuses = ['CHO_KIEM_TRA', 'BO_SUNG'];
+
+          const totalTasks = tasks.length;
+          const completedCount = tasks.filter((t) => completedStatuses.includes(t.status)).length;
+          const inProgressCount = tasks.filter((t) => inProgressStatuses.includes(t.status)).length;
+          const pendingReviewCount = tasks.filter((t) => pendingReviewStatuses.includes(t.status)).length;
+          const overdueCount = tasks.filter((t) => Boolean(t.isOverdue)).length;
+
+          const byStatus: any = {
+            NHAP: 0,
+            DA_GIAO: 0,
+            DA_TIEP_NHAN: 0,
+            DANG_THUC_HIEN: 0,
+            CHO_KIEM_TRA: 0,
+            BO_SUNG: 0,
+            HOAN_THANH: 0,
+            XAC_NHAN: 0,
+            DONG: 0,
+            TAM_DUNG: 0,
+            HUY: 0,
+          };
+          tasks.forEach((t) => {
+            if (byStatus[t.status] !== undefined) byStatus[t.status]++;
+          });
+
+          const attentionTasks = tasks
+            .filter((t) => t.isOverdue || t.status === 'CHO_KIEM_TRA' || t.status === 'BO_SUNG' || t.priority === 'KHAN_CAP' || t.priority === 'CAO')
+            .slice(0, 15)
+            .map((t) => {
+              const chuTriAsg = t.assignments?.find((a) => a.role === 'CHU_TRI');
+              const chuTriUser = chuTriAsg?.user;
+              let reason = 'Đang thực hiện đúng tiến độ';
+              if (t.isOverdue) reason = 'Đã quá hạn hoàn thành';
+              else if (t.status === 'CHO_KIEM_TRA') reason = 'Đã nộp minh chứng, chờ nghiệm thu';
+              else if (t.status === 'BO_SUNG') reason = 'Yêu cầu bổ sung thông tin/minh chứng';
+              else if (t.priority === 'KHAN_CAP') reason = 'Nhiệm vụ khẩn cấp';
+              else if (t.priority === 'CAO') reason = 'Nhiệm vụ trọng tâm';
+
+              return {
+                id: t.id,
+                code: t.code || 'CV-' + t.id.slice(-5),
+                title: t.title,
+                status: t.status,
+                priority: t.priority,
+                progressPercent: t.progressPercent || 0,
+                dueDate: t.dueDate,
+                isOverdue: Boolean(t.isOverdue),
+                reason,
+                priorityLevel: t.priority === 'KHAN_CAP' ? 3 : t.priority === 'CAO' ? 2 : 1,
+                locationName: t.location?.name || 'Điểm chính',
+                orgUnitName: t.orgUnit?.name || 'Ban Giám hiệu',
+                chuTri: chuTriUser
+                  ? {
+                      id: chuTriUser.id,
+                      fullName: chuTriUser.fullName,
+                      title: chuTriUser.title || 'Cán bộ',
+                      phone: chuTriUser.phone || '0903111222',
+                      avatarUrl: chuTriUser.avatarUrl,
+                      locationName: chuTriUser.primaryLocation?.name || 'Điểm chính',
+                    }
+                  : null,
+              };
+            });
+
+          const breakdownByLocation = MOCK_LOCATIONS.map((loc) => {
+            const locTasks = MOCK_TASKS.filter(
+              (t) => t.location?.id === loc.id || (t as any).locationId === loc.id || (loc.id === 'loc-main' && !t.location)
+            );
+            const cCount = locTasks.filter((t) => completedStatuses.includes(t.status)).length;
+            const pCount = locTasks.filter((t) => inProgressStatuses.includes(t.status)).length;
+            const prCount = locTasks.filter((t) => pendingReviewStatuses.includes(t.status)).length;
+            const oCount = locTasks.filter((t) => Boolean(t.isOverdue)).length;
+            return {
+              id: loc.id,
+              name: loc.name,
+              code: loc.code,
+              isMain: loc.code === 'DIEM_CHINH' || (loc as any).isMain === true,
+              totalTasks: locTasks.length,
+              completedTasks: cCount,
+              inProgressTasks: pCount,
+              pendingReviewTasks: prCount,
+              overdueTasks: oCount,
+              completionRate: locTasks.length > 0 ? Math.round((cCount / locTasks.length) * 100) : 0,
+            };
+          });
+
+          const breakdownByOrgUnit = MOCK_ORG_UNITS.map((org) => {
+            const orgTasks = MOCK_TASKS.filter(
+              (t) => t.orgUnit?.id === org.id || (t as any).orgUnitId === org.id || (org.id === 'org-bgh' && !t.orgUnit)
+            );
+            const cCount = orgTasks.filter((t) => completedStatuses.includes(t.status)).length;
+            const pCount = orgTasks.filter((t) => inProgressStatuses.includes(t.status)).length;
+            const prCount = orgTasks.filter((t) => pendingReviewStatuses.includes(t.status)).length;
+            const oCount = orgTasks.filter((t) => Boolean(t.isOverdue)).length;
+            return {
+              id: org.id,
+              name: org.name,
+              code: org.code,
+              totalTasks: orgTasks.length,
+              completedTasks: cCount,
+              inProgressTasks: pCount,
+              pendingReviewTasks: prCount,
+              overdueTasks: oCount,
+              completionRate: orgTasks.length > 0 ? Math.round((cCount / orgTasks.length) * 100) : 0,
+            };
+          });
+
+          const overviewData = {
+            totalTasks,
+            byStatus,
+            overdueCount,
+            completedCount,
+            inProgressCount,
+            pendingReviewCount,
+            attentionTasks,
+            breakdownByLocation,
+            breakdownByOrgUnit,
+          };
+
+          return of(new HttpResponse({ status: 200, body: { success: true, data: overviewData } }));
         }
 
         // 6. NOTIFICATIONS

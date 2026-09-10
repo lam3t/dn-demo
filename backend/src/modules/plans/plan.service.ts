@@ -212,6 +212,27 @@ export class PlanService {
       }
     });
 
+    const aggregateCounts = (node: PlanTreeNode): { total: number; completed: number } => {
+      let total = node.tasks ? node.tasks.length : 0;
+      let completed = (node.tasks || []).filter(
+        (t: any) => t.status === TaskStatus.HOAN_THANH || t.status === TaskStatus.XAC_NHAN || t.status === TaskStatus.DONG
+      ).length;
+
+      if (node.children && node.children.length > 0) {
+        for (const child of node.children) {
+          const childCounts = aggregateCounts(child);
+          total += childCounts.total;
+          completed += childCounts.completed;
+        }
+      }
+
+      node.taskCount = total;
+      node.completedTaskCount = completed;
+      return { total, completed };
+    };
+
+    tree.forEach((rootNode) => aggregateCounts(rootNode));
+
     const result = rootPlanId && nodesMap.has(rootPlanId) ? [nodesMap.get(rootPlanId)!] : tree;
     appCache.set(cacheKey, result, 30, ['plans', 'tasks']);
     return result;
