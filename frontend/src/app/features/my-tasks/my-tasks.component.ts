@@ -11,6 +11,7 @@ import { StatusTabsCounterComponent, StatusTabItem } from '../../shared/componen
 import { FileDropzoneComponent } from '../../shared/components/file-dropzone/file-dropzone.component';
 import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
 import { TaskItem, TaskStatus, TaskPriority, TaskAssignmentRole } from '../../core/models/task.models';
+import { removeVietnameseAccents } from '../../core/utils/vietnamese.utils';
 
 type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 'WAITING_CONFIRM';
 
@@ -143,26 +144,32 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
         </div>
       </div>
 
-      <!-- SEARCH & PRIORITY FILTER BAR -->
+      <!-- SEARCH, PRIORITY FILTER & VIEW MODE BAR -->
       <div class="search-filter-bar">
+        <!-- SEARCH INPUT -->
         <div class="search-input-box">
           <span class="material-symbols-outlined search-icon">search</span>
           <input
             type="text"
             class="search-input tap-target"
-            placeholder="Tìm theo tên công việc, mã việc..."
-            [(ngModel)]="searchKeyword"
-            (ngModelChange)="onSearchChange()"
+            placeholder="Tìm theo tên việc, mã việc, tổ, người thực hiện..."
+            [ngModel]="searchKeyword()"
+            (ngModelChange)="onSearchInput($event)"
           />
-          @if (searchKeyword) {
-            <button type="button" class="clear-search-btn" (click)="clearSearch()">
+          @if (searchKeyword()) {
+            <button type="button" class="clear-search-btn tap-target" (click)="clearSearch()" title="Xóa tìm kiếm">
               <span class="material-symbols-outlined">cancel</span>
             </button>
           }
         </div>
 
+        <!-- PRIORITY FILTER -->
         <div class="priority-filter-box">
-          <select class="priority-select tap-target" [(ngModel)]="selectedPriority" (ngModelChange)="onFilterChange()">
+          <select
+            class="priority-select tap-target"
+            [ngModel]="selectedPriority()"
+            (ngModelChange)="onPriorityChange($event)"
+          >
             <option value="">Tất cả mức ưu tiên</option>
             <option value="KHAN_CAP">🔴 Khẩn cấp</option>
             <option value="CAO">🟠 Cao</option>
@@ -170,10 +177,35 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
             <option value="THAP">⚪ Thấp</option>
           </select>
         </div>
+
+        <!-- VIEW MODE TOGGLE (CARD GRID vs TABLE LIST) -->
+        <div class="view-mode-toggle">
+          <button
+            type="button"
+            class="view-toggle-btn tap-target"
+            [class.active]="viewMode() === 'grid'"
+            (click)="viewMode.set('grid')"
+            title="Xem dạng thẻ trực quan"
+          >
+            <span class="material-symbols-outlined">grid_view</span>
+            <span class="toggle-text">Dạng thẻ</span>
+          </button>
+          <button
+            type="button"
+            class="view-toggle-btn tap-target"
+            [class.active]="viewMode() === 'table'"
+            (click)="viewMode.set('table')"
+            title="Xem dạng danh sách bảng chi tiết"
+          >
+            <span class="material-symbols-outlined">format_list_bulleted</span>
+            <span class="toggle-text">Danh sách</span>
+          </button>
+        </div>
       </div>
 
-      <!-- MAIN TASKS LIST -->
+      <!-- MAIN TASKS CONTENT -->
       @if (isLoading() && allTasks().length === 0) {
+        <!-- SKELETON LOADING -->
         <div class="tasks-cards-grid">
           @for (item of [1, 2, 3, 4]; track item) {
             <div class="skeleton-card">
@@ -191,6 +223,7 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
           }
         </div>
       } @else if (filteredTasks().length === 0) {
+        <!-- EMPTY STATE -->
         <div class="friendly-empty-state">
           <svg class="empty-svg-illustration" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="60" cy="60" r="50" fill="#DCFCE7" />
@@ -199,149 +232,337 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
           </svg>
           <h3 class="empty-state-title">Thảnh thơi! Chưa có việc nào ở mục này</h3>
           <p class="empty-state-desc">
-            Thầy/cô đã hoàn thành tất cả nhiệm vụ hoặc chưa có công việc mới được phân công trong nhóm này.
+            @if (searchKeyword() || selectedPriority()) {
+              Không tìm thấy công việc nào khớp với từ khóa tìm kiếm hoặc bộ lọc hiện tại. Thầy/cô thử xóa bộ lọc nhé!
+            } @else {
+              Thầy/cô đã hoàn thành tất cả nhiệm vụ hoặc chưa có công việc mới được phân công trong nhóm này.
+            }
           </p>
-          <a routerLink="/tasks" [queryParams]="{ create: 'true' }" class="empty-state-action-btn tap-target" style="text-decoration: none;">
-            <span class="material-symbols-outlined">add_task</span>
-            <span>+ Tạo việc mới nếu cần</span>
-          </a>
+          <div class="empty-state-actions">
+            @if (searchKeyword() || selectedPriority()) {
+              <button type="button" class="clear-filters-btn tap-target" (click)="clearAllFilters()">
+                <span class="material-symbols-outlined">filter_alt_off</span>
+                <span>Xóa bộ lọc tìm kiếm</span>
+              </button>
+            }
+            <a routerLink="/tasks" [queryParams]="{ create: 'true' }" class="empty-state-action-btn tap-target" style="text-decoration: none;">
+              <span class="material-symbols-outlined">add_task</span>
+              <span>+ Tạo việc mới nếu cần</span>
+            </a>
+          </div>
         </div>
       } @else {
-        <div class="tasks-cards-grid">
-          @for (task of pagedTasks(); track task.id) {
-            <div class="task-compact-card" [class.is-overdue]="task.isOverdue">
-              <!-- TOP META ROW -->
-              <div class="card-top-row">
-                <div class="top-left-tags">
-                  <span class="task-code" *ngIf="task.code">{{ task.code }}</span>
-                  <span class="my-role-badge" [ngClass]="getMyRoleBadgeClass(task)">
-                    {{ getMyRoleName(task) }}
-                  </span>
-                  @if (task.priority === 'KHAN_CAP' || task.priority === 'CAO') {
-                    <span class="priority-badge" [ngClass]="'prio-' + task.priority">
-                      {{ task.priority === 'KHAN_CAP' ? 'Khẩn cấp' : 'Ưu tiên cao' }}
+        <!-- 1. VIEW MODE: GRID (CARDS) -->
+        @if (viewMode() === 'grid') {
+          <div class="tasks-cards-grid">
+            @for (task of pagedTasks(); track task.id) {
+              <div class="task-compact-card" [class.is-overdue]="task.isOverdue">
+                <!-- TOP META ROW -->
+                <div class="card-top-row">
+                  <div class="top-left-tags">
+                    <span class="task-code" *ngIf="task.code">{{ task.code }}</span>
+                    <span class="my-role-badge" [ngClass]="getMyRoleBadgeClass(task)">
+                      {{ getMyRoleName(task) }}
+                    </span>
+                    @if (task.priority === 'KHAN_CAP' || task.priority === 'CAO') {
+                      <span class="priority-badge" [ngClass]="'prio-' + task.priority">
+                        {{ task.priority === 'KHAN_CAP' ? 'Khẩn cấp' : 'Ưu tiên cao' }}
+                      </span>
+                    }
+                  </div>
+                  <app-status-badge [status]="task.status"></app-status-badge>
+                </div>
+
+                <!-- TASK TITLE -->
+                <h2 class="task-title" (click)="goToDetail(task.id)">{{ task.title }}</h2>
+
+                <!-- DESCRIPTION PREVIEW (IF ANY) -->
+                @if (task.description) {
+                  <p class="task-desc-snippet">{{ task.description }}</p>
+                }
+
+                <!-- ATTACHMENT REQUIRED BADGE -->
+                @if (task.requireAttachment) {
+                  <div class="req-attach-hint">
+                    <span class="material-symbols-outlined">attach_file</span>
+                    <span>Bắt buộc có minh chứng trước khi gửi duyệt</span>
+                  </div>
+                }
+
+                <!-- DEADLINE & SCOPE ROW -->
+                <div class="card-meta-row">
+                  <div class="deadline-box" [ngClass]="getDueStatusClass(task)">
+                    <span class="material-symbols-outlined">calendar_today</span>
+                    <span class="due-text">{{ getDueText(task) }}</span>
+                  </div>
+
+                  @if (task.location?.name) {
+                    <span class="scope-tag">
+                      <span class="material-symbols-outlined">location_on</span>
+                      {{ task.location?.name }}
                     </span>
                   }
                 </div>
-                <app-status-badge [status]="task.status"></app-status-badge>
+
+                <!-- PROGRESS BAR -->
+                <div class="progress-section">
+                  <div class="progress-info-line">
+                    <span class="progress-label">Tiến độ thực hiện</span>
+                    <strong class="progress-pct">{{ task.progressPercent }}%</strong>
+                  </div>
+                  <div class="progress-bar-track">
+                    <div
+                      class="progress-bar-fill"
+                      [style.width.%]="task.progressPercent"
+                      [ngClass]="getProgressColor(task.progressPercent, task.isOverdue)"
+                    ></div>
+                  </div>
+                </div>
+
+                <!-- CARD ACTIONS & QUICK UPDATE BUTTON -->
+                <div class="card-actions-footer">
+                  <!-- ASSIGNEES / COORDINATOR AVATARS -->
+                  <div class="assignees-avatars">
+                    @for (asg of task.assignments; track asg.id) {
+                      <img
+                        [src]="asg.user.avatarUrl || 'https://ui-avatars.com/api/?name=' + asg.user.fullName + '&background=1F3864&color=fff'"
+                        [alt]="asg.user.fullName"
+                        class="mini-avatar"
+                        [title]="asg.user.fullName + ' (' + asg.role + ')'"
+                        (click)="openContactCard(asg.user, $event)"
+                      />
+                    }
+                  </div>
+
+                  <div class="card-footer-btns">
+                    <!-- NẾU LÀ NGƯỜI KIỂM TRA / BGH VÀ VIỆC ĐANG CHỜ KIỂM TRA -->
+                    @if (canInspect(task)) {
+                      <button
+                        type="button"
+                        class="btn-card-action btn-approve tap-target"
+                        (click)="quickApprove(task, $event)"
+                        title="Nghiệm thu đạt yêu cầu"
+                      >
+                        <span class="material-symbols-outlined">check_circle</span>
+                        <span>Duyệt đạt</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="btn-card-action btn-reject tap-target"
+                        (click)="quickReject(task, $event)"
+                        title="Yêu cầu bổ sung"
+                      >
+                        <span class="material-symbols-outlined">replay</span>
+                        <span>Bổ sung</span>
+                      </button>
+                    } @else if (isMyLeading(task) && canSubmitForReview(task)) {
+                      <button
+                        type="button"
+                        class="quick-update-btn btn-highlight tap-target"
+                        (click)="openQuickUpdate(task, $event)"
+                        title="Cập nhật tiến độ & Gửi duyệt"
+                      >
+                        <span class="material-symbols-outlined">send</span>
+                        <span>Nộp kết quả</span>
+                      </button>
+                    } @else {
+                      <!-- BUTTON CẬP NHẬT NHANH -->
+                      <button
+                        type="button"
+                        class="quick-update-btn tap-target"
+                        (click)="openQuickUpdate(task, $event)"
+                        title="Cập nhật tiến độ & Minh chứng"
+                      >
+                        <span class="material-symbols-outlined">edit_note</span>
+                        <span>Cập nhật</span>
+                      </button>
+                    }
+                  </div>
+                </div>
               </div>
+            }
+          </div>
+        }
 
-              <!-- TASK TITLE -->
-              <h2 class="task-title" (click)="goToDetail(task.id)">{{ task.title }}</h2>
+        <!-- 2. VIEW MODE: TABLE (LIST) -->
+        @if (viewMode() === 'table') {
+          <div class="tasks-table-wrapper">
+            <table class="my-tasks-table">
+              <thead>
+                <tr>
+                  <th class="col-stt">STT</th>
+                  <th class="col-code">Mã việc</th>
+                  <th class="col-title">Tên công việc & Chi tiết</th>
+                  <th class="col-role">Vai trò của tôi</th>
+                  <th class="col-loc">Điểm trường / Tổ</th>
+                  <th class="col-due">Hạn hoàn thành</th>
+                  <th class="col-progress">Tiến độ</th>
+                  <th class="col-status">Trạng thái</th>
+                  <th class="col-actions">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (task of pagedTasks(); track task.id; let idx = $index) {
+                  <tr class="my-task-table-row tap-target" (click)="goToDetail(task.id)">
+                    <!-- STT -->
+                    <td class="col-stt">
+                      <span class="stt-num">{{ (currentPage() - 1) * pageSize() + idx + 1 }}</span>
+                    </td>
 
-              <!-- DESCRIPTION PREVIEW (IF ANY) -->
-              @if (task.description) {
-                <p class="task-desc-snippet">{{ task.description }}</p>
-              }
+                    <!-- CODE -->
+                    <td class="col-code">
+                      <span class="code-badge">{{ task.code || ('CV-' + task.id.slice(0, 4)) }}</span>
+                    </td>
 
-              <!-- ATTACHMENT REQUIRED BADGE -->
-              @if (task.requireAttachment) {
-                <div class="req-attach-hint">
-                  <span class="material-symbols-outlined">attach_file</span>
-                  <span>Bắt buộc có minh chứng trước khi gửi duyệt</span>
-                </div>
-              }
+                    <!-- TITLE & DESCRIPTION -->
+                    <td class="col-title">
+                      <div class="title-cell">
+                        <div class="title-main">
+                          @if (task.priority === 'KHAN_CAP' || task.priority === 'CAO') {
+                            <span class="prio-tag" [ngClass]="'prio-' + task.priority">
+                              {{ task.priority === 'KHAN_CAP' ? 'Khẩn cấp' : 'Ưu tiên' }}
+                            </span>
+                          }
+                          <strong class="task-title-text">{{ task.title }}</strong>
+                          @if (task.requireAttachment) {
+                            <span class="req-attach-icon" title="Bắt buộc có minh chứng">
+                              <span class="material-symbols-outlined">attach_file</span>
+                            </span>
+                          }
+                        </div>
+                        @if (task.description) {
+                          <p class="desc-line">{{ task.description }}</p>
+                        }
+                      </div>
+                    </td>
 
-              <!-- DEADLINE & SCOPE ROW -->
-              <div class="card-meta-row">
-                <div class="deadline-box" [ngClass]="getDueStatusClass(task)">
-                  <span class="material-symbols-outlined">calendar_today</span>
-                  <span class="due-text">{{ getDueText(task) }}</span>
-                </div>
+                    <!-- MY RACI ROLE -->
+                    <td class="col-role">
+                      <span class="my-role-badge" [ngClass]="getMyRoleBadgeClass(task)">
+                        {{ getMyRoleName(task) }}
+                      </span>
+                    </td>
 
-                @if (task.location?.name) {
-                  <span class="scope-tag">
-                    <span class="material-symbols-outlined">location_on</span>
-                    {{ task.location?.name }}
-                  </span>
+                    <!-- LOCATION / ORG UNIT -->
+                    <td class="col-loc">
+                      <div class="loc-org-cell">
+                        <span class="loc-pill" *ngIf="task.location?.name">
+                          <span class="material-symbols-outlined">location_on</span>
+                          {{ task.location?.name }}
+                        </span>
+                        <span class="org-pill" *ngIf="task.orgUnit?.name">
+                          <span class="material-symbols-outlined">groups</span>
+                          {{ task.orgUnit?.name }}
+                        </span>
+                        <span class="all-school-text" *ngIf="!task.location?.name && !task.orgUnit?.name">Toàn trường</span>
+                      </div>
+                    </td>
+
+                    <!-- DUE DATE -->
+                    <td class="col-due">
+                      <div class="due-cell" [ngClass]="getDueStatusClass(task)">
+                        <span class="material-symbols-outlined">calendar_today</span>
+                        <span class="due-text">{{ getDueText(task) }}</span>
+                      </div>
+                    </td>
+
+                    <!-- PROGRESS -->
+                    <td class="col-progress">
+                      <div class="table-prog-box">
+                        <div class="prog-top-row">
+                          <strong class="prog-num">{{ task.progressPercent }}%</strong>
+                          <div class="table-avatars">
+                            @for (asg of task.assignments?.slice(0, 3); track asg.id) {
+                              <img
+                                [src]="asg.user.avatarUrl || 'https://ui-avatars.com/api/?name=' + asg.user.fullName + '&background=1F3864&color=fff'"
+                                [alt]="asg.user.fullName"
+                                class="tbl-avatar"
+                                [title]="asg.user.fullName + ' (' + asg.role + ')'"
+                                (click)="openContactCard(asg.user, $event)"
+                              />
+                            }
+                          </div>
+                        </div>
+                        <div class="prog-bar-mini">
+                          <div
+                            class="prog-fill"
+                            [style.width.%]="task.progressPercent"
+                            [ngClass]="getProgressColor(task.progressPercent, task.isOverdue)"
+                          ></div>
+                        </div>
+                      </div>
+                    </td>
+
+                    <!-- STATUS -->
+                    <td class="col-status">
+                      <app-status-badge [status]="task.status"></app-status-badge>
+                    </td>
+
+                    <!-- ACTIONS -->
+                    <td class="col-actions" (click)="$event.stopPropagation()">
+                      <div class="table-actions-cell">
+                        @if (canInspect(task)) {
+                          <button
+                            type="button"
+                            class="btn-tbl-action btn-approve tap-target"
+                            (click)="quickApprove(task, $event)"
+                            title="Nghiệm thu đạt yêu cầu"
+                          >
+                            <span class="material-symbols-outlined">check_circle</span>
+                            <span>Duyệt</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="btn-tbl-action btn-reject tap-target"
+                            (click)="quickReject(task, $event)"
+                            title="Yêu cầu bổ sung"
+                          >
+                            <span class="material-symbols-outlined">replay</span>
+                          </button>
+                        } @else if (isMyLeading(task) && canSubmitForReview(task)) {
+                          <button
+                            type="button"
+                            class="btn-tbl-action btn-submit tap-target"
+                            (click)="openQuickUpdate(task, $event)"
+                            title="Nộp kết quả / Gửi duyệt"
+                          >
+                            <span class="material-symbols-outlined">send</span>
+                            <span>Nộp</span>
+                          </button>
+                        } @else {
+                          <button
+                            type="button"
+                            class="btn-tbl-action btn-update tap-target"
+                            (click)="openQuickUpdate(task, $event)"
+                            title="Cập nhật tiến độ & Minh chứng"
+                          >
+                            <span class="material-symbols-outlined">edit_note</span>
+                            <span>Cập nhật</span>
+                          </button>
+                        }
+                        <button
+                          type="button"
+                          class="btn-tbl-icon tap-target"
+                          (click)="goToDetail(task.id)"
+                          title="Xem chi tiết công việc"
+                        >
+                          <span class="material-symbols-outlined">visibility</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
                 }
-              </div>
+              </tbody>
+            </table>
+          </div>
+        }
 
-              <!-- PROGRESS BAR -->
-              <div class="progress-section">
-                <div class="progress-info-line">
-                  <span class="progress-label">Tiến độ thực hiện</span>
-                  <strong class="progress-pct">{{ task.progressPercent }}%</strong>
-                </div>
-                <div class="progress-bar-track">
-                  <div
-                    class="progress-bar-fill"
-                    [style.width.%]="task.progressPercent"
-                    [ngClass]="getProgressColor(task.progressPercent, task.isOverdue)"
-                  ></div>
-                </div>
-              </div>
-
-              <!-- CARD ACTIONS & QUICK UPDATE BUTTON -->
-              <div class="card-actions-footer">
-                <!-- ASSIGNEES / COORDINATOR AVATARS -->
-                <div class="assignees-avatars">
-                  @for (asg of task.assignments; track asg.id) {
-                    <img
-                      [src]="asg.user.avatarUrl || 'https://ui-avatars.com/api/?name=' + asg.user.fullName + '&background=1F3864&color=fff'"
-                      [alt]="asg.user.fullName"
-                      class="mini-avatar"
-                      [title]="asg.user.fullName + ' (' + asg.role + ')'"
-                      (click)="openContactCard(asg.user, $event)"
-                    />
-                  }
-                </div>
-
-                <div class="card-footer-btns">
-                  <!-- NẾU LÀ NGƯỜI KIỂM TRA / BGH VÀ VIỆC ĐANG CHỜ KIỂM TRA -->
-                  @if (canInspect(task)) {
-                    <button
-                      type="button"
-                      class="btn-card-action btn-approve tap-target"
-                      (click)="quickApprove(task, $event)"
-                      title="Nghiệm thu đạt yêu cầu"
-                    >
-                      <span class="material-symbols-outlined">check_circle</span>
-                      <span>Duyệt đạt</span>
-                    </button>
-                    <button
-                      type="button"
-                      class="btn-card-action btn-reject tap-target"
-                      (click)="quickReject(task, $event)"
-                      title="Yêu cầu bổ sung"
-                    >
-                      <span class="material-symbols-outlined">replay</span>
-                      <span>Bổ sung</span>
-                    </button>
-                  } @else if (isMyLeading(task) && canSubmitForReview(task)) {
-                    <button
-                      type="button"
-                      class="quick-update-btn btn-highlight tap-target"
-                      (click)="openQuickUpdate(task, $event)"
-                      title="Cập nhật tiến độ & Gửi duyệt"
-                    >
-                      <span class="material-symbols-outlined">send</span>
-                      <span>Nộp kết quả</span>
-                    </button>
-                  } @else {
-                    <!-- BUTTON CẬP NHẬT NHANH -->
-                    <button
-                      type="button"
-                      class="quick-update-btn tap-target"
-                      (click)="openQuickUpdate(task, $event)"
-                      title="Cập nhật tiến độ & Minh chứng"
-                    >
-                      <span class="material-symbols-outlined">edit_note</span>
-                      <span>Cập nhật</span>
-                    </button>
-                  }
-                </div>
-              </div>
-            </div>
-          }
-        </div>
-
-        <!-- PAGINATION -->
+        <!-- PAGINATION (SHARED FOR BOTH GRID & TABLE VIEWS) -->
         <app-pagination
           [totalItems]="filteredTasks().length"
           [pageSize]="pageSize()"
           [currentPage]="currentPage()"
-          [pageSizeOptions]="[8, 16, 24]"
+          [pageSizeOptions]="[8, 16, 24, 50]"
           itemName="nhiệm vụ"
           (pageChange)="onPageChange($event)"
           (pageSizeChange)="onPageSizeChange($event)"
@@ -358,7 +579,7 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
                 <span class="modal-badge">CẬP NHẬT NHANH CÔNG VIỆC</span>
                 <h3 class="modal-task-title">{{ qTask.title }}</h3>
               </div>
-              <button type="button" class="close-modal-btn" (click)="closeQuickUpdate()">
+              <button type="button" class="close-modal-btn tap-target" (click)="closeQuickUpdate()" title="Đóng">
                 <span class="material-symbols-outlined">close</span>
               </button>
             </div>
@@ -468,7 +689,7 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
         display: flex;
         flex-direction: column;
         gap: 16px;
-        max-width: 1200px;
+        max-width: 1300px;
         margin: 0 auto;
         padding-bottom: 40px;
       }
@@ -588,7 +809,7 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
         }
       }
 
-      /* SEARCH & FILTERS */
+      /* SEARCH, PRIORITY & VIEW TOGGLE BAR */
       .search-filter-bar {
         display: flex;
         align-items: center;
@@ -605,7 +826,7 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
           border: 1.5px solid #CBD5E1;
           border-radius: 10px;
           padding: 0 12px;
-          transition: border-color 0.2s ease;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
 
           &:focus-within {
             border-color: #1F3864;
@@ -635,6 +856,10 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
             padding: 2px;
             display: flex;
             align-items: center;
+
+            &:hover {
+              color: #DC2626;
+            }
           }
         }
 
@@ -649,11 +874,54 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
             color: #334155;
             outline: none;
             cursor: pointer;
+
+            &:focus {
+              border-color: #1F3864;
+            }
+          }
+        }
+
+        .view-mode-toggle {
+          display: flex;
+          align-items: center;
+          background: #F1F5F9;
+          padding: 3px;
+          border-radius: 10px;
+          border: 1px solid #E2E8F0;
+
+          .view-toggle-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: #64748B;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+
+            .material-symbols-outlined {
+              font-size: 18px;
+            }
+
+            &:hover {
+              color: #1E293B;
+            }
+
+            &.active {
+              background: #FFFFFF;
+              color: #1F3864;
+              font-weight: 700;
+              box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+            }
           }
         }
       }
 
-      /* TASK CARDS GRID */
+      /* 1. TASK CARDS GRID (CARD VIEW) */
       .tasks-cards-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
@@ -892,6 +1160,449 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
         }
       }
 
+      /* 2. TABLE / LIST VIEW MODE */
+      .tasks-table-wrapper {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 14px;
+        overflow-x: auto;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+
+        .my-tasks-table {
+          width: 100%;
+          border-collapse: collapse;
+          text-align: left;
+          font-size: 0.85rem;
+
+          th {
+            background: #F8FAFC;
+            color: #475569;
+            font-weight: 700;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            padding: 12px 14px;
+            border-bottom: 2px solid #E2E8F0;
+            white-space: nowrap;
+          }
+
+          td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #F1F5F9;
+            vertical-align: middle;
+          }
+
+          .my-task-table-row {
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+
+            &:hover {
+              background-color: #F8FAFC;
+            }
+
+            &:last-child td {
+              border-bottom: none;
+            }
+          }
+
+          .col-stt {
+            width: 45px;
+            text-align: center;
+            .stt-num {
+              font-size: 0.78rem;
+              font-weight: 600;
+              color: #94A3B8;
+            }
+          }
+
+          .col-code {
+            width: 80px;
+            .code-badge {
+              font-family: monospace;
+              font-size: 0.75rem;
+              font-weight: 700;
+              background: #EEF4FC;
+              color: #1F3864;
+              padding: 2px 6px;
+              border-radius: 4px;
+              white-space: nowrap;
+            }
+          }
+
+          .col-title {
+            min-width: 240px;
+
+            .title-cell {
+              display: flex;
+              flex-direction: column;
+              gap: 3px;
+
+              .title-main {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                flex-wrap: wrap;
+
+                .prio-tag {
+                  font-size: 0.65rem;
+                  font-weight: 700;
+                  padding: 1px 5px;
+                  border-radius: 4px;
+
+                  &.prio-KHAN_CAP { background: #FEE2E2; color: #B91C1C; }
+                  &.prio-CAO { background: #FFEDD5; color: #C2410C; }
+                }
+
+                .task-title-text {
+                  font-size: 0.92rem;
+                  font-weight: 700;
+                  color: #1E293B;
+                  line-height: 1.35;
+
+                  &:hover {
+                    color: #1F3864;
+                  }
+                }
+
+                .req-attach-icon {
+                  display: inline-flex;
+                  align-items: center;
+                  color: #D97706;
+                  .material-symbols-outlined { font-size: 15px; }
+                }
+              }
+
+              .desc-line {
+                font-size: 0.76rem;
+                color: #64748B;
+                margin: 0;
+                display: -webkit-box;
+                -webkit-line-clamp: 1;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+              }
+            }
+          }
+
+          .col-role {
+            width: 110px;
+            white-space: nowrap;
+          }
+
+          .col-loc {
+            min-width: 140px;
+            .loc-org-cell {
+              display: flex;
+              flex-direction: column;
+              gap: 2px;
+
+              .loc-pill, .org-pill {
+                display: inline-flex;
+                align-items: center;
+                gap: 3px;
+                font-size: 0.75rem;
+                font-weight: 500;
+                color: #334155;
+
+                .material-symbols-outlined {
+                  font-size: 14px;
+                  color: #64748B;
+                }
+              }
+
+              .loc-pill { color: #1E40AF; .material-symbols-outlined { color: #2563EB; } }
+              .all-school-text { font-size: 0.75rem; color: #94A3B8; }
+            }
+          }
+
+          .col-due {
+            min-width: 130px;
+            white-space: nowrap;
+
+            .due-cell {
+              display: inline-flex;
+              align-items: center;
+              gap: 4px;
+              font-size: 0.78rem;
+              font-weight: 600;
+
+              .material-symbols-outlined {
+                font-size: 15px;
+              }
+
+              &.due-overdue { color: #DC2626; font-weight: 700; }
+              &.due-today { color: #2563EB; font-weight: 700; }
+              &.due-soon { color: #D97706; }
+              &.due-normal { color: #64748B; }
+            }
+          }
+
+          .col-progress {
+            width: 130px;
+
+            .table-prog-box {
+              display: flex;
+              flex-direction: column;
+              gap: 4px;
+
+              .prog-top-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+
+                .prog-num {
+                  font-size: 0.78rem;
+                  color: #1E293B;
+                }
+
+                .table-avatars {
+                  display: flex;
+                  align-items: center;
+
+                  .tbl-avatar {
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 50%;
+                    border: 1.5px solid #FFFFFF;
+                    object-fit: cover;
+                    margin-left: -5px;
+
+                    &:first-child { margin-left: 0; }
+                  }
+                }
+              }
+
+              .prog-bar-mini {
+                width: 100%;
+                height: 5px;
+                background: #F1F5F9;
+                border-radius: 9999px;
+                overflow: hidden;
+
+                .prog-fill {
+                  height: 100%;
+                  border-radius: 9999px;
+
+                  &.fill-green { background: #2E7D32; }
+                  &.fill-amber { background: #F0A500; }
+                  &.fill-red { background: #C62828; }
+                  &.fill-blue { background: #1F3864; }
+                }
+              }
+            }
+          }
+
+          .col-status {
+            width: 120px;
+            white-space: nowrap;
+          }
+
+          .col-actions {
+            width: 130px;
+            text-align: right;
+
+            .table-actions-cell {
+              display: inline-flex;
+              align-items: center;
+              gap: 4px;
+              justify-content: flex-end;
+
+              .btn-tbl-action {
+                display: inline-flex;
+                align-items: center;
+                gap: 3px;
+                padding: 5px 9px;
+                border-radius: 6px;
+                font-size: 0.75rem;
+                font-weight: 700;
+                border: none;
+                cursor: pointer;
+                transition: all 0.15s ease;
+
+                .material-symbols-outlined {
+                  font-size: 15px;
+                }
+
+                &.btn-approve {
+                  background: #DCFCE7;
+                  color: #15803D;
+                  border: 1px solid #86EFAC;
+                  &:hover { background: #16A34A; color: #FFFFFF; }
+                }
+
+                &.btn-reject {
+                  background: #FFEDD5;
+                  color: #C2410C;
+                  border: 1px solid #FDBA74;
+                  padding: 5px 6px;
+                  &:hover { background: #EA580C; color: #FFFFFF; }
+                }
+
+                &.btn-submit {
+                  background: #1F3864;
+                  color: #FFFFFF;
+                  &:hover { background: #152847; }
+                }
+
+                &.btn-update {
+                  background: #F1F5F9;
+                  color: #1E293B;
+                  border: 1px solid #CBD5E1;
+                  &:hover { background: #E2E8F0; }
+                }
+              }
+
+              .btn-tbl-icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 28px;
+                height: 28px;
+                border-radius: 6px;
+                background: transparent;
+                border: 1px solid transparent;
+                color: #64748B;
+                cursor: pointer;
+                transition: all 0.15s ease;
+
+                .material-symbols-outlined {
+                  font-size: 18px;
+                }
+
+                &:hover {
+                  background: #EEF4FC;
+                  color: #1F3864;
+                  border-color: #BFDBFE;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      /* EMPTY STATE ACTIONS */
+      .friendly-empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 20px;
+        text-align: center;
+        background: #FFFFFF;
+        border: 1px dashed #CBD5E1;
+        border-radius: 16px;
+        gap: 12px;
+
+        .empty-svg-illustration {
+          width: 84px;
+          height: 84px;
+        }
+
+        .empty-state-title {
+          font-size: 1.15rem;
+          font-weight: 700;
+          color: #1E293B;
+          margin: 0;
+        }
+
+        .empty-state-desc {
+          font-size: 0.85rem;
+          color: #64748B;
+          max-width: 480px;
+          margin: 0;
+          line-height: 1.5;
+        }
+
+        .empty-state-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-top: 8px;
+
+          .clear-filters-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: #F1F5F9;
+            border: 1px solid #CBD5E1;
+            border-radius: 8px;
+            color: #475569;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+
+            &:hover {
+              background: #E2E8F0;
+              color: #1E293B;
+            }
+
+            .material-symbols-outlined {
+              font-size: 18px;
+            }
+          }
+
+          .empty-state-action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: #1F3864;
+            color: #FFFFFF;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+
+            &:hover {
+              background: #152847;
+            }
+
+            .material-symbols-outlined {
+              font-size: 18px;
+            }
+          }
+        }
+      }
+
+      /* SKELETON */
+      .skeleton-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 14px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+
+        .skeleton-line {
+          height: 14px;
+          background: #E2E8F0;
+          border-radius: 4px;
+          animation: pulse-skeleton 1.5s infinite;
+
+          &.w-30 { width: 30%; }
+          &.w-50 { width: 50%; }
+          &.w-90 { width: 90%; }
+          &.h-20 { height: 20px; }
+          &.h-28 { height: 28px; }
+        }
+
+        .skeleton-avatar {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: #E2E8F0;
+          animation: pulse-skeleton 1.5s infinite;
+        }
+      }
+
+      @keyframes pulse-skeleton {
+        0% { opacity: 0.6; }
+        50% { opacity: 1; }
+        100% { opacity: 0.6; }
+      }
+
       /* MODAL CẬP NHẬT NHANH */
       .quick-modal-backdrop {
         position: fixed;
@@ -1121,32 +1832,6 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
         }
       }
 
-      .loading-state,
-      .empty-state-card {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 48px 20px;
-        text-align: center;
-        background: #FFFFFF;
-        border: 1px dashed #CBD5E1;
-        border-radius: 16px;
-        color: #64748B;
-        gap: 10px;
-
-        .empty-icon {
-          font-size: 48px;
-          color: #94A3B8;
-        }
-
-        .spin-large {
-          font-size: 36px;
-          color: #1F3864;
-          animation: spin 1s linear infinite;
-        }
-      }
-
       /* ROLE WORKSPACE BANNER */
       .my-role-banner {
         display: flex;
@@ -1368,8 +2053,9 @@ export class MyTasksComponent implements OnInit, OnDestroy {
   allTasks = signal<TaskItem[]>([]);
 
   activeGroup = signal<MyTaskGroupType>('ALL');
-  searchKeyword = '';
-  selectedPriority = '';
+  searchKeyword = signal<string>('');
+  selectedPriority = signal<string>('');
+  viewMode = signal<'grid' | 'table'>('grid');
 
   // Quick Update State
   quickUpdatingTask = signal<TaskItem | null>(null);
@@ -1474,17 +2160,27 @@ export class MyTasksComponent implements OnInit, OnDestroy {
       });
     }
 
-    if (this.searchKeyword.trim()) {
-      const q = this.searchKeyword.toLowerCase().trim();
-      list = list.filter(
-        (t) =>
-          t.title.toLowerCase().includes(q) ||
-          (t.code && t.code.toLowerCase().includes(q))
-      );
+    const keyword = this.searchKeyword().trim();
+    if (keyword) {
+      const normQ = removeVietnameseAccents(keyword);
+      list = list.filter((t) => {
+        const titleMatch = removeVietnameseAccents(t.title || '').includes(normQ);
+        const codeMatch = removeVietnameseAccents(t.code || '').includes(normQ);
+        const descMatch = removeVietnameseAccents(t.description || '').includes(normQ);
+        const locMatch = removeVietnameseAccents(t.location?.name || '').includes(normQ);
+        const orgMatch = removeVietnameseAccents(t.orgUnit?.name || '').includes(normQ);
+        const planMatch = removeVietnameseAccents(t.plan?.title || '').includes(normQ);
+        const assigneesMatch = t.assignments?.some((a) =>
+          removeVietnameseAccents(a.user?.fullName || '').includes(normQ) ||
+          removeVietnameseAccents(a.role || '').includes(normQ)
+        );
+        return titleMatch || codeMatch || descMatch || locMatch || orgMatch || planMatch || assigneesMatch;
+      });
     }
 
-    if (this.selectedPriority) {
-      list = list.filter((t) => t.priority === this.selectedPriority);
+    const prio = this.selectedPriority();
+    if (prio) {
+      list = list.filter((t) => t.priority === prio);
     }
 
     return list;
@@ -1606,16 +2302,24 @@ export class MyTasksComponent implements OnInit, OnDestroy {
     this.currentPage.set(1);
   }
 
-  onSearchChange() {
+  onSearchInput(value: string) {
+    this.searchKeyword.set(value);
     this.currentPage.set(1);
   }
 
   clearSearch() {
-    this.searchKeyword = '';
+    this.searchKeyword.set('');
     this.currentPage.set(1);
   }
 
-  onFilterChange() {
+  onPriorityChange(value: string) {
+    this.selectedPriority.set(value);
+    this.currentPage.set(1);
+  }
+
+  clearAllFilters() {
+    this.searchKeyword.set('');
+    this.selectedPriority.set('');
     this.currentPage.set(1);
   }
 
