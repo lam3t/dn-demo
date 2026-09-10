@@ -39,12 +39,12 @@ interface PaperPlanRow {
       <header class="page-header">
         <div class="header-left">
           <div class="header-badge">
-            <span class="material-symbols-outlined">account_tree</span>
-            <span>QUẢN LÝ KẾ HOẠCH NHÀ TRƯỜNG</span>
+            <span class="material-symbols-outlined">event_note</span>
+            <span>KẾ HOẠCH & LỊCH CÔNG TÁC NHÀ TRƯỜNG</span>
           </div>
-          <h1 class="page-title">Cây Kế Hoạch & Số Hóa Kế Hoạch Giấy</h1>
+          <h1 class="page-title">Kế Hoạch Năm Học & Lịch Công Tác</h1>
           <p class="page-subtitle">
-            Theo dõi phân cấp Năm → Học kỳ → Quý → Tháng → Tuần và số hóa bảng kế hoạch giáo viên.
+            Theo dõi kế hoạch từ Năm → Học kỳ → Tháng → Tuần và quản lý lịch công tác trọng tâm của nhà trường.
           </p>
         </div>
 
@@ -107,7 +107,7 @@ interface PaperPlanRow {
         </div>
       </section>
 
-      <!-- MAIN TABS: 1. CÂY KẾ HOẠCH | 2. BẢNG SỐ HÓA KẾ HOẠCH GIẤY -->
+      <!-- MAIN TABS: 1. KẾ HOẠCH NĂM HỌC | 2. LỊCH CÔNG TÁC TUẦN -->
       <div class="view-tabs-bar">
         <button
           type="button"
@@ -116,7 +116,7 @@ interface PaperPlanRow {
           (click)="activeTab.set('tree')"
         >
           <span class="material-symbols-outlined">account_tree</span>
-          <span>1. Cây Kế Hoạch Lồng Nhau (Năm → Tuần)</span>
+          <span>1. Kế hoạch Năm học (Năm → Tuần)</span>
         </button>
 
         <button
@@ -126,11 +126,11 @@ interface PaperPlanRow {
           (click)="activeTab.set('paper')"
         >
           <span class="material-symbols-outlined">edit_note</span>
-          <span>2. Số Hóa Kế Hoạch (Bảng Giấy 3 Cột)</span>
+          <span>2. Lịch Công tác Tuần (Dạng Bảng)</span>
         </button>
       </div>
 
-      <!-- TAB 1: CÂY KẾ HOẠCH LỒNG NHAU -->
+      <!-- TAB 1: KẾ HOẠCH NĂM HỌC (PHÂN CẤP) -->
       @if (activeTab() === 'tree') {
         <section class="tab-content-panel">
           <!-- TREE CONTROLS & FILTER BAR -->
@@ -138,7 +138,7 @@ interface PaperPlanRow {
             <div class="controls-left">
               <label class="filter-label">Kế hoạch gốc:</label>
               <select class="root-select tap-target" [(ngModel)]="selectedRootPlanId" (ngModelChange)="loadTree()">
-                <option value="">Toàn bộ cây kế hoạch</option>
+                <option value="">Tất cả kế hoạch</option>
                 @for (p of allPlans(); track p.id) {
                   @if (p.level === 'NAM' || p.level === 'HOC_KY') {
                     <option [value]="p.id">[{{ p.level }}] {{ p.title }}</option>
@@ -148,21 +148,26 @@ interface PaperPlanRow {
             </div>
 
             <div class="controls-right">
-              <button type="button" class="btn-tool-text tap-target" (click)="treeComponent?.expandAll()">
+              <button
+                type="button"
+                class="btn-outline-sm tap-target"
+                (click)="treeComponent?.expandAll()"
+              >
                 <span class="material-symbols-outlined">unfold_more</span>
                 <span>Mở rộng tất cả</span>
               </button>
-              <button type="button" class="btn-tool-text tap-target" (click)="treeComponent?.collapseAll()">
+              <button
+                type="button"
+                class="btn-outline-sm tap-target"
+                (click)="treeComponent?.collapseAll()"
+              >
                 <span class="material-symbols-outlined">unfold_less</span>
-                <span>Thu gọn tất cả</span>
-              </button>
-              <button type="button" class="btn-tool-text reload-btn tap-target" (click)="loadTree()" title="Tải lại">
-                <span class="material-symbols-outlined">refresh</span>
+                <span>Thu gọn</span>
               </button>
             </div>
           </div>
 
-          <!-- TREE COMPONENT -->
+          <!-- PLAN TREE COMPONENT VIEW -->
           @if (isLoading()) {
             <div class="tree-skeleton-list">
               @for (item of [1, 2, 3, 4]; track item) {
@@ -193,17 +198,17 @@ interface PaperPlanRow {
         </section>
       }
 
-      <!-- TAB 2: BẢNG SỐ HÓA KẾ HOẠCH GIẤY (3 CỘT) -->
+      <!-- TAB 2: LỊCH CÔNG TÁC TUẦN (DẠNG BẢNG QUEN THUỘC) -->
       @if (activeTab() === 'paper') {
         <section class="tab-content-panel paper-layout-panel">
           <!-- PAPER TOP BANNER & TARGET PLAN SELECTOR -->
           <div class="paper-header-box">
             <div class="paper-header-left">
-              <span class="paper-badge">MÔ PHỎNG SỔ KẾ HOẠCH GIÁO VIÊN</span>
-              <h2 class="paper-title">Bảng Kế Hoạch Trọng Tâm Theo Mốc Thời Gian</h2>
+              <span class="paper-badge">SỔ KẾ HOẠCH CÔNG TÁC GIÁO VIÊN</span>
+              <h2 class="paper-title">Bảng Kế Hoạch & Lịch Công Tác Trọng Tâm</h2>
               <p class="paper-desc">
-                Nhập liệu theo 3 cột quen thuộc: <strong>Thời gian</strong> | <strong>Nội dung trọng tâm</strong> | <strong>Kết quả cần đạt</strong>. 
-                Sau khi lưu, bấm nút <em>"Tạo công việc từ dòng này →"</em> để giao việc tự động!
+                Ghi chép theo 3 cột quen thuộc: <strong>Thời gian</strong> | <strong>Nội dung trọng tâm</strong> | <strong>Kết quả cần đạt</strong>. 
+                Sau khi lưu, bấm nút <em>"Tạo công việc từ dòng này →"</em> để phân công thực hiện!
               </p>
             </div>
 
