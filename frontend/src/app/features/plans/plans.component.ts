@@ -158,18 +158,20 @@ interface PaperPlanRow {
             <div class="controls-right">
               <button
                 type="button"
-                class="btn-outline-sm tap-target"
-                (click)="treeComponent?.expandAll()"
+                class="btn-tree-toggle tap-target"
+                (click)="expandAllTree()"
+                title="Mở rộng tất cả các cấp kế hoạch"
               >
-                <span class="material-symbols-outlined">unfold_more</span>
+                <span class="material-symbols-outlined icon">expand_more</span>
                 <span>Mở rộng tất cả</span>
               </button>
               <button
                 type="button"
-                class="btn-outline-sm tap-target"
-                (click)="treeComponent?.collapseAll()"
+                class="btn-tree-toggle tap-target"
+                (click)="collapseAllTree()"
+                title="Thu gọn danh sách kế hoạch"
               >
-                <span class="material-symbols-outlined">unfold_less</span>
+                <span class="material-symbols-outlined icon">expand_less</span>
                 <span>Thu gọn</span>
               </button>
             </div>
@@ -862,25 +864,42 @@ interface PaperPlanRow {
           align-items: center;
           gap: 8px;
 
-          .btn-tool-text {
+          .btn-tree-toggle {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
-            padding: 6px 12px;
-            background: #F1F5F9;
-            border: 1px solid #E2E8F0;
+            gap: 6px;
+            padding: 7px 14px;
+            background: #F8FAFC;
+            border: 1.5px solid #CBD5E1;
             border-radius: 8px;
-            font-size: 0.82rem;
+            font-size: 0.84rem;
             font-weight: 600;
             color: #334155;
             cursor: pointer;
+            transition: all 0.15s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 
-            &:hover {
-              background: #E2E8F0;
+            .icon {
+              font-size: 18px;
+              color: #475569;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              line-height: 1;
             }
 
-            &.reload-btn {
-              padding: 6px 8px;
+            &:hover {
+              background: #EEF4FC;
+              border-color: #BFDBFE;
+              color: #1F3864;
+
+              .icon {
+                color: #1F3864;
+              }
+            }
+
+            &:active {
+              transform: translateY(1px);
             }
           }
         }
@@ -1746,6 +1765,14 @@ export class PlansComponent implements OnInit, OnDestroy {
         this.showToast(err.error?.message || 'Không thể tạo việc hàng loạt. Vui lòng thử lại.', 'error');
       },
     });
+  }
+
+  expandAllTree() {
+    this.treeComponent?.expandAll();
+  }
+
+  collapseAllTree() {
+    this.treeComponent?.collapseAll();
   }
 
   // WIZARD CALLS
