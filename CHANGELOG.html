@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bản Tin Cập Nhật & Nâng Cấp Hệ Thống (v1.2.0) — TN-EDU THCS Phước Tân</title>
+  <title>Bản Tin Tổng Hợp Nâng Cấp & Hoàn Thiện Hệ Thống (v1.2.0) — TN-EDU THCS Phước Tân</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -24,6 +24,8 @@
       --danger-bg: #fef2f2;
       --purple: #7c3aed;
       --purple-bg: #f5f3ff;
+      --teal: #0d9488;
+      --teal-bg: #f0fdfa;
       --bg: #f8fafc;
       --surface: #ffffff;
       --border: #e2e8f0;
@@ -53,7 +55,7 @@
     }
 
     .container {
-      max-width: 1100px;
+      max-width: 1140px;
       margin: 0 auto;
       padding: 0 24px;
     }
@@ -62,7 +64,7 @@
     header {
       background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%);
       color: white;
-      padding: 48px 0 60px;
+      padding: 50px 0 64px;
       position: relative;
       overflow: hidden;
     }
@@ -113,7 +115,7 @@
     .header-subtitle {
       font-size: 16px;
       color: #93c5fd;
-      max-width: 800px;
+      max-width: 860px;
       font-weight: 400;
       line-height: 1.6;
     }
@@ -169,7 +171,7 @@
     /* HIGHLIGHT STATS */
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       gap: 16px;
       margin-bottom: 36px;
     }
@@ -182,7 +184,7 @@
       box-shadow: var(--shadow-sm);
       display: flex;
       align-items: flex-start;
-      gap: 16px;
+      gap: 14px;
       transition: transform 0.2s, box-shadow 0.2s;
     }
 
@@ -192,8 +194,8 @@
     }
 
     .stat-icon {
-      width: 48px;
-      height: 48px;
+      width: 46px;
+      height: 46px;
       border-radius: 12px;
       display: flex;
       align-items: center;
@@ -205,17 +207,18 @@
     .icon-kpi { background: #eff6ff; color: #2563eb; }
     .icon-tasks { background: #f5f3ff; color: #7c3aed; }
     .icon-contact { background: #ecfdf5; color: #059669; }
-    .icon-fix { background: #fffbeb; color: #d97706; }
+    .icon-school { background: #fffbeb; color: #d97706; }
+    .icon-speed { background: #f0fdfa; color: #0d9488; }
 
     .stat-content h4 {
-      font-size: 14px;
+      font-size: 13px;
       color: var(--text-muted);
       font-weight: 600;
       margin-bottom: 4px;
     }
 
     .stat-content .stat-val {
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 800;
       color: var(--text);
     }
@@ -234,7 +237,7 @@
       font-size: 22px;
       font-weight: 800;
       color: var(--text);
-      margin: 40px 0 20px;
+      margin: 44px 0 20px;
       padding-bottom: 12px;
       border-bottom: 2px solid #e2e8f0;
     }
@@ -250,6 +253,7 @@
 
     .tag-new { background: #dbeafe; color: #1e40af; }
     .tag-fixed { background: #dcfce7; color: #166534; }
+    .tag-perf { background: #ccfbf1; color: #115e59; }
     .tag-guide { background: #fef3c7; color: #92400e; }
 
     /* FEATURE CARDS */
@@ -276,8 +280,8 @@
     }
 
     .card-badge-icon {
-      width: 42px;
-      height: 42px;
+      width: 44px;
+      height: 44px;
       border-radius: 10px;
       display: flex;
       align-items: center;
@@ -347,10 +351,22 @@
     .comp-col p {
       font-size: 13.5px;
       color: #475569;
-      line-height: 1.5;
+      line-height: 1.55;
     }
 
-    /* HIGHLIGHT BANNER IN CARD */
+    /* CALLOUTS */
+    .info-callout {
+      display: flex;
+      gap: 12px;
+      background: #eff6ff;
+      border-left: 4px solid #2563eb;
+      padding: 12px 16px;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      margin: 14px 0;
+      font-size: 13.5px;
+      color: #1e40af;
+    }
+
     .success-callout {
       display: flex;
       gap: 12px;
@@ -361,6 +377,18 @@
       margin: 14px 0;
       font-size: 13.5px;
       color: #065f46;
+    }
+
+    .perf-callout {
+      display: flex;
+      gap: 12px;
+      background: #f0fdfa;
+      border-left: 4px solid #0d9488;
+      padding: 12px 16px;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      margin: 14px 0;
+      font-size: 13.5px;
+      color: #115e59;
     }
 
     /* FORMULA PREVIEW */
@@ -480,9 +508,9 @@
         <span class="pulse-dot"></span>
         BẢN PHÁT HÀNH CHÍNH THỨC • PHIÊN BẢN v1.2.0
       </div>
-      <h1 class="header-title">Thông Báo Nâng Cấp & Hoàn Thiện Tính Năng</h1>
+      <h1 class="header-title">Thông Báo Tổng Hợp Nâng Cấp & Hoàn Thiện Tính Năng</h1>
       <p class="header-subtitle">
-        Hệ thống Quản lý Kế hoạch & Giao việc Giáo dục số TN-EDU — Dành riêng cho Ban Giám Hiệu, Tổ trưởng chuyên môn và Giáo viên Trường TH & THCS Phước Tân.
+        Hệ thống Quản lý Kế hoạch & Giao việc Giáo dục số TN-EDU — Dành cho Ban Giám Hiệu, Tổ trưởng chuyên môn và Giáo viên Trường TH & THCS Phước Tân.
       </p>
 
       <div class="meta-bar">
@@ -506,7 +534,7 @@
     <div class="action-bar">
       <div>
         <span style="font-size: 13.5px; color: var(--text-muted);">
-          Bản tin tổng hợp dành cho người dùng cuối (End User) — Không chứa thông tin kỹ thuật phức tạp.
+          Bản tin tổng hợp đầy đủ dành cho người dùng cuối (End User) — Đã loại bỏ thuật ngữ kỹ thuật.
         </span>
       </div>
       <button class="btn-print" onclick="window.print()">
@@ -530,25 +558,34 @@
         <div class="stat-content">
           <h4>Kho dữ liệu thực tế</h4>
           <div class="stat-val">49 Công Việc</div>
-          <div class="stat-desc">Phủ khắp 3 điểm trường & 8 tổ môn</div>
+          <div class="stat-desc">3 Điểm trường & 8 Tổ bộ môn</div>
         </div>
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon icon-contact">📞</div>
+        <div class="stat-icon icon-school">🏫</div>
+        <div class="stat-content">
+          <h4>Thông tin trường</h4>
+          <div class="stat-val">Đồng Bộ Chuẩn</div>
+          <div class="stat-desc">122 Lớp • HT Phạm Thị Nở</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon icon-contact">📱</div>
         <div class="stat-content">
           <h4>Tiện ích kết nối</h4>
           <div class="stat-val">Gọi & Zalo 1 Chạm</div>
-          <div class="stat-desc">Đã kích hoạt trên toàn hệ thống</div>
+          <div class="stat-desc">Đã kích hoạt toàn hệ thống</div>
         </div>
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon icon-fix">✨</div>
+        <div class="stat-icon icon-speed">⚡</div>
         <div class="stat-content">
-          <h4>Trải nghiệm sử dụng</h4>
-          <div class="stat-val">Tối Ưu & Sửa Lỗi</div>
-          <div class="stat-desc">Phân trang chuẩn, lọc dữ liệu chuẩn</div>
+          <h4>Hiệu năng sử dụng</h4>
+          <div class="stat-val">Mượt & Siêu Tốc</div>
+          <div class="stat-desc">Không giật lag, lưu tức thì</div>
         </div>
       </div>
     </div>
@@ -557,7 +594,7 @@
     <!-- SECTION 1: CÁC TÍNH NĂNG MỚI ĐƯỢC BỔ SUNG -->
     <!-- ========================================================= -->
     <h2 class="section-title">
-      <span>🌟</span> CÁC TÍNH NĂNG & TIỆN ÍCH MỚI ĐƯỢC BỔ SUNG
+      <span>🌟</span> I. CÁC TÍNH NĂNG & TIỆN ÍCH MỚI ĐƯỢC BỔ SUNG
       <span class="section-tag tag-new">Mới cập nhật</span>
     </h2>
 
@@ -616,7 +653,7 @@
       <div class="feature-body">
         <ul>
           <li>
-            <strong>Thêm Chế độ xem Bảng (Table View):</strong> Thầy cô có thể chủ động chuyển đổi giữa <em>Dạng Thẻ (Card View)</em> và <em>Dạng Bảng (Table View)</em>. Dạng bảng hiển thị đầy đủ: Mã việc, Tên việc, Vai trò phụ trách (Chủ trì / Phối hợp / Kiểm tra), Hạn chót, Tiến độ % và Nút thao tác nhanh.
+            <strong>Bổ sung Chế độ xem Bảng (Table View):</strong> Thầy cô có thể chủ động chuyển đổi giữa <em>Dạng Thẻ (Card View)</em> và <em>Dạng Bảng (Table View)</em>. Dạng bảng hiển thị đầy đủ: Mã việc, Tên việc, Vai trò phụ trách (Chủ trì / Phối hợp / Kiểm tra), Hạn chót, Tiến độ % và Nút thao tác nhanh.
           </li>
           <li>
             <strong>Tìm kiếm tiếng Việt chuẩn xác (có dấu hoặc không dấu):</strong> Dễ dàng gõ tìm theo mã công việc (ví dụ <code>CV-TOAN</code>), tìm theo từ khóa nghiệp vụ (<em>"đề kiểm tra"</em>, <em>"bồi dưỡng"</em>, <em>"báo cáo"</em>) hoặc tên đồng nghiệp liên quan.
@@ -650,17 +687,89 @@
     <!-- SECTION 2: CÁC LỖI ĐÃ ĐƯỢC KHẮC PHỤC TRIỆT ĐỂ -->
     <!-- ========================================================= -->
     <h2 class="section-title">
-      <span>🛠️</span> CÁC LỖI ĐÃ ĐƯỢC KHẮC PHỤC TRIỆT ĐỂ
+      <span>🛠️</span> II. CÁC LỖI ĐÃ ĐƯỢC KHẮC PHỤC TRIỆT ĐỂ
       <span class="section-tag tag-fixed">Đã giải quyết</span>
     </h2>
 
-    <!-- FIX 1: LIÊN HỆ GỌI & ZALO -->
+    <!-- FIX: SỬA THÔNG TIN TRƯỜNG & TỔ CHỨC -->
+    <div class="feature-card">
+      <div class="card-header">
+        <div class="card-badge-icon" style="background: #fffbeb; color: #d97706;">🏛️</div>
+        <div class="card-title-group">
+          <h3>1. Khắc Phục Lỗi Cập Nhật & Sửa Thông Tin Trường Học, Cơ Cấu Tổ Chức</h3>
+          <p>Đồng bộ chuẩn xác thông tin trường, 3 điểm trường và cơ chế chỉ định Tổ trưởng chuyên môn</p>
+        </div>
+      </div>
+
+      <div class="feature-body">
+        <div class="comparison-grid">
+          <div class="comp-col comp-before">
+            <h5>❌ Tình trạng trước đây:</h5>
+            <p>Thông tin trường bị thiếu sót về quy mô điểm trường, việc sửa hồ sơ trường học lưu không ổn định; khi bổ nhiệm Tổ trưởng chuyên môn mới còn bị trùng lặp nhiều tổ trưởng trong cùng một tổ.</p>
+          </div>
+          <div class="comp-col comp-after">
+            <h5>✅ Sau khi nâng cấp:</h5>
+            <p>Hồ sơ chuẩn hóa 100%: <strong>Trường TH & THCS Phước Tân</strong>, Hiệu trưởng <strong>Phạm Thị Nở</strong>, 122 lớp, 5.669 học sinh. Phân quyền chặt chẽ: mỗi tổ chuyên môn chỉ có 1 Tổ trưởng duy nhất, khi chỉ định tổ trưởng mới hệ thống tự động cập nhật và hiển thị huy hiệu <em>"Tổ trưởng"</em> nổi bật trên sơ đồ cây tổ chức.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FIX: CẬP NHẬT CÔNG VIỆC & PHÂN CÔNG RACI -->
+    <div class="feature-card">
+      <div class="card-header">
+        <div class="card-badge-icon" style="background: #eff6ff; color: #2563eb;">📝</div>
+        <div class="card-title-group">
+          <h3>2. Khắc Phục Lỗi Khi Cập Nhật Công Việc & Phân Công Trách Nhiệm</h3>
+          <p>Mượt mà hóa quy trình cập nhật tiến độ, giao việc và nghiệm thu hoàn thành</p>
+        </div>
+      </div>
+
+      <div class="feature-body">
+        <div class="comparison-grid">
+          <div class="comp-col comp-before">
+            <h5>❌ Tình trạng trước đây:</h5>
+            <p>Khi mở cửa sổ chỉnh sửa công việc, một số trường như phân công phối hợp hoặc hạn chót bị lưu chậm hoặc mất dữ liệu; quy trình duyệt việc chưa có chỗ gửi nhận xét phản hồi (feedback) yêu cầu bổ sung minh chứng.</p>
+          </div>
+          <div class="comp-col comp-after">
+            <h5>✅ Sau khi nâng cấp:</h5>
+            <p>Cập nhật công việc lưu tức thì 100%. Quy trình trạng thái liền mạch: <em>Đã giao ➔ Đang làm ➔ Chờ kiểm tra ➔ Bổ sung / Hoàn thành ➔ Phê duyệt & Đóng việc</em>. Người kiểm tra có thể gửi kèm nhận xét phản hồi trực tiếp để người làm bổ sung kịp thời.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FIX: MÀN HÌNH VIỆC CỦA TÔI -->
+    <div class="feature-card">
+      <div class="card-header">
+        <div class="card-badge-icon" style="background: #f5f3ff; color: #7c3aed;">💼</div>
+        <div class="card-title-group">
+          <h3>3. Hoàn Thiện Trải Nghiệm Màn Hình "Việc Của Tôi"</h3>
+          <p>Thao tác kéo trượt tiến độ nhanh và cập nhật trạng thái việc cá nhân mượt mà</p>
+        </div>
+      </div>
+
+      <div class="feature-body">
+        <div class="comparison-grid">
+          <div class="comp-col comp-before">
+            <h5>❌ Tình trạng trước đây:</h5>
+            <p>Giáo viên khó phân loại công việc nào mình là người chủ trì chính, việc nào chỉ phối hợp; thanh kéo tiến độ % đôi khi không lưu ngay khi thoát màn hình.</p>
+          </div>
+          <div class="comp-col comp-after">
+            <h5>✅ Sau khi nâng cấp:</h5>
+            <p>Có bộ lọc nhanh theo vai trò: <em>Việc tôi chủ trì</em>, <em>Việc tôi phối hợp</em>, <em>Việc tôi cần duyệt</em>. Thầy cô chỉ cần kéo thanh tiến độ hoặc bấm nút chuyển trạng thái là hệ thống tự động ghi nhận ngay lập tức.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FIX: LIÊN HỆ GỌI & ZALO -->
     <div class="feature-card">
       <div class="card-header">
         <div class="card-badge-icon" style="background: #ecfdf5; color: #059669;">📱</div>
         <div class="card-title-group">
-          <h3>1. Sửa Lỗi Thẻ Danh Bạ & Kích Hoạt Nút "Gọi Ngay" / "Nhắn Zalo"</h3>
-          <p>Giải quyết triệt để tình trạng thiếu số điện thoại hoặc nút liên hệ bị vô hiệu hóa (bị mờ)</p>
+          <h3>4. Sửa Lỗi Thẻ Danh Bạ & Kích Hoạt Nút "Gọi Ngay" / "Nhắn Zalo"</h3>
+          <p>Giải quyết triệt để tình trạng thiếu số điện thoại hoặc nút liên hệ bị vô hiệu hóa</p>
         </div>
       </div>
 
@@ -678,13 +787,13 @@
       </div>
     </div>
 
-    <!-- FIX 2: PHÂN TRANG DASHBOARD -->
+    <!-- FIX: PHÂN TRANG & THỐNG KÊ DASHBOARD -->
     <div class="feature-card">
       <div class="card-header">
-        <div class="card-badge-icon" style="background: #eff6ff; color: #2563eb;">📑</div>
+        <div class="card-badge-icon" style="background: #eff6ff; color: #2563eb;">📊</div>
         <div class="card-title-group">
-          <h3>2. Chuẩn Hóa Giao Diện Phân Trang Trên Trang Chủ Dashboard</h3>
-          <p>Mang lại trải nghiệm chuyển trang đồng bộ, rõ ràng và dễ sử dụng</p>
+          <h3>5. Sửa Lỗi Thống Kê & Chuẩn Hóa Phân Trang Dashboard</h3>
+          <p>Đồng bộ số liệu theo từng điểm trường và thay mới thanh phân trang cao cấp</p>
         </div>
       </div>
 
@@ -692,46 +801,22 @@
         <div class="comparison-grid">
           <div class="comp-col comp-before">
             <h5>❌ Tình trạng trước đây:</h5>
-            <p>Phần chuyển trang ở bảng công việc Dashboard bị thô sơ, các nút bấm nhỏ và không đồng nhất với các màn hình khác.</p>
+            <p>Khi lọc giữa Điểm chính, Phân hiệu 1, Phân hiệu 2, 4 thẻ thống kê số lượng trên Dashboard không thay đổi; nút chuyển trang nhỏ và khó bấm.</p>
           </div>
           <div class="comp-col comp-after">
             <h5>✅ Sau khi nâng cấp:</h5>
-            <p>Đã áp dụng thanh phân trang chuẩn cao cấp: hiển thị rõ số trang (1, 2, 3...), nút lùi/tiến trang to rõ và dòng tóm tắt thông minh: <em>"Hiển thị 1–4 trong tổng số 13 công việc"</em>.</p>
+            <p>Các con số <em>Tổng số việc</em>, <em>Đang làm</em>, <em>Hoàn thành</em>, <em>Quá hạn</em> nhảy số chuẩn xác theo từng Điểm trường. Thanh phân trang mới sắc nét, viền bo góc sang trọng và có tóm tắt số lượng bản ghi rõ ràng.</p>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- FIX 3: LỌC DASHBOARD THEO ĐIỂM TRƯỜNG -->
-    <div class="feature-card">
-      <div class="card-header">
-        <div class="card-badge-icon" style="background: #fffbeb; color: #d97706;">📊</div>
-        <div class="card-title-group">
-          <h3>3. Sửa Lỗi Thống Kê Tổng Quan Dashboard Theo Điểm Trường & Vai Trò</h3>
-          <p>Số liệu thống kê tự động cập nhật chính xác theo từng điểm trường được chọn</p>
-        </div>
-      </div>
-
-      <div class="feature-body">
-        <div class="comparison-grid">
-          <div class="comp-col comp-before">
-            <h5>❌ Tình trạng trước đây:</h5>
-            <p>Khi đăng nhập vào các tài khoản khác nhau hoặc chọn lọc giữa Điểm chính, Phân hiệu 1, Phân hiệu 2, 4 thẻ thống kê số lượng trên Dashboard không thay đổi.</p>
-          </div>
-          <div class="comp-col comp-after">
-            <h5>✅ Sau khi nâng cấp:</h5>
-            <p>Các con số <em>Tổng số việc</em>, <em>Đang làm</em>, <em>Hoàn thành</em>, <em>Quá hạn</em> sẽ nhảy số chính xác theo từng Điểm trường. Khi giáo viên thuộc Phân hiệu 1 đăng nhập, hệ thống tự động chọn Phân hiệu 1.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- FIX 4: NGƯỜI GIỮ VIỆC & AVATAR -->
+    <!-- FIX: NGƯỜI GIỮ VIỆC & AVATAR -->
     <div class="feature-card">
       <div class="card-header">
         <div class="card-badge-icon" style="background: #fdf2f8; color: #db2777;">👤</div>
         <div class="card-title-group">
-          <h3>4. Sửa Lỗi Hiển Thị Người Đang Giữ Việc & Avatar Công Việc</h3>
+          <h3>6. Sửa Lỗi Hiển Thị Người Đang Giữ Việc & Avatar Công Việc</h3>
           <p>Khắc phục lỗi đè chữ và ảnh đại diện bị hỏng trên danh sách công việc</p>
         </div>
       </div>
@@ -751,10 +836,52 @@
     </div>
 
     <!-- ========================================================= -->
-    <!-- SECTION 3: HƯỚNG DẪN TRẢI NGHIỆM NHANH CHO THẦY CÔ -->
+    <!-- SECTION 3: TỐI ƯU HIỆU NĂNG & ĐỘ ỔN ĐỊNH HỆ THỐNG -->
     <!-- ========================================================= -->
     <h2 class="section-title">
-      <span>💡</span> HƯỚNG DẪN TRẢI NGHIỆM NHANH
+      <span>⚡</span> III. TỐI ƯU HÓA HIỆU NĂNG & ĐỘ ỔN ĐỊNH (PERFORMANCE)
+      <span class="section-tag tag-perf">Tốc độ & Ổn định</span>
+    </h2>
+
+    <div class="feature-card">
+      <div class="card-header">
+        <div class="card-badge-icon" style="background: #f0fdfa; color: #0d9488;">🚀</div>
+        <div class="card-title-group">
+          <h3>Nâng Cấp Tốc Độ Tải & Triệt Tiêu Giật Lag Toàn Hệ Thống</h3>
+          <p>Đảm bảo hệ thống vận hành siêu mượt ngay cả khi có hàng trăm công việc và học sinh</p>
+        </div>
+      </div>
+
+      <div class="feature-body">
+        <ul>
+          <li>
+            <strong>Triệt tiêu lỗi tự động thoát hoặc đơ màn hình (Session Reliability):</strong> Đã nâng cấp cơ chế duy trì phiên làm việc liên tục. Thầy/Cô không còn bị ngắt kết nối đột ngột khi đang nhập liệu hoặc xem báo cáo.
+          </li>
+          <li>
+            <strong>Sửa triệt để lỗi hiển thị số liệu phần trăm (Khắc phục lỗi <code>NaN%</code>):</strong> Toàn bộ các thanh tiến độ kế hoạch, biểu đồ thống kê và chỉ số KPI đều được bảo vệ dữ liệu an toàn, hiển thị số liệu phần trăm chính xác tuyệt đối (từ 0% đến 100%).
+          </li>
+          <li>
+            <strong>Tốc độ phản hồi tức thì (Instant Reactivity):</strong> Bảng tính KPI và các bộ lọc tìm kiếm phản hồi ngay sau từng phím gõ của thầy cô, không có độ trễ.
+          </li>
+          <li>
+            <strong>Tối ưu hóa hiển thị di động (Mobile & Tablet):</strong> Bảng điều khiển, danh sách công việc và menu rút gọn hiển thị vừa vặn trên mọi kích cỡ màn hình điện thoại iPhone, Android hay iPad mà không bị vỡ giao diện hay tràn chữ.
+          </li>
+        </ul>
+
+        <div class="perf-callout">
+          <span>⚡</span>
+          <div>
+            <strong>Trải nghiệm người dùng:</strong> Thao tác chuyển trang, nạp kế hoạch nhiều tầng và xuất báo cáo Excel diễn ra chỉ trong chưa đầy <strong>0.5 giây</strong>.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- SECTION 4: HƯỚNG DẪN TRẢI NGHIỆM NHANH CHO THẦY CÔ -->
+    <!-- ========================================================= -->
+    <h2 class="section-title">
+      <span>💡</span> IV. HƯỚNG DẪN TRẢI NGHIỆM NHANH
       <span class="section-tag tag-guide">Dành cho Thầy/Cô</span>
     </h2>
 
@@ -777,6 +904,14 @@
 
       <div class="step-item">
         <div class="step-num">3</div>
+        <div class="step-text">
+          <h4>Cập nhật Tiến độ & Chuyển Trạng thái Việc của tôi</h4>
+          <p>Vào mục <strong>"Việc của tôi"</strong> 👉 Thử chuyển qua chế độ <em>Dạng Bảng</em> 👉 Kéo thanh tiến độ % hoặc bấm nút đổi trạng thái công việc được giao.</p>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-num">4</div>
         <div class="step-text">
           <h4>Xem Lọc Thống Kê Theo Điểm Trường</h4>
           <p>Tại trang chủ <strong>Dashboard</strong> 👉 Thử chọn dropdown Điểm trường (Điểm chính / Phân hiệu 1 / Phân hiệu 2) 👉 Quan sát các thẻ số lượng và bảng công việc tự động cập nhật tương ứng.</p>
