@@ -57,7 +57,7 @@ Tất cả tài khoản đều sử dụng **Mật khẩu chung: `123456`**
 | **5** | **Vũ Đình Dũng** | **Tổ trưởng Toán - Tin** | Điểm chính | `0912111001` | **Tổ trưởng kiểm tra / nghiệm thu việc** |
 | **6** | **Bùi Thị Hồng Nhung** | **Giáo viên Toán** | Phân hiệu 1 (Tân Lập) | `0914202001` | Chủ trì việc quá hạn (Cần gọi điện đôn đốc) |
 | **7** | **Lê Hữu Nghĩa** | **Giáo viên Toán** | Phân hiệu 2 (Vườn Dừa) | `0915303001` | Chủ trì việc niêm phong túi đề thi HK1 |
-| **8** | **Bùi Thanh Tùng** | **Quản trị hệ thống** | Toàn trường | `0909999999` | Quản trị Admin |
+| **8** | **Hoàng Thị Mai Anh** | **Quản trị hệ thống** | Toàn trường | `0909999999` | Quản trị Admin |
 
 ---
 

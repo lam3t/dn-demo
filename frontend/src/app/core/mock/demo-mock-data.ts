@@ -103,12 +103,12 @@ export const MOCK_USERS: AdminUserItem[] = [
   },
   {
     id: 'u-admin',
-    fullName: 'Bùi Thanh Tùng',
+    fullName: 'Hoàng Thị Mai Anh',
     email: 'admin@phuoctan.edu.vn',
     phone: '0909999999',
     title: 'Quản trị hệ thống - GV Tin học',
     isActive: true,
-    avatarUrl: 'https://ui-avatars.com/api/?name=Bui+Thanh+Tung&background=0F172A&color=fff',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Hoang+Thi+Mai+Anh&background=7C3AED&color=fff',
     primaryLocation: MOCK_LOCATIONS[0],
     primaryOrgUnit: MOCK_ORG_UNITS[1],
     roles: [{ id: 'r-admin', role: 'ADMIN', createdAt: '2026-08-01T00:00:00.000Z' }],
@@ -1303,7 +1303,7 @@ export const MOCK_TASKS: TaskItem[] = [
   },
 
   // =========================================================================
-  // 9. CÔNG VIỆC CỦA TỔ IT & CHUYỂN ĐỔI SỐ (Bùi Thanh Tùng / u-admin)
+  // 9. CÔNG VIỆC CỦA TỔ IT & CHUYỂN ĐỔI SỐ (Hoàng Thị Mai Anh / u-admin)
   // =========================================================================
   {
     id: 'task-6',
