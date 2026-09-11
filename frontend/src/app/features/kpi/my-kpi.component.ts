@@ -39,26 +39,6 @@ import { KpiRowItem, KpiSummaryScores, KpiEvaluationSheet, KpiPeriod } from '../
 
           <button
             type="button"
-            class="btn-action btn-sample tap-target"
-            (click)="loadSampleFromImage()"
-            title="Nạp nhanh bộ số liệu mẫu chuẩn xác theo ảnh biểu mẫu hướng dẫn"
-          >
-            <span class="material-symbols-outlined">auto_fix_high</span>
-            <span>Nạp mẫu chuẩn theo ảnh</span>
-          </button>
-
-          <button
-            type="button"
-            class="btn-action btn-print tap-target"
-            (click)="printReport()"
-            title="In bảng đánh giá hoặc lưu file PDF"
-          >
-            <span class="material-symbols-outlined">print</span>
-            <span>In / PDF</span>
-          </button>
-
-          <button
-            type="button"
             class="btn-action btn-excel tap-target"
             (click)="exportToExcel()"
             [disabled]="isLoading() || rows().length === 0"
