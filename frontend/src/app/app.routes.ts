@@ -34,6 +34,11 @@ export const routes: Routes = [
           import('./features/my-tasks/my-tasks.component').then((m) => m.MyTasksComponent),
       },
       {
+        path: 'my-kpi',
+        loadComponent: () =>
+          import('./features/kpi/my-kpi.component').then((m) => m.MyKpiComponent),
+      },
+      {
         path: 'plans',
         loadComponent: () =>
           import('./features/plans/plans.component').then((m) => m.PlansComponent),

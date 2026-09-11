@@ -66,6 +66,11 @@ import { UserPickerItem } from '../../../core/models/user.models';
             <span class="nav-text">Việc của tôi</span>
           </a>
 
+          <a routerLink="/my-kpi" routerLinkActive="active" class="nav-link" title="Đánh giá & Tính điểm KPI cá nhân">
+            <span class="material-symbols-outlined nav-icon">monitoring</span>
+            <span class="nav-text">KPI của tôi</span>
+          </a>
+
           <a routerLink="/org" routerLinkActive="active" class="nav-link">
             <span class="material-symbols-outlined nav-icon">apartment</span>
             <span class="nav-text">Cơ cấu & Điểm trường</span>
@@ -342,6 +347,11 @@ import { UserPickerItem } from '../../../core/models/user.models';
                 <a routerLink="/my-tasks" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
                   <span class="material-symbols-outlined nav-icon">task_alt</span>
                   <span class="nav-label">Việc của tôi</span>
+                </a>
+
+                <a routerLink="/my-kpi" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                  <span class="material-symbols-outlined nav-icon">monitoring</span>
+                  <span class="nav-label">KPI của tôi</span>
                 </a>
 
                 <a routerLink="/org" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
