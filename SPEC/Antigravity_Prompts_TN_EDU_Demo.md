@@ -8,6 +8,10 @@ coding tool nào) để dựng ứng dụng demo.
    "bộ nhớ nền" cho toàn bộ dự án, giúp AI không lạc hướng công nghệ/UX qua các bước sau.
 2. Dán lần lượt **Prompt 1 → Prompt 22** theo đúng thứ tự, mỗi prompt là một bước build nhỏ,
    review kết quả (chạy thử) trước khi sang prompt kế tiếp.
+   - Có 2 prompt bổ sung **4B** và **18B** (Cấu hình hệ thống: Tài khoản, Phân quyền, sửa
+     Điểm trường, Giáo viên theo điểm trường) — dán **Prompt 4B ngay sau Prompt 4** (trước khi
+     làm Prompt 5) và **Prompt 18B ngay sau Prompt 18** (trước khi làm Prompt 19). Giữ nguyên
+     số thứ tự các prompt gốc còn lại để không phá vỡ các tham chiếu chéo (Prompt 10, 14...).
 3. Có thể gộp 2-3 prompt liền kề nếu Antigravity xử lý tốt trong một lượt; nhưng KHÔNG nên
    gộp Backend và Frontend vào cùng một prompt vì dễ gây lẫn lộn ngữ cảnh.
 4. Nếu AI đề xuất thêm phân hệ KPI/AI/tích hợp ngoài — nhắc lại rằng các phân hệ đó **ngoài
@@ -62,16 +66,19 @@ CÔNG NGHỆ BẮT BUỘC:
 CẤU TRÚC THƯ MỤC:
 - Monorepo với 2 thư mục gốc: `backend/` và `frontend/`.
 - backend/src/modules/{auth, users, orgunits, locations, plans, tasks, attachments,
-  notifications, dashboard}
+  notifications, dashboard, admin}
 - backend/prisma/schema.prisma
 - frontend/src/app/core (auth guard, interceptor, models)
 - frontend/src/app/shared/components/{people-picker, contact-mini-card, file-dropzone,
   status-badge, status-tabs-counter, plan-tree}
-- frontend/src/app/features/{auth, dashboard, my-tasks, plans, tasks, org, notifications}
+- frontend/src/app/features/{auth, dashboard, my-tasks, plans, tasks, org, notifications,
+  admin-settings}
 
 PHẠM VI (KHÔNG được tự ý thêm ngoài phạm vi này cho bản demo):
-CÓ trong demo: đăng nhập/phân quyền cơ bản, cơ cấu tổ chức & điểm trường, danh bạ nhân sự +
-people picker, kế hoạch nhiều cấp (Năm→Kỳ→Quý→Tháng→Tuần), công việc & giao việc kiểu RACI
+CÓ trong demo: đăng nhập/phân quyền cơ bản, cơ cấu tổ chức & điểm trường (bao gồm màn hình
+tạo/sửa điểm trường), cấu hình hệ thống (quản lý tài khoản + gán vai trò/phân quyền theo
+điểm trường-tổ), quản lý giáo viên/nhân viên theo điểm trường, danh bạ nhân sự + people
+picker, kế hoạch nhiều cấp (Năm→Kỳ→Quý→Tháng→Tuần), công việc & giao việc kiểu RACI
 (chủ trì/phối hợp/kiểm tra/phê duyệt/theo dõi), nhật ký & cập nhật tiến độ, đính kèm minh
 chứng kéo-thả, workflow trạng thái kiểm tra-phê duyệt, liên hệ nhanh click-to-call, thông báo
 trong app, dashboard điều hành, "Việc của tôi".
@@ -118,6 +125,9 @@ Sau khi migrate, viết script backend/prisma/seed.ts sinh dữ liệu mẫu ti�
 - 1 Hiệu trưởng, 3 Phó Hiệu trưởng (1 phụ trách chuyên môn chung, 2 phụ trách theo điểm
   trường), 6 tổ trưởng, ~40 giáo viên/nhân viên (đủ tên tiếng Việt có dấu thật, số điện
   thoại dạng 09xxxxxxxx, chức vụ/môn dạy khác nhau, phân bổ đều 3 điểm trường)
+- 1 tài khoản vai trò ADMIN (Quản trị hệ thống, phạm vi toàn trường, không gắn 1 điểm
+  trường/tổ cụ thể) — dùng để demo Prompt 4B/18B (Cấu hình hệ thống, Tài khoản, Phân quyền,
+  sửa Điểm trường, Giáo viên theo điểm trường).
 - 1 kế hoạch năm học 2026-2027 với 5-6 dòng kế hoạch mốc thời gian thực tế (dùng đúng nội
   dung mẫu: "Ổn định tổ chức sau sáp nhập", "Hoàn thiện và công khai Kế hoạch giáo dục",
   "Gửi kế hoạch về UBND/Phòng GD phê duyệt", "Rà soát học sinh cần hỗ trợ"...)
@@ -155,6 +165,54 @@ Xây dựng các API:
   gợi ý ưu tiên trong People Picker.
 Đảm bảo API search chịu tải tốt với 200 user mẫu, có phân trang, thời gian phản hồi test
 thủ công dưới 200ms.
+```
+
+### PROMPT 4B — API quản trị hệ thống: Tài khoản, Phân quyền, sửa Điểm trường (BỔ SUNG)
+```
+Bổ sung module backend/src/modules/admin, toàn bộ route bên dưới CHỈ cho phép vai trò ADMIN
+và HIEU_TRUONG gọi (dùng middleware requireRole('ADMIN','HIEU_TRUONG')):
+
+1) Quản lý tài khoản:
+- GET /api/admin/users?search=&locationId=&orgUnitId=&role=&status=&page=&pageSize= — danh
+  sách đầy đủ tài khoản (khác GET /api/users của People Picker ở chỗ trả thêm email, trạng
+  thái active/khoá, danh sách UserRole đầy đủ, ngày tạo).
+- POST /api/admin/users — tạo tài khoản mới (fullName, phone, email, position, locationId,
+  orgUnitId, mảng roles ban đầu [{role, scopeLocationId, scopeOrgUnitId}]); mật khẩu mặc định
+  "123456" (hash bcrypt), validate số điện thoại/email không trùng.
+- PATCH /api/admin/users/:id — sửa thông tin cơ bản (fullName, phone, email, position,
+  locationId, orgUnitId, avatarUrl).
+- PATCH /api/admin/users/:id/status — khoá/mở khoá tài khoản (field isActive), tài khoản bị
+  khoá không đăng nhập được (chặn ở bước login, trả lỗi rõ ràng bằng tiếng Việt).
+- POST /api/admin/users/:id/reset-password — đặt lại mật khẩu về mặc định "123456".
+- DELETE /api/admin/users/:id — chỉ cho xoá khi tài khoản CHƯA từng là CHU_TRI/PHOI_HOP của
+  bất kỳ Task nào; nếu đã có dữ liệu liên quan thì trả lỗi gợi ý dùng chức năng khoá thay vì
+  xoá.
+
+2) Cấu hình phân quyền (gán vai trò + phạm vi cho từng tài khoản):
+- POST /api/admin/users/:id/roles — thêm 1 dòng UserRole (role, scopeLocationId,
+  scopeOrgUnitId) cho tài khoản, validate 1 người có thể có nhiều vai trò/phạm vi nhưng
+  không được trùng lặp y hệt (cùng role + cùng scope).
+- DELETE /api/admin/users/:id/roles/:userRoleId — gỡ 1 vai trò/phạm vi khỏi tài khoản (chặn
+  nếu đây là vai trò cuối cùng của tài khoản — mỗi tài khoản phải còn ít nhất 1 vai trò).
+- GET /api/admin/permissions-matrix — trả về bảng tĩnh (hard-code trong code, không cần bảng
+  DB riêng) mô tả mỗi vai trò (HIEU_TRUONG, PHO_HIEU_TRUONG, TO_TRUONG, GIAO_VIEN, NHAN_VIEN,
+  ADMIN) được phép làm gì trong phạm vi demo (tham chiếu đúng bảng "Vai trò" ở SRS mục 3),
+  dùng để hiển thị bảng tham khảo trên UI — KHÔNG cần cơ chế cấu hình quyền động theo hành
+  động (permission builder), giữ đơn giản cho bản demo.
+
+3) Sửa Điểm trường (mở rộng API Location đã có ở Prompt 4):
+- PATCH /api/locations/:id — sửa tên, mã, địa chỉ, managerId (chọn người phụ trách bằng
+  userId có sẵn).
+- DELETE /api/locations/:id — chỉ cho xoá khi điểm trường không còn User nào gắn locationId
+  và không còn Task nào gắn locationId; ngược lại trả lỗi liệt kê rõ đang có bao nhiêu nhân
+  sự/công việc đang gắn.
+- GET /api/locations/:id/summary — trả số nhân sự, số công việc đang triển khai, số công
+  việc quá hạn tại điểm trường đó (dùng cho thẻ tổng quan trên UI quản trị).
+
+4) Ghi log quản trị: thêm model AdminAuditLog (actorUserId, action, targetType, targetId,
+   detail, createdAt) và ghi log tự động ở mọi hành động tạo/sửa/khoá/xoá tài khoản, gán/gỡ
+   vai trò, sửa/xoá điểm trường — phục vụ mục "Timeline" nếu cần xem lại sau này (bản demo
+   chỉ cần lưu, chưa cần màn hình xem log riêng).
 ```
 
 ### PROMPT 5 — API kế hoạch nhiều cấp
@@ -213,9 +271,11 @@ Xây dựng module tasks:
 ```
 Xây dựng khung ứng dụng Angular:
 - Layout chính: trên desktop dùng sidebar trái (Dashboard, Việc của tôi, Kế hoạch, Công
-  việc, Tổ chức, Thông báo); trên mobile (<768px) chuyển thành bottom navigation bar
-  4 mục chính (Việc của tôi, Kế hoạch, Thông báo, Cá nhân) + nút "+" nổi (FAB) để tạo
-  việc nhanh.
+  việc, Tổ chức, Thông báo, và mục "Cấu hình hệ thống" chỉ hiện khi vai trò hiện hành là
+  ADMIN hoặc HIEU_TRUONG — xem Prompt 18B); trên mobile (<768px) chuyển thành bottom
+  navigation bar 4 mục chính (Việc của tôi, Kế hoạch, Thông báo, Cá nhân) + nút "+" nổi
+  (FAB) để tạo việc nhanh; mục "Cấu hình hệ thống" trên mobile nằm trong trang "Cá nhân",
+  cũng chỉ hiện với ADMIN/HIEU_TRUONG.
 - Bảng màu: dùng CSS variables cho trạng thái: --status-new: #2E5EAA (xanh dương),
   --status-doing: #1F3864 (xanh dương đậm), --status-waiting: #F0A500 (vàng cam),
   --status-revise: #D9622B (cam đậm), --status-done: #2E7D32 (xanh lá),
@@ -364,6 +424,68 @@ có thể thu gọn/mở rộng, có thể lọc theo điểm trường bằng d
 trường gắn 1 màu nhãn riêng hiện xuyên suốt app). Bấm vào 1 điểm trường mở trang riêng
 liệt kê: danh sách nhân sự (dùng lại danh sách kiểu People Picker nhưng hiển thị dạng
 bảng/thẻ đầy đủ), và danh sách công việc đang triển khai tại điểm trường đó.
+```
+
+### PROMPT 18B — Màn hình "Cấu hình hệ thống": Tài khoản, Phân quyền, Điểm trường, Giáo viên theo điểm trường (BỔ SUNG)
+```
+Xây dựng phân hệ frontend/src/app/features/admin-settings, chỉ hiện mục điều hướng
+"Cấu hình hệ thống" (sidebar desktop / mục trong "Cá nhân" trên mobile) khi vai trò hiện
+hành là ADMIN hoặc HIEU_TRUONG (dùng AuthGuard + kiểm tra role, ẩn hẳn khỏi menu với vai trò
+khác, không chỉ ẩn UI mà còn chặn route).
+
+Trang gồm 4 tab ngang (dùng lại phong cách StatusTabsCounterComponent nhưng không cần đếm
+số theo trạng thái, chỉ cần tab thường): "Tài khoản" · "Phân quyền" · "Điểm trường" ·
+"Giáo viên theo điểm trường".
+
+1) Tab "Tài khoản":
+   - Ô tìm kiếm + bộ lọc chip (Theo điểm trường / Theo tổ / Theo vai trò / Đang hoạt động -
+     Đã khoá), gọi GET /api/admin/users.
+   - Desktop: bảng (Họ tên, SĐT, Điểm trường, Tổ, Vai trò hiện có dạng chip nhỏ, Trạng thái,
+     3 nút hành động). Mobile: danh sách thẻ dọc, mỗi thẻ có menu "..." chứa các hành động.
+   - Nút "+ Tạo tài khoản mới" nổi góc phải trên mở form: Họ tên, SĐT, Email, Chức vụ, chọn
+     Điểm trường + Tổ (dropdown), chọn 1 hoặc nhiều Vai trò ban đầu — gọi POST
+     /api/admin/users, sau khi tạo hiện thông báo kèm mật khẩu mặc định "123456" để gửi lại
+     cho giáo viên.
+   - Mỗi dòng có 3 hành động: "Sửa thông tin" (mở form sửa, gọi PATCH .../:id), "Khoá/Mở
+     khoá" (hộp xác nhận rõ hậu quả — tài khoản bị khoá sẽ không đăng nhập được), "Đặt lại
+     mật khẩu" (hộp xác nhận, gọi POST .../reset-password, hiện lại mật khẩu mặc định).
+
+2) Tab "Phân quyền":
+   - Nửa trên: chọn 1 tài khoản (dùng lại PeoplePickerComponent chế độ single) để xem/sửa
+     vai trò của người đó — hiện danh sách vai trò+phạm vi hiện tại dạng chip lớn (VD: "Phó
+     Hiệu trưởng — Phân hiệu 1"), mỗi chip có nút x để gỡ (gọi DELETE .../roles/:id, chặn
+     nếu là vai trò cuối cùng và báo lỗi thân thiện). Nút "+ Thêm vai trò" mở modal: chọn
+     Vai trò (dropdown 6 lựa chọn) + chọn Phạm vi (Điểm trường và/hoặc Tổ, có thể để trống
+     nếu vai trò áp dụng toàn trường như HIEU_TRUONG/ADMIN) → gọi POST .../roles.
+   - Nửa dưới: "Bảng quyền tham khảo" — bảng tĩnh đọc từ GET /api/admin/permissions-matrix,
+     liệt kê mỗi vai trò và các nhóm quyền chính (chỉ để tham khảo, không có ô chỉnh sửa,
+     ghi rõ ghi chú "Bản demo dùng phân quyền cố định theo vai trò, chưa hỗ trợ tuỳ biến
+     từng quyền riêng lẻ").
+
+3) Tab "Điểm trường":
+   - Danh sách điểm trường dạng thẻ lớn: tên, mã, địa chỉ, avatar + tên người phụ trách,
+     3 số liệu nhỏ (số nhân sự, số công việc đang triển khai, số công việc quá hạn — lấy từ
+     GET /api/locations/:id/summary).
+   - Nút "+ Thêm điểm trường" mở form: Tên, Mã, Địa chỉ, chọn Người phụ trách bằng
+     PeoplePickerComponent → POST /api/locations (API đã có từ Prompt 4).
+   - Mỗi thẻ có nút "Sửa" mở đúng form trên với dữ liệu điền sẵn → PATCH /api/locations/:id,
+     và nút "Xoá" chỉ bật được khi summary trả về 0 nhân sự và 0 công việc, ngược lại nút mờ
+     đi kèm tooltip giải thích lý do không xoá được.
+
+4) Tab "Giáo viên theo điểm trường":
+   - Dropdown chọn 1 điểm trường ở trên cùng (mặc định điểm trường đầu tiên).
+   - Danh sách toàn bộ giáo viên/nhân viên đang gắn với điểm trường đó: desktop dạng bảng
+     (Họ tên, Tổ, Chức vụ, SĐT có thể bấm gọi luôn, số việc đang xử lý), mobile dạng thẻ.
+     Ô tìm kiếm nhanh theo tên lọc ngay trong danh sách đã tải.
+   - Nút "+ Thêm giáo viên vào điểm trường": mở lựa chọn giữa "Tạo tài khoản mới" (mở lại
+     form ở Tab 1 với locationId điền sẵn) hoặc "Chuyển từ điểm trường khác" (dùng People
+     Picker chọn 1 tài khoản có sẵn, xác nhận rồi PATCH locationId của tài khoản đó).
+   - Mỗi dòng có nút "Chuyển điểm trường" mở modal nhỏ chọn điểm trường đích + hộp xác nhận
+     (cảnh báo nếu người này đang CHU_TRI công việc chưa đóng tại điểm trường hiện tại).
+
+Toàn bộ 4 tab tuân thủ nguyên tắc UX chung của dự án: tiếng Việt đơn giản, tối đa 3-4 bước
+mỗi thao tác, tap target ≥44px, có loading skeleton + empty state thân thiện, mọi hành động
+phá huỷ dữ liệu (khoá, xoá, gỡ vai trò) đều có hộp xác nhận rõ ràng.
 ```
 
 ### PROMPT 19 — Responsive polish & PWA cơ bản

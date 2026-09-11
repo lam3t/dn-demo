@@ -209,10 +209,10 @@ import { KpiRowItem, KpiSummaryScores, KpiEvaluationSheet, KpiPeriod } from '../
                 <th rowspan="2" class="col-stt">STT</th>
                 <th rowspan="2" class="col-task">Nhiệm vụ theo quý / kỳ</th>
                 <th rowspan="2" class="col-deliverable">Sản phẩm</th>
-                <th rowspan="2" class="col-qty">Số lượng<br/>(N)</th>
+                <th rowspan="2" class="col-num col-qty">Số lượng<br/>(N)</th>
                 <th rowspan="2" class="col-timeline">Tiến độ</th>
-                <th rowspan="2" class="col-weight">Hệ số<br/>quy đổi (W)</th>
-                <th rowspan="2" class="col-weighted-qty">Số lượng<br/>quy đổi</th>
+                <th rowspan="2" class="col-num col-weight">Hệ số<br/>quy đổi (W)</th>
+                <th rowspan="2" class="col-num col-weighted-qty grp-border-right">Số lượng<br/>quy đổi</th>
                 
                 <th colspan="2" class="col-group-header header-grp-qty">KPI (Số lượng)</th>
                 <th colspan="2" class="col-group-header header-grp-quality">KPI (Chất lượng)</th>
@@ -224,17 +224,17 @@ import { KpiRowItem, KpiSummaryScores, KpiEvaluationSheet, KpiPeriod } from '../
 
               <!-- LEVEL 2 HEADERS -->
               <tr>
-                <th class="sub-header">Thực tế<br/>hoàn thành</th>
-                <th class="sub-header col-calc">Quy đổi</th>
+                <th class="sub-header col-num">Thực tế<br/>hoàn thành</th>
+                <th class="sub-header col-num col-calc grp-border-right">Quy đổi</th>
 
-                <th class="sub-header">Thực tế<br/>hoàn thành</th>
-                <th class="sub-header col-calc">Quy đổi</th>
+                <th class="sub-header col-quality-text">Thực tế hoàn thành</th>
+                <th class="sub-header col-num col-calc grp-border-right">Quy đổi</th>
 
-                <th class="sub-header">Thực tế<br/>hoàn thành</th>
-                <th class="sub-header col-calc">Quy đổi</th>
+                <th class="sub-header col-timeline-text">Thực tế hoàn thành</th>
+                <th class="sub-header col-num col-calc grp-border-right">Quy đổi</th>
 
-                <th class="sub-header">Thực tế<br/>hoàn thành</th>
-                <th class="sub-header col-calc">Quy đổi</th>
+                <th class="sub-header col-leadership-text">Thực tế hoàn thành</th>
+                <th class="sub-header col-num col-calc grp-border-right">Quy đổi</th>
               </tr>
             </thead>
 
@@ -244,14 +244,14 @@ import { KpiRowItem, KpiSummaryScores, KpiEvaluationSheet, KpiPeriod } from '../
                   <!-- STT -->
                   <td class="text-center font-bold cell-stt">{{ idx + 1 }}</td>
 
-                  <!-- Nhiệm vụ -->
+                  <!-- Nhiệm vụ (RỘNG RÃI, DỄ ĐỌC) -->
                   <td class="cell-task">
                     <textarea
-                      class="inline-textarea"
+                      class="inline-textarea task-textarea"
                       rows="2"
                       [(ngModel)]="row.taskTitle"
                       (ngModelChange)="onDataChanged()"
-                      placeholder="Nhập tên nhiệm vụ..."
+                      placeholder="Nhập tên nhiệm vụ cụ thể..."
                     ></textarea>
                     @if (row.taskCode) {
                       <span class="task-code-tag">{{ row.taskCode }}</span>
@@ -262,125 +262,125 @@ import { KpiRowItem, KpiSummaryScores, KpiEvaluationSheet, KpiPeriod } from '../
                   <td class="cell-deliverable">
                     <input
                       type="text"
-                      class="inline-input text-center"
+                      class="inline-input text-center deliverable-input"
                       [(ngModel)]="row.deliverable"
                       (ngModelChange)="onDataChanged()"
                       placeholder="Báo cáo/Kế hoạch"
                     />
                   </td>
 
-                  <!-- Số lượng (N) -->
-                  <td class="cell-qty">
+                  <!-- Số lượng (N) - GỌN GÀNG -->
+                  <td class="cell-qty text-center">
                     <input
                       type="number"
                       min="0"
                       step="0.5"
-                      class="inline-input text-center font-bold"
+                      class="inline-input num-input font-bold"
                       [(ngModel)]="row.targetQuantity"
                       (ngModelChange)="onDataChanged()"
                     />
                   </td>
 
                   <!-- Tiến độ -->
-                  <td class="cell-timeline">
+                  <td class="cell-timeline text-center">
                     <input
                       type="text"
-                      class="inline-input text-center"
+                      class="inline-input text-center timeline-input"
                       [(ngModel)]="row.timeline"
                       (ngModelChange)="onDataChanged()"
                       placeholder="Hàng tháng/Quý"
                     />
                   </td>
 
-                  <!-- Hệ số quy đổi (W) -->
-                  <td class="cell-weight">
+                  <!-- Hệ số quy đổi (W) - GỌN GÀNG -->
+                  <td class="cell-weight text-center">
                     <input
                       type="number"
                       min="0.5"
                       max="5"
                       step="0.5"
-                      class="inline-input text-center font-bold highlight-coeff"
+                      class="inline-input num-input font-bold highlight-coeff"
                       [(ngModel)]="row.weightCoefficient"
                       (ngModelChange)="onDataChanged()"
                     />
                   </td>
 
                   <!-- Số lượng quy đổi (N * W) -->
-                  <td class="text-center font-bold cell-calc-result">
+                  <td class="text-center font-bold cell-calc-result grp-border-right">
                     {{ row.targetWeightedQuantity }}
                   </td>
 
                   <!-- 1. KPI Số lượng -->
-                  <td class="cell-input-sm">
+                  <td class="cell-input-num text-center">
                     <input
                       type="number"
                       min="0"
                       step="0.5"
-                      class="inline-input text-center"
+                      class="inline-input num-input"
                       [(ngModel)]="row.actualQuantityVal"
                       (ngModelChange)="onActualQuantityValChanged(row)"
-                      placeholder="Số lượng"
+                      placeholder="SL"
                     />
                   </td>
-                  <td class="text-center font-bold cell-calc-result">
+                  <td class="text-center font-bold cell-calc-result grp-border-right">
                     {{ row.actualWeightedQuantity }}
                   </td>
 
                   <!-- 2. KPI Chất lượng -->
-                  <td class="cell-input-md">
+                  <td class="cell-quality-note">
                     <input
                       type="text"
-                      class="inline-input text-left"
+                      class="inline-input text-left quality-text-input"
                       [(ngModel)]="row.qualityNote"
                       (ngModelChange)="onDataChanged()"
-                      placeholder="Ghi chú chất lượng..."
+                      placeholder="Ghi chú chất lượng (ví dụ: sửa đổi 1-2 lần)..."
                     />
                   </td>
-                  <td class="cell-input-score">
+                  <td class="cell-score-num text-center grp-border-right">
                     <input
                       type="number"
                       step="0.5"
-                      class="inline-input text-center font-bold score-input"
+                      class="inline-input num-input font-bold score-input"
                       [(ngModel)]="row.qualityWeightedScore"
                       (ngModelChange)="onDataChanged()"
                     />
                   </td>
 
                   <!-- 3. KPI Tiến độ -->
-                  <td class="cell-input-sm">
+                  <td class="cell-timeline-note text-center">
                     <input
                       type="text"
-                      class="inline-input text-center"
+                      class="inline-input text-center timeline-text-input"
                       [(ngModel)]="row.timelineNote"
                       (ngModelChange)="onDataChanged()"
-                      placeholder="Tiến độ"
+                      placeholder="Đúng hạn"
                     />
                   </td>
-                  <td class="cell-input-score">
+                  <td class="cell-score-num text-center grp-border-right">
                     <input
                       type="number"
                       step="0.5"
-                      class="inline-input text-center font-bold score-input"
+                      class="inline-input num-input font-bold score-input"
                       [(ngModel)]="row.timelineWeightedScore"
                       (ngModelChange)="onDataChanged()"
                     />
                   </td>
 
                   <!-- 4. KPI Lãnh đạo điều hành -->
-                  <td class="cell-input-sm">
+                  <td class="cell-leadership-note text-center">
                     <input
                       type="text"
-                      class="inline-input text-center"
+                      class="inline-input text-center leadership-text-input"
                       [(ngModel)]="row.leadershipNote"
                       (ngModelChange)="onDataChanged()"
-                      placeholder="Điều hành"
+                      placeholder="Chủ động"
                     />
                   </td>
-                  <td class="cell-input-score">
+                  <td class="cell-score-num text-center grp-border-right">
                     <input
                       type="number"
                       step="0.5"
-                      class="inline-input text-center font-bold score-input"
+                      class="inline-input num-input font-bold score-input"
                       [(ngModel)]="row.leadershipWeightedScore"
                       (ngModelChange)="onDataChanged()"
                     />
@@ -413,15 +413,15 @@ import { KpiRowItem, KpiSummaryScores, KpiEvaluationSheet, KpiPeriod } from '../
               <!-- DÒNG TỔNG CỘNG CHÂN TRANG (RED HIGHLIGHTED SUM) -->
               <tr class="kpi-footer-sum-row">
                 <td colspan="6" class="text-center font-bold footer-label">TỔNG CỘNG</td>
-                <td class="text-center font-bold sum-target-red">{{ summary().totalTargetWeighted }}</td>
-                <td class="text-center">-</td>
-                <td class="text-center font-bold sum-val">{{ summary().totalActualQuantityWeighted }}</td>
-                <td class="text-center">-</td>
-                <td class="text-center font-bold sum-val">{{ summary().totalQualityWeighted }}</td>
-                <td class="text-center">-</td>
-                <td class="text-center font-bold sum-val">{{ summary().totalTimelineWeighted }}</td>
-                <td class="text-center">-</td>
-                <td class="text-center font-bold sum-val">{{ summary().totalLeadershipWeighted }}</td>
+                <td class="text-center font-bold sum-target-red grp-border-right">{{ summary().totalTargetWeighted }}</td>
+                <td class="text-center text-muted">-</td>
+                <td class="text-center font-bold sum-val grp-border-right">{{ summary().totalActualQuantityWeighted }}</td>
+                <td class="text-center text-muted">-</td>
+                <td class="text-center font-bold sum-val grp-border-right">{{ summary().totalQualityWeighted }}</td>
+                <td class="text-center text-muted">-</td>
+                <td class="text-center font-bold sum-val grp-border-right">{{ summary().totalTimelineWeighted }}</td>
+                <td class="text-center text-muted">-</td>
+                <td class="text-center font-bold sum-val grp-border-right">{{ summary().totalLeadershipWeighted }}</td>
                 <td class="hide-on-print"></td>
               </tr>
             </tbody>
@@ -959,13 +959,19 @@ import { KpiRowItem, KpiSummaryScores, KpiEvaluationSheet, KpiPeriod } from '../
 
         .kpi-data-table {
           width: 100%;
+          min-width: 1280px;
           border-collapse: collapse;
-          font-size: 0.85rem;
+          font-size: 0.84rem;
 
           th, td {
             border: 1px solid #CBD5E1;
-            padding: 8px 10px;
+            padding: 6px 8px;
             vertical-align: middle;
+          }
+
+          /* Visual Group Separators */
+          .grp-border-right {
+            border-right: 2px solid #94A3B8 !important;
           }
 
           thead th {
@@ -973,8 +979,19 @@ import { KpiRowItem, KpiSummaryScores, KpiEvaluationSheet, KpiPeriod } from '../
             color: #1E293B;
             font-weight: 800;
             text-align: center;
-            font-size: 0.8rem;
-            line-height: 1.35;
+            font-size: 0.78rem;
+            line-height: 1.3;
+            padding: 6px 4px;
+
+            &.col-stt { width: 40px; min-width: 40px; }
+            &.col-task { width: 34%; min-width: 360px; max-width: 500px; text-align: left; padding-left: 12px; }
+            &.col-deliverable { width: 95px; min-width: 95px; }
+            &.col-timeline { width: 90px; min-width: 90px; }
+            &.col-num { width: 52px; min-width: 52px; max-width: 56px; }
+            &.col-quality-text { min-width: 140px; }
+            &.col-timeline-text { width: 85px; min-width: 85px; }
+            &.col-leadership-text { width: 85px; min-width: 85px; }
+            &.col-actions { width: 65px; min-width: 65px; }
 
             &.col-group-header {
               font-size: 0.82rem;
@@ -986,9 +1003,9 @@ import { KpiRowItem, KpiSummaryScores, KpiEvaluationSheet, KpiPeriod } from '../
             &.header-grp-leadership { background: #F5F3FF; color: #5B21B6; }
 
             &.sub-header {
-              font-size: 0.74rem;
+              font-size: 0.72rem;
               font-weight: 700;
-              padding: 5px 6px;
+              padding: 4px;
             }
 
             &.col-calc {
@@ -997,17 +1014,34 @@ import { KpiRowItem, KpiSummaryScores, KpiEvaluationSheet, KpiPeriod } from '../
             }
           }
 
-          tbody tr:hover {
-            background: #F8FAFC;
+          tbody tr {
+            transition: background-color 0.12s ease;
+
+            &:nth-child(even) {
+              background-color: #F8FAFC;
+            }
+
+            &:hover {
+              background-color: #EFF6FF !important;
+            }
           }
 
+          /* CELL SPECIFIC STYLES */
+          .cell-stt { width: 40px; font-size: 0.82rem; color: #64748B; }
+          .cell-task { min-width: 360px; }
+          .cell-deliverable { width: 95px; }
+          .cell-timeline { width: 90px; }
+          .cell-qty, .cell-weight, .cell-input-num, .cell-score-num { width: 52px; min-width: 52px; max-width: 56px; }
+          .cell-quality-note { min-width: 140px; }
+          .cell-timeline-note { width: 85px; min-width: 85px; }
+          .cell-leadership-note { width: 85px; min-width: 85px; }
+
           .inline-input, .inline-textarea {
-            width: 100%;
             border: 1px solid transparent;
             background: transparent;
             border-radius: 6px;
             padding: 4px 6px;
-            font-size: 0.84rem;
+            font-size: 0.83rem;
             font-family: inherit;
             color: #1E293B;
             outline: none;
@@ -1025,9 +1059,57 @@ import { KpiRowItem, KpiSummaryScores, KpiEvaluationSheet, KpiPeriod } from '../
             }
           }
 
-          .inline-textarea {
-            resize: vertical;
+          .task-textarea {
+            width: 100%;
+            min-height: 48px;
+            font-size: 0.86rem;
+            font-weight: 600;
             line-height: 1.4;
+            resize: vertical;
+            padding: 6px 8px;
+          }
+
+          /* COMPACT NUMBER INPUTS */
+          .num-input {
+            width: 44px;
+            max-width: 44px;
+            padding: 3px 2px;
+            text-align: center;
+            font-size: 0.82rem;
+            font-weight: 700;
+            border: 1px solid #E2E8F0;
+            border-radius: 6px;
+            background: #FFFFFF;
+            display: block;
+            margin: 0 auto;
+
+            /* Hide number spinners for compactness */
+            &::-webkit-inner-spin-button,
+            &::-webkit-outer-spin-button {
+              opacity: 0.3;
+            }
+
+            &.highlight-coeff {
+              background: #FEF3C7;
+              color: #92400E;
+              border: 1px solid #FDE68A;
+            }
+
+            &.score-input {
+              background: #F8FAFC;
+              border: 1px solid #CBD5E1;
+              color: #1E40AF;
+            }
+          }
+
+          .deliverable-input, .timeline-input, .timeline-text-input, .leadership-text-input {
+            width: 100%;
+            font-size: 0.8rem;
+          }
+
+          .quality-text-input {
+            width: 100%;
+            font-size: 0.82rem;
           }
 
           .task-code-tag {
@@ -1041,39 +1123,30 @@ import { KpiRowItem, KpiSummaryScores, KpiEvaluationSheet, KpiPeriod } from '../
             margin-top: 2px;
           }
 
-          .highlight-coeff {
-            background: #FEF3C7;
-            color: #92400E;
-            border: 1px solid #FDE68A;
-          }
-
-          .score-input {
-            background: #F8FAFC;
-            border: 1px solid #E2E8F0;
-          }
-
           .cell-calc-result {
-            background: #F8FAFC;
+            background: #F1F5F9;
             color: #0F172A;
+            font-size: 0.85rem;
+            font-weight: 800;
           }
 
           .row-action-buttons {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 4px;
+            gap: 2px;
 
             .btn-row-action {
               background: transparent;
               border: none;
               cursor: pointer;
-              padding: 4px;
-              border-radius: 6px;
+              padding: 3px;
+              border-radius: 5px;
               color: #64748B;
               transition: all 0.15s ease;
 
               .material-symbols-outlined {
-                font-size: 17px;
+                font-size: 16px;
               }
 
               &.btn-dup:hover {
@@ -1090,31 +1163,35 @@ import { KpiRowItem, KpiSummaryScores, KpiEvaluationSheet, KpiPeriod } from '../
 
           /* FOOTER SUM ROW */
           .kpi-footer-sum-row {
-            background: #F1F5F9;
-            border-top: 2px solid #94A3B8;
+            background: #E2E8F0;
+            border-top: 2.5px solid #64748B;
 
             td {
-              padding: 10px;
-              font-size: 0.9rem;
+              padding: 8px 6px;
+              font-size: 0.88rem;
             }
 
             .footer-label {
-              font-size: 0.92rem;
+              font-size: 0.9rem;
               color: #1F3864;
               letter-spacing: 0.5px;
             }
 
             .sum-target-red {
-              color: #DC2626;
-              font-size: 1.05rem;
-              font-weight: 900;
-              background: #FEF2F2;
+              color: #DC2626 !important;
+              font-size: 1.05rem !important;
+              font-weight: 900 !important;
+              background: #FEF2F2 !important;
             }
 
             .sum-val {
               color: #1F3864;
-              font-size: 0.95rem;
+              font-size: 0.92rem;
               font-weight: 800;
+            }
+
+            .text-muted {
+              color: #94A3B8;
             }
           }
         }
