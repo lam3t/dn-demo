@@ -30,7 +30,7 @@ async function runDynamicPermissionsTests() {
   // 1. Lấy token System Admin
   const sysLogin = await request(testApp)
     .post('/api/auth/login')
-    .send({ identifier: 'sysadmin@tnedu.vn', password: '123456' });
+    .send({ identifier: 'chunh@tringhiatech.vn', password: '123456' });
   if (sysLogin.status !== 200) {
     throw new Error(`FAIL: System Admin đăng nhập thất bại: ${JSON.stringify(sysLogin.body)}`);
   }

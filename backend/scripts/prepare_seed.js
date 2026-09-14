@@ -78,8 +78,8 @@ const newSchoolStart = `  // 0. TẠO GÓI DỊCH VỤ & SYSTEM ADMIN
   const sysAdmin = await prisma.user.create({
     data: {
       fullName: 'Quản trị Nền tảng (System Admin)',
-      email: 'sysadmin@tnedu.vn',
-      phone: '0900000001',
+      email: 'chunh@tringhiatech.vn',
+      phone: '0913016667',
       passwordHash: defaultPasswordHash,
       title: 'Platform System Administrator',
       isSystemAdmin: true,
@@ -92,7 +92,7 @@ const newSchoolStart = `  // 0. TẠO GÓI DỊCH VỤ & SYSTEM ADMIN
       },
     },
   });
-  console.log('✓ Đã tạo tài khoản System Admin: sysadmin@tnedu.vn (0900000001)');
+  console.log('✓ Đã tạo tài khoản System Admin: chunh@tringhiatech.vn (0913016667)');
 
   // 1. TẠO TENANT 1: TH & THCS PHƯỚC TÂN
   const tenant1 = await prisma.tenant.create({

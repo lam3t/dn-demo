@@ -43,7 +43,7 @@ async function runMultiTenantTests() {
   // 1.1 System Admin Login
   const sysAdminLoginRes = await request(testApp)
     .post('/api/auth/login')
-    .send({ identifier: 'sysadmin@tnedu.vn', password: '123456' });
+    .send({ identifier: 'chunh@tringhiatech.vn', password: '123456' });
 
   if (sysAdminLoginRes.status !== 200 || !sysAdminLoginRes.body.data?.accessToken) {
     throw new Error(`FAIL: System Admin đăng nhập thất bại: ${JSON.stringify(sysAdminLoginRes.body)}`);
