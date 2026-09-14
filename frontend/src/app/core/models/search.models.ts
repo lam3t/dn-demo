@@ -33,5 +33,17 @@ export interface GlobalSearchResult {
     primaryLocation?: { id: string; name: string } | null;
     type: 'USER';
   }>;
+  attachments?: Array<{
+    id: string;
+    fileName: string;
+    originalName: string;
+    fileUrl: string;
+    fileSize: number;
+    mimeType: string;
+    uploadedBy?: { id: string; fullName: string } | null;
+    task?: { id: string; title: string; code?: string | null } | null;
+    type: 'ATTACHMENT';
+  }>;
   total: number;
 }
+

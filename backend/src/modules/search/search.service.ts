@@ -4,14 +4,14 @@ import { Prisma } from '@prisma/client';
 export interface GlobalSearchParams {
   tenantId: string;
   query: string;
-  type?: 'ALL' | 'TASKS' | 'PLANS' | 'USERS';
+  type?: 'ALL' | 'TASKS' | 'PLANS' | 'USERS' | 'ATTACHMENTS';
   status?: string;
   limit?: number;
 }
 
 export class SearchService {
   /**
-   * Tìm kiếm toàn hệ thống theo tenant
+   * Tìm kiếm toàn hệ thống theo tenant (TT 022)
    */
   public static async searchGlobal(params: GlobalSearchParams) {
     const { tenantId, query, type = 'ALL', limit = 15 } = params;
@@ -22,6 +22,7 @@ export class SearchService {
         tasks: [],
         plans: [],
         users: [],
+        attachments: [],
         total: 0,
       };
     }
@@ -30,11 +31,13 @@ export class SearchService {
       tasks: any[];
       plans: any[];
       users: any[];
+      attachments: any[];
       total: number;
     } = {
       tasks: [],
       plans: [],
       users: [],
+      attachments: [],
       total: 0,
     };
 
@@ -143,7 +146,33 @@ export class SearchService {
       }));
     }
 
-    results.total = results.tasks.length + results.plans.length + results.users.length;
+    // 4. Search Attachments (Minh chứng)
+    if (type === 'ALL' || type === 'ATTACHMENTS') {
+      const attachments = await prisma.attachment.findMany({
+        where: {
+          tenantId,
+          OR: [
+            { fileName: { contains: cleanQ, mode: 'insensitive' } },
+            { originalName: { contains: cleanQ, mode: 'insensitive' } },
+          ],
+        },
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          uploadedBy: { select: { id: true, fullName: true } },
+          task: { select: { id: true, title: true, code: true } },
+        },
+      });
+
+      results.attachments = attachments.map((a) => ({
+        ...a,
+        type: 'ATTACHMENT',
+      }));
+    }
+
+    results.total =
+      results.tasks.length + results.plans.length + results.users.length + results.attachments.length;
     return results;
   }
 }
+

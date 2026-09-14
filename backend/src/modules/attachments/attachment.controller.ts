@@ -31,6 +31,34 @@ export class AttachmentController {
     }
   }
 
+  async getRepository(req: Request, res: Response, next: NextFunction) {
+    try {
+      const tenantId = req.user?.tenantId;
+      if (!tenantId) {
+        return res.status(400).json({ success: false, message: 'Thiếu thông tin trường học (tenantId).' });
+      }
+
+      const { search, mimeType, uploadedById, orgUnitId, locationId, startDate, endDate, page, pageSize } = req.query;
+
+      const result = await attachmentService.getEvidenceRepository({
+        tenantId,
+        search: search as string,
+        mimeType: mimeType as string,
+        uploadedById: uploadedById as string,
+        orgUnitId: orgUnitId as string,
+        locationId: locationId as string,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+        page: page ? Number(page) : 1,
+        pageSize: pageSize ? Number(pageSize) : 20,
+      });
+
+      res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async delete(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
@@ -46,3 +74,4 @@ export class AttachmentController {
 }
 
 export const attachmentController = new AttachmentController();
+

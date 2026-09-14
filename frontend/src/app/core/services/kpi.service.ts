@@ -64,6 +64,24 @@ export class KpiService {
     });
   }
 
+  getDefinitions(): Observable<any[]> {
+    return this.http
+      .get<{ success: boolean; data: any[] }>('/api/kpi/definitions')
+      .pipe(map((res) => res.data || []));
+  }
+
+  updateManualScore(data: {
+    periodKey: string;
+    kpiCode: string;
+    score: number;
+    note?: string;
+    userId?: string;
+  }): Observable<any> {
+    return this.http
+      .post<{ success: boolean; message: string; data: any }>('/api/kpi/manual-score', data)
+      .pipe(map((res) => res.data));
+  }
+
   /**
    * Tính toán lại các chỉ số của từng dòng và toàn bộ bảng đánh giá KPI
    */

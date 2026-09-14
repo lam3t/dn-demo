@@ -22,4 +22,8 @@ router.post('/recompute', requireAuth, KpiController.recomputeKpi);
 // 6. Xuất file Excel bảng điểm KPI (.xlsx)
 router.get('/export-excel', requireAuth, KpiController.exportExcel);
 
+// 7. Cập nhật điểm KPI thủ công (TT 120)
+router.post('/manual-score', requireAuth, KpiController.updateManualScore);
+
 export default router;
+

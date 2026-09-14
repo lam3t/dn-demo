@@ -1,5 +1,6 @@
 import { Component, inject, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
 import { Subject, Subscription, debounceTime, distinctUntilChanged, switchMap, of } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
@@ -13,7 +14,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, ContactMiniCardComponent],
+  imports: [CommonModule, RouterModule, FormsModule, ContactMiniCardComponent],
   template: `
     <div class="app-layout">
       <!-- 1. DESKTOP SIDEBAR -->
@@ -101,6 +102,11 @@ import { UserPickerItem } from '../../../core/models/user.models';
               <span class="nav-text">Báo cáo & Thống kê</span>
             </a>
 
+            <a routerLink="/evidence" routerLinkActive="active" class="nav-link" title="Kho minh chứng & Tài liệu">
+              <span class="material-symbols-outlined nav-icon">folder_open</span>
+              <span class="nav-text">Kho minh chứng</span>
+            </a>
+
             <a routerLink="/notifications" routerLinkActive="active" class="nav-link">
               <span class="material-symbols-outlined nav-icon">notifications</span>
               <span class="nav-text">Thông báo</span>
@@ -144,6 +150,9 @@ import { UserPickerItem } from '../../../core/models/user.models';
                 <span class="user-name" [title]="user.fullName">{{ user.fullName }}</span>
                 <span class="user-title" [title]="user.title || ''">{{ authService.isSystemAdmin() ? 'Quản trị Nền tảng SaaS' : (user.title || 'Cán bộ giáo viên') }}</span>
               </div>
+              <button type="button" class="pwd-action-btn" (click)="openChangePassword()" title="Đổi mật khẩu">
+                <span class="material-symbols-outlined">lock_reset</span>
+              </button>
               <button type="button" class="logout-btn" (click)="logout()" title="Đăng xuất">
                 <span class="material-symbols-outlined">logout</span>
               </button>
@@ -281,6 +290,34 @@ import { UserPickerItem } from '../../../core/models/user.models';
                                 </div>
                               </div>
                               <span class="material-symbols-outlined contact-icon">contact_phone</span>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    }
+
+                    <!-- ATTACHMENTS / EVIDENCE SECTION (TT 022) -->
+                    @if (searchResults.attachments && searchResults.attachments.length > 0) {
+                      <div class="result-group">
+                        <div class="result-group-header">
+                          <span class="material-symbols-outlined group-icon">folder_open</span>
+                          <span>MINH CHỨNG & TÀI LIỆU ({{ searchResults.attachments.length }})</span>
+                        </div>
+                        <div class="result-items">
+                          @for (att of searchResults.attachments; track att.id) {
+                            <div class="result-item" (click)="selectAttachment(att)">
+                              <div class="result-item-main">
+                                <span class="item-title">{{ att.fileName }}</span>
+                                <div class="item-meta">
+                                  <span class="meta-code">{{ att.mimeType || 'File' }}</span>
+                                  @if (att.task) {
+                                    <span class="meta-assignee">📋 {{ att.task.title }}</span>
+                                  }
+                                </div>
+                              </div>
+                              <div class="result-item-progress">
+                                <span class="material-symbols-outlined" style="font-size: 18px; color: #2563EB;">open_in_new</span>
+                              </div>
                             </div>
                           }
                         </div>
@@ -506,6 +543,11 @@ import { UserPickerItem } from '../../../core/models/user.models';
                     <span class="nav-label">Báo cáo & Xuất Excel</span>
                   </a>
 
+                  <a routerLink="/evidence" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                    <span class="material-symbols-outlined nav-icon">folder_open</span>
+                    <span class="nav-label">Kho minh chứng</span>
+                  </a>
+
                   <a routerLink="/notifications" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
                     <span class="material-symbols-outlined nav-icon">notifications</span>
                     <span class="nav-label">Thông báo hệ thống</span>
@@ -535,8 +577,12 @@ import { UserPickerItem } from '../../../core/models/user.models';
               </div>
             }
 
-            <!-- Drawer Footer: Logout & Version info -->
+            <!-- Drawer Footer: Change Password, Logout & Version info -->
             <div class="drawer-footer">
+              <button type="button" class="drawer-pwd-btn tap-target" (click)="openChangePassword()">
+                <span class="material-symbols-outlined">lock_reset</span>
+                <span>Đổi mật khẩu</span>
+              </button>
               <button type="button" class="drawer-logout-btn tap-target" (click)="logout()">
                 <span class="material-symbols-outlined">logout</span>
                 <span>Đăng xuất</span>
@@ -555,6 +601,91 @@ import { UserPickerItem } from '../../../core/models/user.models';
           [userId]="getContactUserId()"
           (closed)="contactCardService.close()"
         ></app-contact-mini-card>
+      }
+
+      <!-- 5. CHANGE PASSWORD MODAL (TT 003) -->
+      @if (isChangePasswordOpen) {
+        <div class="layout-modal-backdrop" (click)="closeChangePassword()">
+          <div class="layout-modal-dialog" (click)="$event.stopPropagation()">
+            <div class="modal-dialog-header">
+              <div class="modal-title-wrap">
+                <span class="material-symbols-outlined modal-icon">lock_reset</span>
+                <h3>Đổi Mật Khẩu Tài Khoản</h3>
+              </div>
+              <button type="button" class="modal-close-btn" (click)="closeChangePassword()">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div class="modal-dialog-body">
+              @if (changePasswordSuccess) {
+                <div class="alert-box alert-success">
+                  <span class="material-symbols-outlined">check_circle</span>
+                  <span>{{ changePasswordSuccess }}</span>
+                </div>
+              }
+              @if (changePasswordError) {
+                <div class="alert-box alert-error">
+                  <span class="material-symbols-outlined">error</span>
+                  <span>{{ changePasswordError }}</span>
+                </div>
+              }
+
+              <div class="form-field-group">
+                <label class="field-label">Mật khẩu hiện tại <span class="req">*</span></label>
+                <input
+                  type="password"
+                  class="field-input"
+                  placeholder="Nhập mật khẩu hiện tại"
+                  [(ngModel)]="currentPassword"
+                  [disabled]="isChangingPassword"
+                />
+              </div>
+
+              <div class="form-field-group">
+                <label class="field-label">Mật khẩu mới (tối thiểu 6 ký tự) <span class="req">*</span></label>
+                <input
+                  type="password"
+                  class="field-input"
+                  placeholder="Nhập mật khẩu mới"
+                  [(ngModel)]="newPassword"
+                  [disabled]="isChangingPassword"
+                />
+              </div>
+
+              <div class="form-field-group">
+                <label class="field-label">Xác nhận mật khẩu mới <span class="req">*</span></label>
+                <input
+                  type="password"
+                  class="field-input"
+                  placeholder="Nhập lại mật khẩu mới"
+                  [(ngModel)]="confirmPassword"
+                  [disabled]="isChangingPassword"
+                />
+              </div>
+            </div>
+
+            <div class="modal-dialog-footer">
+              <button type="button" class="btn-dialog-cancel" (click)="closeChangePassword()" [disabled]="isChangingPassword">
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                class="btn-dialog-submit"
+                (click)="submitChangePassword()"
+                [disabled]="isChangingPassword || !currentPassword || !newPassword || !confirmPassword"
+              >
+                @if (isChangingPassword) {
+                  <span class="material-symbols-outlined spin">progress_activity</span>
+                  <span>Đang cập nhật...</span>
+                } @else {
+                  <span class="material-symbols-outlined">check</span>
+                  <span>Cập nhật mật khẩu</span>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
       }
     </div>
   `,
@@ -1791,6 +1922,239 @@ import { UserPickerItem } from '../../../core/models/user.models';
         }
       }
 
+      .pwd-action-btn {
+        background: transparent;
+        border: none;
+        color: #64748B;
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+
+        &:hover {
+          background: #EFF6FF;
+          color: #2563EB;
+        }
+
+        .material-symbols-outlined {
+          font-size: 18px;
+        }
+      }
+
+      .drawer-pwd-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 10px 14px;
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        color: #334155;
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        margin-bottom: 8px;
+
+        &:hover {
+          background: #EFF6FF;
+          color: #2563EB;
+          border-color: #BFDBFE;
+        }
+      }
+
+      /* CHANGE PASSWORD MODAL STYLES */
+      .layout-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.55);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 16px;
+      }
+
+      .layout-modal-dialog {
+        background: #FFFFFF;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 440px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.08);
+        border: 1px solid #E2E8F0;
+        overflow: hidden;
+        animation: dropDownIn 0.2s ease-out;
+      }
+
+      .modal-dialog-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid #F1F5F9;
+        background: #F8FAFC;
+
+        .modal-title-wrap {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+
+          .modal-icon {
+            font-size: 22px;
+            color: #2563EB;
+          }
+
+          h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0F172A;
+            margin: 0;
+          }
+        }
+
+        .modal-close-btn {
+          background: transparent;
+          border: none;
+          color: #64748B;
+          cursor: pointer;
+          padding: 4px;
+          border-radius: 6px;
+          display: flex;
+
+          &:hover {
+            background: #E2E8F0;
+            color: #0F172A;
+          }
+        }
+      }
+
+      .modal-dialog-body {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .alert-box {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 0.82rem;
+        font-weight: 500;
+
+        &.alert-success {
+          background: #ECFDF5;
+          color: #065F46;
+          border: 1px solid #A7F3D0;
+        }
+
+        &.alert-error {
+          background: #FEF2F2;
+          color: #991B1B;
+          border: 1px solid #FECACA;
+        }
+      }
+
+      .form-field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+
+        .field-label {
+          font-size: 0.82rem;
+          font-weight: 600;
+          color: #334155;
+
+          .req {
+            color: #EF4444;
+          }
+        }
+
+        .field-input {
+          padding: 9px 12px;
+          border-radius: 8px;
+          border: 1px solid #CBD5E1;
+          font-size: 0.85rem;
+          color: #0F172A;
+          outline: none;
+          transition: border-color 0.15s, box-shadow 0.15s;
+
+          &:focus {
+            border-color: #3B82F6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+          }
+
+          &:disabled {
+            background: #F1F5F9;
+            cursor: not-allowed;
+          }
+        }
+      }
+
+      .modal-dialog-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 14px 20px;
+        border-top: 1px solid #F1F5F9;
+        background: #F8FAFC;
+
+        .btn-dialog-cancel {
+          padding: 8px 16px;
+          border-radius: 8px;
+          border: 1px solid #CBD5E1;
+          background: #FFFFFF;
+          color: #475569;
+          font-weight: 600;
+          font-size: 0.82rem;
+          cursor: pointer;
+
+          &:hover:not(:disabled) {
+            background: #F1F5F9;
+            color: #0F172A;
+          }
+        }
+
+        .btn-dialog-submit {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          border-radius: 8px;
+          border: none;
+          background: #2563EB;
+          color: #FFFFFF;
+          font-weight: 600;
+          font-size: 0.82rem;
+          cursor: pointer;
+
+          &:hover:not(:disabled) {
+            background: #1D4ED8;
+          }
+
+          &:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+          }
+
+          .spin {
+            animation: spin 1s linear infinite;
+          }
+        }
+      }
+
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+
       @keyframes dropDownIn {
         from { opacity: 0; transform: translateY(-4px); }
         to { opacity: 1; transform: translateY(0); }
@@ -1831,6 +2195,15 @@ export class LayoutComponent implements OnInit, OnDestroy {
   searchResults: GlobalSearchResult | null = null;
   private searchSubject = new Subject<string>();
   private searchSub?: Subscription;
+
+  // Change Password state (TT 003)
+  isChangePasswordOpen = false;
+  currentPassword = '';
+  newPassword = '';
+  confirmPassword = '';
+  changePasswordError = '';
+  changePasswordSuccess = '';
+  isChangingPassword = false;
 
   ngOnInit(): void {
     this.notifService.getNotifications({ unreadOnly: true }).subscribe({ error: () => {} });
@@ -1930,6 +2303,65 @@ export class LayoutComponent implements OnInit, OnDestroy {
   selectUser(userId: string): void {
     this.isSearchOpen = false;
     this.contactCardService.open(userId);
+  }
+
+  selectAttachment(attachment: any): void {
+    this.isSearchOpen = false;
+    if (attachment.fileUrl) {
+      window.open(attachment.fileUrl, '_blank');
+    } else if (attachment.taskId) {
+      this.router.navigate(['/tasks'], { queryParams: { taskId: attachment.taskId } });
+    } else {
+      this.router.navigate(['/evidence']);
+    }
+  }
+
+  openChangePassword(): void {
+    this.currentPassword = '';
+    this.newPassword = '';
+    this.confirmPassword = '';
+    this.changePasswordError = '';
+    this.changePasswordSuccess = '';
+    this.isChangingPassword = false;
+    this.isChangePasswordOpen = true;
+    this.isMobileDrawerOpen = false;
+  }
+
+  closeChangePassword(): void {
+    this.isChangePasswordOpen = false;
+  }
+
+  submitChangePassword(): void {
+    this.changePasswordError = '';
+    this.changePasswordSuccess = '';
+
+    if (!this.currentPassword) {
+      this.changePasswordError = 'Vui lòng nhập mật khẩu hiện tại.';
+      return;
+    }
+    if (!this.newPassword || this.newPassword.length < 6) {
+      this.changePasswordError = 'Mật khẩu mới phải có ít nhất 6 ký tự.';
+      return;
+    }
+    if (this.newPassword !== this.confirmPassword) {
+      this.changePasswordError = 'Mật khẩu xác nhận không khớp.';
+      return;
+    }
+
+    this.isChangingPassword = true;
+    this.authService.changePassword(this.currentPassword, this.newPassword).subscribe({
+      next: (res) => {
+        this.isChangingPassword = false;
+        this.changePasswordSuccess = res.message || 'Đổi mật khẩu thành công!';
+        setTimeout(() => {
+          this.closeChangePassword();
+        }, 1500);
+      },
+      error: (err) => {
+        this.isChangingPassword = false;
+        this.changePasswordError = err.error?.message || err.message || 'Đổi mật khẩu thất bại. Vui lòng thử lại.';
+      },
+    });
   }
 
   toggleMobileDrawer(): void {

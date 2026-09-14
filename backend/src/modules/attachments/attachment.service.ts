@@ -96,6 +96,109 @@ export class AttachmentService {
 
     return { success: true, message: 'Xóa tệp đính kèm thành công.' };
   }
+
+  /**
+   * Kho minh chứng số tập trung (TT 011, 012, 075, 093)
+   */
+  async getEvidenceRepository(params: {
+    tenantId: string;
+    search?: string;
+    mimeType?: string;
+    uploadedById?: string;
+    orgUnitId?: string;
+    locationId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const page = Math.max(1, Number(params.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(params.pageSize) || 20));
+
+    const where: any = {
+      tenantId: params.tenantId,
+    };
+
+    if (params.search && params.search.trim()) {
+      where.OR = [
+        { fileName: { contains: params.search.trim(), mode: 'insensitive' } },
+        { originalName: { contains: params.search.trim(), mode: 'insensitive' } },
+        { task: { title: { contains: params.search.trim(), mode: 'insensitive' } } },
+      ];
+    }
+
+    if (params.mimeType && params.mimeType !== 'ALL') {
+      if (params.mimeType === 'IMAGE') {
+        where.mimeType = { startsWith: 'image/' };
+      } else if (params.mimeType === 'PDF') {
+        where.mimeType = 'application/pdf';
+      } else if (params.mimeType === 'WORD') {
+        where.mimeType = { contains: 'word' };
+      } else if (params.mimeType === 'EXCEL') {
+        where.mimeType = { contains: 'sheet' };
+      } else {
+        where.mimeType = { contains: params.mimeType };
+      }
+    }
+
+    if (params.uploadedById) {
+      where.uploadedById = params.uploadedById;
+    }
+
+    if (params.locationId) {
+      where.task = { ...(where.task || {}), locationId: params.locationId };
+    }
+
+    if (params.orgUnitId) {
+      where.task = {
+        ...(where.task || {}),
+        OR: [{ orgUnitId: params.orgUnitId }, { assignedOrgUnitId: params.orgUnitId }],
+      };
+    }
+
+    if (params.startDate || params.endDate) {
+      where.createdAt = {};
+      if (params.startDate) where.createdAt.gte = params.startDate;
+      if (params.endDate) where.createdAt.lte = params.endDate;
+    }
+
+    const [total, items] = await Promise.all([
+      prisma.attachment.count({ where }),
+      prisma.attachment.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          uploadedBy: {
+            select: { id: true, fullName: true, title: true, avatarUrl: true, phone: true },
+          },
+          task: {
+            select: {
+              id: true,
+              code: true,
+              title: true,
+              status: true,
+              plan: { select: { id: true, title: true } },
+              location: { select: { id: true, name: true } },
+              orgUnit: { select: { id: true, name: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      items,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
+  }
 }
 
 export const attachmentService = new AttachmentService();
+

@@ -3,6 +3,8 @@ import ExcelJS from 'exceljs';
 
 export interface UserKpiDetail {
   record: any;
+  manualScores?: any;
+  calculatedSummary?: any;
   user: {
     id: string;
     fullName: string;
@@ -279,6 +281,21 @@ export class KpiService {
 
     return {
       record,
+      manualScores: record.manualScores || {},
+      calculatedSummary: {
+        totalTasks,
+        completedBeforeDeadline,
+        completedOnTime,
+        completedLate,
+        uncompletedTasks: uncompleted,
+        scoreA: scoreA_Quantity,
+        scoreB: scoreB_Quality,
+        scoreC: scoreC_Timeline,
+        scoreD: scoreD_Leadership,
+        finalScore,
+        finalGrade: rating,
+        ratingCategory,
+      },
       user: {
         id: user.id,
         fullName: user.fullName,
@@ -674,4 +691,59 @@ export class KpiService {
     const rawBuffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(rawBuffer);
   }
+
+  /**
+   * Cập nhật điểm tự đánh giá KPI thủ công (TT 120)
+   */
+  static async updateManualScore(
+    tenantId: string,
+    userId: string,
+    payload: {
+      periodKey?: string;
+      kpiCode: string;
+      score: number;
+      note?: string;
+    }
+  ) {
+    const periodKey = payload.periodKey || 'QUY_3';
+    let record = await prisma.kPIRecord.findUnique({
+      where: {
+        tenantId_userId_periodKey: {
+          tenantId,
+          userId,
+          periodKey,
+        },
+      },
+    });
+
+    if (!record) {
+      await this.calculateUserKpi(tenantId, userId, periodKey);
+      record = await prisma.kPIRecord.findUnique({
+        where: {
+          tenantId_userId_periodKey: {
+            tenantId,
+            userId,
+            periodKey,
+          },
+        },
+      });
+    }
+
+    const currentManualScores: any = (record?.manualScores as any) || {};
+    currentManualScores[payload.kpiCode] = {
+      score: Number(payload.score),
+      note: payload.note || '',
+      updatedAt: new Date(),
+    };
+
+    const updated = await prisma.kPIRecord.update({
+      where: { id: record!.id },
+      data: {
+        manualScores: currentManualScores,
+      },
+    });
+
+    return updated;
+  }
 }
+

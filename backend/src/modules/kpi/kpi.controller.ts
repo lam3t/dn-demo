@@ -135,4 +135,40 @@ export class KpiController {
       res.status(500).json({ success: false, message: error.message || 'Lỗi khi xuất file Excel KPI' });
     }
   }
+
+  /**
+   * POST /api/kpi/manual-score
+   */
+  static async updateManualScore(req: Request, res: Response): Promise<void> {
+    try {
+      const tenantId = req.user?.tenantId;
+      const targetUserId = req.body.userId || req.user?.id;
+      const { kpiCode, score, periodKey, note } = req.body;
+
+      if (!tenantId || !targetUserId) {
+        res.status(400).json({ success: false, message: 'Thiếu thông tin trường học hoặc người dùng.' });
+        return;
+      }
+      if (!kpiCode || score === undefined) {
+        res.status(400).json({ success: false, message: 'Thiếu mã chỉ số (kpiCode) hoặc điểm (score).' });
+        return;
+      }
+
+      const result = await KpiService.updateManualScore(tenantId, targetUserId, {
+        kpiCode,
+        score: Number(score),
+        periodKey,
+        note,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Cập nhật điểm KPI thủ công thành công.',
+        data: result,
+      });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message || 'Lỗi khi cập nhật điểm KPI thủ công' });
+    }
+  }
 }
+

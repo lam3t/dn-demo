@@ -549,6 +549,48 @@ export type KpiViewTab = 'CA_NHAN' | 'TO_BO_PHAN' | 'TOAN_TRUONG';
             </div>
           </div>
         </div>
+
+        <!-- 7. MANUAL SCORES & OTHER KPI DEFINITIONS (TT 120) -->
+        <div class="manual-kpi-card hide-on-print">
+          <div class="manual-kpi-header">
+            <div class="manual-header-title">
+              <span class="material-symbols-outlined manual-icon">military_tech</span>
+              <div>
+                <h3 class="manual-title">Tự Đánh Giá & Cập Nhật Chỉ Số KPI Khác (TT 120)</h3>
+                <p class="manual-subtitle">Cán bộ tự đánh giá hoặc cập nhật các tiêu chí KPI ngoài luồng công việc: NCKH, phong trào, khen thưởng, sáng kiến kinh nghiệm.</p>
+              </div>
+            </div>
+            <button type="button" class="btn-open-manual-form tap-target" (click)="openManualScoreModal()">
+              <span class="material-symbols-outlined">add_task</span>
+              <span>Cập nhật điểm KPI khác</span>
+            </button>
+          </div>
+
+          @if (manualScoresList().length > 0) {
+            <div class="manual-scores-grid">
+              @for (item of manualScoresList(); track item.kpiCode) {
+                <div class="manual-score-item">
+                  <div class="manual-item-top">
+                    <span class="manual-code">{{ item.kpiCode }}</span>
+                    <strong class="manual-score-val">{{ item.score }}/100</strong>
+                  </div>
+                  <div class="manual-name">{{ item.name || item.kpiCode }}</div>
+                  @if (item.note) {
+                    <div class="manual-note">📝 {{ item.note }}</div>
+                  }
+                  @if (item.updatedAt) {
+                    <div class="manual-date">🕒 {{ item.updatedAt | date:'HH:mm - dd/MM/yyyy' }}</div>
+                  }
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="manual-empty-state">
+              <span class="material-symbols-outlined">assignment_turned_in</span>
+              <span>Chưa có chỉ số KPI tự đánh giá bổ sung cho kỳ này. Bấm "Cập nhật điểm KPI khác" để tự đánh giá tiêu chí ngoài luồng.</span>
+            </div>
+          }
+        </div>
       }
 
       <!-- ================= TAB 2: KPI TỔ CHUYÊN MÔN / BỘ PHẬN ================= -->
@@ -767,6 +809,96 @@ export type KpiViewTab = 'CA_NHAN' | 'TO_BO_PHAN' | 'TOAN_TRUONG';
                   }
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- MODAL CẬP NHẬT KPI KHÁC (TT 120) -->
+      @if (isManualScoreModalOpen()) {
+        <div class="modal-backdrop" (click)="closeManualScoreModal()">
+          <div class="modal-dialog-manual" (click)="$event.stopPropagation()">
+            <div class="modal-header-manual">
+              <div class="modal-title-box">
+                <span class="material-symbols-outlined modal-icon">military_tech</span>
+                <h3>Cập Nhật Điểm Chỉ Số KPI Khác</h3>
+              </div>
+              <button type="button" class="btn-close-modal" (click)="closeManualScoreModal()">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div class="modal-body-manual">
+              @if (manualScoreSuccess()) {
+                <div class="alert-box alert-success">
+                  <span class="material-symbols-outlined">check_circle</span>
+                  <span>{{ manualScoreSuccess() }}</span>
+                </div>
+              }
+              @if (manualScoreError()) {
+                <div class="alert-box alert-error">
+                  <span class="material-symbols-outlined">error</span>
+                  <span>{{ manualScoreError() }}</span>
+                </div>
+              }
+
+              <div class="form-field-group">
+                <label class="field-label">Mã / Tiêu chí KPI <span class="req">*</span></label>
+                <select class="field-select" [(ngModel)]="selectedManualKpiCode">
+                  <option value="">-- Chọn tiêu chí KPI hoặc danh mục --</option>
+                  @for (def of kpiDefinitions(); track def.id) {
+                    <option [value]="def.code">[{{ def.code }}] {{ def.name }} (Trọng số: {{ def.weight }})</option>
+                  }
+                  <option value="KPI_NCKH">KPI_NCKH - Nghiên cứu khoa học & Sáng kiến kinh nghiệm</option>
+                  <option value="KPI_PHONG_TRAO">KPI_PHONG_TRAO - Hoạt động ngoại khóa & Phong trào đoàn thể</option>
+                  <option value="KPI_KHEN_THUONG">KPI_KHEN_THUONG - Thành tích & Khen thưởng đột xuất</option>
+                  <option value="KPI_CUSTOM">KPI_CUSTOM - Tiêu chí chuyên biệt khác</option>
+                </select>
+              </div>
+
+              <div class="form-field-group">
+                <label class="field-label">Điểm số tự đánh giá (0 - 100) <span class="req">*</span></label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  class="field-input"
+                  placeholder="VD: 90"
+                  [(ngModel)]="manualScoreValue"
+                  [disabled]="isSavingManualScore()"
+                />
+              </div>
+
+              <div class="form-field-group">
+                <label class="field-label">Minh chứng & Ghi chú giải trình</label>
+                <textarea
+                  class="field-textarea"
+                  rows="3"
+                  placeholder="Mô tả kết quả đạt được, quyết định công nhận hoặc đường dẫn minh chứng đính kèm..."
+                  [(ngModel)]="manualScoreNote"
+                  [disabled]="isSavingManualScore()"
+                ></textarea>
+              </div>
+            </div>
+
+            <div class="modal-footer-manual">
+              <button type="button" class="btn-cancel" (click)="closeManualScoreModal()" [disabled]="isSavingManualScore()">
+                Hủy
+              </button>
+              <button
+                type="button"
+                class="btn-save"
+                (click)="submitManualScore()"
+                [disabled]="isSavingManualScore() || !selectedManualKpiCode || manualScoreValue === null"
+              >
+                @if (isSavingManualScore()) {
+                  <span class="material-symbols-outlined spin">progress_activity</span>
+                  <span>Đang lưu...</span>
+                } @else {
+                  <span class="material-symbols-outlined">save</span>
+                  <span>Lưu điểm KPI</span>
+                }
+              </button>
             </div>
           </div>
         </div>
@@ -1910,67 +2042,307 @@ export type KpiViewTab = 'CA_NHAN' | 'TO_BO_PHAN' | 'TOAN_TRUONG';
         .text-rose { color: #E11D48; }
       }
 
-      /* PRINT STYLES */
-      @media print {
-        .hide-on-print { display: none !important; }
+      /* MANUAL KPI CARD & MODAL STYLES (TT 120) */
+      .manual-kpi-card {
+        background: #FFFFFF;
+        border-radius: 14px;
+        padding: 20px 24px;
+        margin-top: 24px;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 
-        .my-kpi-container {
-          background: #FFFFFF !important;
-          padding: 0 !important;
-          font-family: 'Times New Roman', Times, serif !important;
-        }
+        .manual-kpi-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          flex-wrap: wrap;
+          margin-bottom: 16px;
 
-        .kpi-scores-grid, .auto-kpi-banner, .view-tabs-card {
-          display: none !important;
-        }
+          .manual-header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
 
-        .kpi-table-section {
-          border: none !important;
-          box-shadow: none !important;
-
-          .kpi-data-table {
-            font-size: 8.5pt !important;
-
-            th, td {
-              border: 1px solid #000000 !important;
-              padding: 4px !important;
+            .manual-icon {
+              font-size: 28px;
+              color: #D97706;
+              background: #FEF3C7;
+              padding: 8px;
+              border-radius: 10px;
             }
 
-            thead th {
-              background: #F1F5F9 !important;
-              color: #000000 !important;
+            .manual-title {
+              font-size: 1.05rem;
+              font-weight: 800;
+              color: #1E293B;
+              margin: 0;
             }
 
-            .inline-input, .inline-textarea {
-              font-size: 8.5pt !important;
-              padding: 0 !important;
+            .manual-subtitle {
+              font-size: 0.82rem;
+              color: #64748B;
+              margin: 3px 0 0 0;
+            }
+          }
+
+          .btn-open-manual-form {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: #1F3864;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+
+            &:hover {
+              background: #152644;
+            }
+
+            .material-symbols-outlined {
+              font-size: 18px;
             }
           }
         }
 
-        .summary-bottom-section {
-          display: flex !important;
-          justify-content: space-between !important;
-          border: none !important;
+        .manual-scores-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+          gap: 14px;
 
-          .summary-box-card {
-            width: 50% !important;
-            border: none !important;
-            padding: 0 !important;
-            box-shadow: none !important;
+          .manual-score-item {
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 10px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
 
-            .summary-results-table {
-              font-size: 9pt !important;
-              td { border: 1px solid #000000 !important; padding: 3px 6px !important; }
+            .manual-item-top {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+
+              .manual-code {
+                font-size: 0.75rem;
+                font-weight: 800;
+                background: #EFF6FF;
+                color: #2563EB;
+                padding: 2px 8px;
+                border-radius: 6px;
+              }
+
+              .manual-score-val {
+                font-size: 1rem;
+                color: #059669;
+              }
+            }
+
+            .manual-name {
+              font-size: 0.88rem;
+              font-weight: 700;
+              color: #1E293B;
+            }
+
+            .manual-note {
+              font-size: 0.8rem;
+              color: #475569;
+              background: #FFFFFF;
+              padding: 6px 8px;
+              border-radius: 6px;
+              border: 1px solid #F1F5F9;
+            }
+
+            .manual-date {
+              font-size: 0.72rem;
+              color: #94A3B8;
+            }
+          }
+        }
+
+        .manual-empty-state {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 14px 18px;
+          background: #F8FAFC;
+          border-radius: 8px;
+          color: #64748B;
+          font-size: 0.85rem;
+
+          .material-symbols-outlined {
+            font-size: 22px;
+            color: #94A3B8;
+          }
+        }
+      }
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.55);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 16px;
+      }
+
+      .modal-dialog-manual {
+        background: #FFFFFF;
+        border-radius: 14px;
+        width: 100%;
+        max-width: 500px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+        border: 1px solid #E2E8F0;
+        overflow: hidden;
+      }
+
+      .modal-header-manual {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        background: #F8FAFC;
+        border-bottom: 1px solid #F1F5F9;
+
+        .modal-title-box {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+
+          .modal-icon {
+            font-size: 24px;
+            color: #D97706;
+          }
+
+          h3 {
+            font-size: 1rem;
+            font-weight: 800;
+            color: #1E293B;
+            margin: 0;
+          }
+        }
+
+        .btn-close-modal {
+          background: transparent;
+          border: none;
+          color: #64748B;
+          cursor: pointer;
+          padding: 4px;
+          border-radius: 6px;
+          display: flex;
+
+          &:hover {
+            background: #E2E8F0;
+            color: #0F172A;
+          }
+        }
+      }
+
+      .modal-body-manual {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+
+        .form-field-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+
+          .field-label {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #334155;
+
+            .req {
+              color: #EF4444;
             }
           }
 
-          .signatures-box-card {
-            width: 45% !important;
-            border: none !important;
-            padding: 0 !important;
-            box-shadow: none !important;
+          .field-input, .field-select, .field-textarea {
+            padding: 9px 12px;
+            border-radius: 8px;
+            border: 1px solid #CBD5E1;
+            font-size: 0.85rem;
+            color: #0F172A;
+            font-family: inherit;
+            outline: none;
+
+            &:focus {
+              border-color: #2563EB;
+              box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+            }
           }
+        }
+      }
+
+      .modal-footer-manual {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 14px 20px;
+        background: #F8FAFC;
+        border-top: 1px solid #F1F5F9;
+
+        .btn-cancel {
+          padding: 8px 16px;
+          border-radius: 8px;
+          border: 1px solid #CBD5E1;
+          background: #FFFFFF;
+          color: #475569;
+          font-weight: 600;
+          font-size: 0.82rem;
+          cursor: pointer;
+        }
+
+        .btn-save {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 18px;
+          border-radius: 8px;
+          border: none;
+          background: #1F3864;
+          color: #FFFFFF;
+          font-weight: 700;
+          font-size: 0.82rem;
+          cursor: pointer;
+
+          &:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+          }
+        }
+      }
+
+      .alert-box {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 0.82rem;
+
+        &.alert-success {
+          background: #ECFDF5;
+          color: #065F46;
+          border: 1px solid #A7F3D0;
+        }
+
+        &.alert-error {
+          background: #FEF2F2;
+          color: #991B1B;
+          border: 1px solid #FECACA;
         }
       }
     `,
@@ -1988,6 +2360,17 @@ export class MyKpiComponent implements OnInit {
   sheet = signal<KpiEvaluationSheet | null>(null);
   rows = signal<KpiRowItem[]>([]);
   backendKpiSummary = signal<any | null>(null);
+
+  // Manual KPI Assessment (TT 120)
+  kpiDefinitions = signal<any[]>([]);
+  manualScoresList = signal<any[]>([]);
+  isManualScoreModalOpen = signal(false);
+  selectedManualKpiCode = '';
+  manualScoreValue: number | null = null;
+  manualScoreNote = '';
+  isSavingManualScore = signal(false);
+  manualScoreError = signal<string | null>(null);
+  manualScoreSuccess = signal<string | null>(null);
 
   // Department & School Summaries
   orgSummary = signal<any | null>(null);
@@ -2032,12 +2415,20 @@ export class MyKpiComponent implements OnInit {
   loadAllKpiData() {
     this.loadSheetData();
     this.loadBackendKpiSummary();
+    this.loadDefinitions();
     if (this.canViewOrgUnit()) {
       this.loadOrgSummary();
     }
     if (this.canViewSchool()) {
       this.loadSchoolSummary();
     }
+  }
+
+  loadDefinitions() {
+    this.kpiService.getDefinitions().subscribe({
+      next: (defs) => this.kpiDefinitions.set(defs),
+      error: () => {},
+    });
   }
 
   switchTab(tab: KpiViewTab) {
@@ -2068,9 +2459,74 @@ export class MyKpiComponent implements OnInit {
         if (res && res.calculatedSummary) {
           this.backendKpiSummary.set(res.calculatedSummary);
         }
+        if (res && res.manualScores) {
+          const list = Object.entries(res.manualScores).map(([kpiCode, val]: [string, any]) => ({
+            kpiCode,
+            score: val.score,
+            note: val.note,
+            updatedAt: val.updatedAt,
+            name: this.getKpiDefinitionName(kpiCode),
+          }));
+          this.manualScoresList.set(list);
+        }
       },
       error: (err) => console.warn('Could not load backend KPI summary:', err),
     });
+  }
+
+  getKpiDefinitionName(code: string): string {
+    const found = this.kpiDefinitions().find((d) => d.code === code);
+    return found ? found.name : code;
+  }
+
+  openManualScoreModal() {
+    this.selectedManualKpiCode = '';
+    this.manualScoreValue = null;
+    this.manualScoreNote = '';
+    this.manualScoreError.set(null);
+    this.manualScoreSuccess.set(null);
+    this.isManualScoreModalOpen.set(true);
+  }
+
+  closeManualScoreModal() {
+    this.isManualScoreModalOpen.set(false);
+  }
+
+  submitManualScore() {
+    if (!this.selectedManualKpiCode) {
+      this.manualScoreError.set('Vui lòng chọn hoặc nhập mã chỉ số KPI.');
+      return;
+    }
+    if (this.manualScoreValue === null || isNaN(this.manualScoreValue) || this.manualScoreValue < 0 || this.manualScoreValue > 100) {
+      this.manualScoreError.set('Điểm số phải từ 0 đến 100.');
+      return;
+    }
+
+    this.isSavingManualScore.set(true);
+    this.manualScoreError.set(null);
+    this.manualScoreSuccess.set(null);
+
+    this.kpiService
+      .updateManualScore({
+        periodKey: this.selectedPeriod(),
+        kpiCode: this.selectedManualKpiCode,
+        score: Number(this.manualScoreValue),
+        note: this.manualScoreNote.trim() || undefined,
+      })
+      .subscribe({
+        next: () => {
+          this.isSavingManualScore.set(false);
+          this.manualScoreSuccess.set('Cập nhật điểm KPI thành công!');
+          this.loadBackendKpiSummary();
+          setTimeout(() => {
+            this.closeManualScoreModal();
+          }, 1200);
+        },
+        error: (err) => {
+          this.isSavingManualScore.set(false);
+          this.manualScoreError.set(err.error?.message || err.message || 'Lưu điểm thất bại.');
+        },
+      });
   }
 
   loadOrgSummary() {

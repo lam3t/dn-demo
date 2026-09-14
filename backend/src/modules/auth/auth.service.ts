@@ -238,6 +238,43 @@ export class AuthService {
       permissions,
     };
   }
+
+  /**
+   * Đổi mật khẩu cá nhân (TT 003)
+   */
+  async changePassword(userId: string, oldPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    if (!oldPassword || !newPassword) {
+      throw new AppError('Vui lòng nhập đầy đủ mật khẩu cũ và mật khẩu mới.', 400);
+    }
+    if (newPassword.length < 6) {
+      throw new AppError('Mật khẩu mới phải có tối thiểu 6 ký tự.', 400);
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new AppError('Không tìm thấy thông tin tài khoản người dùng.', 404);
+    }
+
+    const isMatch = await bcrypt.compare(oldPassword, user.passwordHash);
+    if (!isMatch) {
+      throw new AppError('Mật khẩu hiện tại không chính xác.', 400);
+    }
+
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newPasswordHash },
+    });
+
+    return {
+      success: true,
+      message: 'Đổi mật khẩu thành công.',
+    };
+  }
 }
 
 export const authService = new AuthService();
+

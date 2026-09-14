@@ -205,6 +205,7 @@ interface PaperPlanRow {
               (addChildPlan)="openAddChildPlanModal($event)"
               (editPlan)="openEditPlanModal($event)"
               (deletePlan)="onDeletePlan($event)"
+              (viewPlanLogs)="openPlanLogsModal($event)"
             ></app-plan-tree>
           }
         </section>
@@ -577,6 +578,70 @@ interface PaperPlanRow {
                   <span>Bắt đầu sao chép</span>
                 }
               </button>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- MODAL XEM LỊCH SỬ KẾ HOẠCH (TT 021) -->
+      @if (isPlanLogsModalOpen()) {
+        <div class="modal-backdrop" (click)="closePlanLogsModal()">
+          <div class="modal-dialog-large" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <div class="modal-header-icon">
+                <span class="material-symbols-outlined">history</span>
+              </div>
+              <div class="modal-header-text">
+                <h3>Lịch Sử Chỉnh Sửa Kế Hoạch</h3>
+                <p>{{ selectedPlanForLogs()?.title }}</p>
+              </div>
+              <button type="button" class="btn-close-modal" (click)="closePlanLogsModal()">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div class="modal-body">
+              @if (isLoadingPlanLogs()) {
+                <div class="loading-state">
+                  <span class="material-symbols-outlined spin">progress_activity</span>
+                  <span>Đang tải lịch sử chỉnh sửa...</span>
+                </div>
+              } @else if (planLogs().length === 0) {
+                <div class="empty-logs-state">
+                  <span class="material-symbols-outlined">history_toggle_off</span>
+                  <p>Chưa có nhật ký ghi nhận thay đổi nào cho kế hoạch này.</p>
+                </div>
+              } @else {
+                <div class="logs-timeline-list">
+                  @for (log of planLogs(); track log.id) {
+                    <div class="log-timeline-item">
+                      <div class="log-dot"></div>
+                      <div class="log-content-card">
+                        <div class="log-header-row">
+                          <span class="log-action-badge">{{ log.action }}</span>
+                          <span class="log-time">{{ log.createdAt | date:'HH:mm - dd/MM/yyyy' }}</span>
+                        </div>
+                        <div class="log-user-row">
+                          <span class="material-symbols-outlined user-mini-icon">person</span>
+                          <span class="log-user-name">{{ log.user?.fullName || 'Người dùng hệ thống' }}</span>
+                          @if (log.user?.title) {
+                            <span class="log-user-title">({{ log.user?.title }})</span>
+                          }
+                        </div>
+                        @if (log.details) {
+                          <div class="log-details-box">
+                            <span class="log-details-text">{{ log.details }}</span>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn-cancel" (click)="closePlanLogsModal()">Đóng</button>
             </div>
           </div>
         </div>
@@ -1281,6 +1346,123 @@ interface PaperPlanRow {
         overflow: hidden;
         display: flex;
         flex-direction: column;
+      }
+
+      .modal-dialog-large {
+        width: 100%;
+        max-width: 680px;
+        background: #FFFFFF;
+        border-radius: 18px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .empty-logs-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+        color: #64748B;
+        text-align: center;
+        gap: 8px;
+
+        .material-symbols-outlined {
+          font-size: 36px;
+          color: #94A3B8;
+        }
+
+        p {
+          margin: 0;
+          font-size: 0.9rem;
+        }
+      }
+
+      .logs-timeline-list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        padding: 6px 0;
+      }
+
+      .log-timeline-item {
+        display: flex;
+        gap: 12px;
+        position: relative;
+
+        .log-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: #2563EB;
+          margin-top: 6px;
+          flex-shrink: 0;
+          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        }
+
+        .log-content-card {
+          flex: 1;
+          background: #F8FAFC;
+          border: 1px solid #E2E8F0;
+          border-radius: 10px;
+          padding: 10px 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+
+          .log-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            .log-action-badge {
+              font-size: 0.72rem;
+              font-weight: 800;
+              padding: 2px 8px;
+              border-radius: 999px;
+              background: #EFF6FF;
+              color: #1D4ED8;
+            }
+
+            .log-time {
+              font-size: 0.75rem;
+              color: #64748B;
+            }
+          }
+
+          .log-user-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.82rem;
+            color: #1E293B;
+
+            .user-mini-icon {
+              font-size: 16px;
+              color: #64748B;
+            }
+
+            .log-user-name {
+              font-weight: 700;
+            }
+
+            .log-user-title {
+              color: #64748B;
+            }
+          }
+
+          .log-details-box {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 0.8rem;
+            color: #334155;
+            white-space: pre-wrap;
+          }
+        }
       }
 
       .modal-header {
@@ -2053,5 +2235,33 @@ export class PlansComponent implements OnInit, OnDestroy {
         this.duplicateModalError.set(err.error?.message || 'Sao chép kế hoạch thất bại.');
       },
     });
+  }
+
+  // PLAN LOGS MODAL (TT 021)
+  isPlanLogsModalOpen = signal(false);
+  isLoadingPlanLogs = signal(false);
+  selectedPlanForLogs = signal<PlanTreeNode | null>(null);
+  planLogs = signal<any[]>([]);
+
+  openPlanLogsModal(node: PlanTreeNode) {
+    this.selectedPlanForLogs.set(node);
+    this.isPlanLogsModalOpen.set(true);
+    this.isLoadingPlanLogs.set(true);
+    this.planService.getPlanLogs(node.id).subscribe({
+      next: (logs) => {
+        this.planLogs.set(logs);
+        this.isLoadingPlanLogs.set(false);
+      },
+      error: (err) => {
+        this.isLoadingPlanLogs.set(false);
+        this.showToast('Không thể tải nhật ký kế hoạch: ' + (err.message || 'Lỗi'), 'error');
+      },
+    });
+  }
+
+  closePlanLogsModal() {
+    this.isPlanLogsModalOpen.set(false);
+    this.selectedPlanForLogs.set(null);
+    this.planLogs.set([]);
   }
 }

@@ -59,4 +59,34 @@ export class AttachmentService {
   deleteAttachment(id: string): Observable<{ success: boolean }> {
     return this.http.delete<{ success: boolean }>(`/api/attachments/${id}`);
   }
+
+  getEvidenceRepository(params: {
+    search?: string;
+    mimeType?: string;
+    uploadedById?: string;
+    orgUnitId?: string;
+    locationId?: string;
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    pageSize?: number;
+  }): Observable<{ items: any[]; pagination: { page: number; pageSize: number; total: number; totalPages: number } }> {
+    const queryParams: any = {};
+    if (params.search) queryParams.search = params.search;
+    if (params.mimeType) queryParams.mimeType = params.mimeType;
+    if (params.uploadedById) queryParams.uploadedById = params.uploadedById;
+    if (params.orgUnitId) queryParams.orgUnitId = params.orgUnitId;
+    if (params.locationId) queryParams.locationId = params.locationId;
+    if (params.startDate) queryParams.startDate = params.startDate;
+    if (params.endDate) queryParams.endDate = params.endDate;
+    if (params.page) queryParams.page = params.page;
+    if (params.pageSize) queryParams.pageSize = params.pageSize;
+
+    return this.http
+      .get<{ success: boolean; data: { items: any[]; pagination: any } }>('/api/attachments/repository', {
+        params: queryParams,
+      })
+      .pipe(map((res) => res.data));
+  }
 }
+

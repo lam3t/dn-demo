@@ -298,4 +298,12 @@ export class AuthService {
   getAccessToken(): string | null {
     return this.accessTokenSignal() || localStorage.getItem(ACCESS_TOKEN_KEY);
   }
+
+  changePassword(oldPassword: string, newPassword: string): Observable<{ success: boolean; message: string }> {
+    return this.http.post<{ success: boolean; message: string }>('/api/auth/change-password', {
+      oldPassword,
+      newPassword,
+    });
+  }
 }
+

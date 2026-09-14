@@ -14,7 +14,17 @@ router.post(
   (req, res, next) => attachmentController.upload(req, res, next)
 );
 
-router.get('/', (req, res, next) => attachmentController.getByTaskId(req, res, next));
+// Lấy danh sách minh chứng kho số hoặc theo công việc
+router.get('/repository', (req, res, next) => attachmentController.getRepository(req, res, next));
+router.get('/', (req, res, next) => {
+  const params = req.params as Record<string, string>;
+  if (params.id || params.taskId || req.query.taskId) {
+    return attachmentController.getByTaskId(req, res, next);
+  }
+  return attachmentController.getRepository(req, res, next);
+});
+
 router.delete('/:id', (req, res, next) => attachmentController.delete(req, res, next));
 
 export default router;
+

@@ -69,6 +69,12 @@ export const routes: Routes = [
           import('./features/reports/reports.component').then((m) => m.ReportsComponent),
       },
       {
+        path: 'evidence',
+        loadComponent: () =>
+          import('./features/evidence/evidence.component').then((m) => m.EvidenceComponent),
+      },
+
+      {
         path: 'admin-settings',
         canActivate: [authGuard],
         data: { roles: ['ADMIN'] },

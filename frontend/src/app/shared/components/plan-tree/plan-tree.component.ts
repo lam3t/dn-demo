@@ -150,6 +150,15 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
 
                   <button
                     type="button"
+                    class="action-btn btn-history tap-target"
+                    title="Lịch sử chỉnh sửa kế hoạch (TT 021)"
+                    (click)="onViewLogs(node, $event)"
+                  >
+                    <span class="material-symbols-outlined">history</span>
+                  </button>
+
+                  <button
+                    type="button"
                     class="action-btn btn-delete tap-target"
                     title="Xóa kế hoạch"
                     (click)="onDeletePlan(node, $event)"
@@ -363,6 +372,7 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
                         (editPlan)="editPlan.emit($event)"
                         (deletePlan)="deletePlan.emit($event)"
                         (addChildPlan)="addChildPlan.emit($event)"
+                        (viewPlanLogs)="viewPlanLogs.emit($event)"
                       ></app-plan-tree>
                     </div>
                   }
@@ -1239,6 +1249,7 @@ export class PlanTreeComponent implements OnChanges {
   @Output() editPlan = new EventEmitter<PlanTreeNode>();
   @Output() deletePlan = new EventEmitter<PlanTreeNode>();
   @Output() addChildPlan = new EventEmitter<PlanTreeNode>();
+  @Output() viewPlanLogs = new EventEmitter<PlanTreeNode>();
 
   // Track expanded state of nodes by ID
   expandedNodeIds = signal<Set<string>>(new Set<string>());
@@ -1435,5 +1446,10 @@ export class PlanTreeComponent implements OnChanges {
   onTaskClick(task: any) {
     this.taskSelected.emit(task);
     this.router.navigate(['/tasks'], { queryParams: { taskId: task.id } });
+  }
+
+  onViewLogs(node: PlanTreeNode, event: Event) {
+    event.stopPropagation();
+    this.viewPlanLogs.emit(node);
   }
 }
