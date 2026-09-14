@@ -20,18 +20,14 @@
     }
   </div>
 
-  <!-- ROLE WARNING BANNER IF NOT SYSTEM ADMIN -->
+  <!-- ACCESS WARNING BANNER IF NOT SYSTEM ADMIN -->
   @if (!authService.isSystemAdmin()) {
     <div class="role-warning-banner">
       <span class="material-symbols-outlined warn-icon">admin_panel_settings</span>
       <div class="warn-content">
-        <span class="warn-title">Bạn đang đăng nhập với tài khoản: <strong>{{ authService.currentUser()?.fullName || 'Người dùng' }}</strong> ({{ authService.activeRole()?.roleTitle || 'Cán bộ' }})</span>
-        <span class="warn-desc">Phân hệ này yêu cầu quyền <strong>System Admin (Quản trị viên Nền tảng)</strong> để khởi tạo và quản lý các trường học trong hệ thống SaaS.</span>
+        <span class="warn-title">Tài khoản hiện tại: <strong>{{ authService.currentUser()?.fullName || 'Người dùng' }}</strong> ({{ authService.activeRole()?.roleTitle || 'Cán bộ' }})</span>
+        <span class="warn-desc">Phân hệ này yêu cầu quyền <strong>System Admin (Quản trị viên Nền tảng)</strong>.</span>
       </div>
-      <button type="button" class="btn-switch-sysadmin" (click)="switchToSystemAdmin()">
-        <span class="material-symbols-outlined">key</span>
-        <span>Chuyển sang tài khoản System Admin (Demo)</span>
-      </button>
     </div>
   }
 

@@ -21,8 +21,8 @@ import { UserProfile, ActiveContextRole, UserRoleItem } from '../../core/models/
           <h1 class="system-title">TN EDU</h1>
           <p class="system-subtitle">Quản lý Kế hoạch & Công việc Trường Phổ thông</p>
           <div class="school-badge">
-            <span class="material-symbols-outlined">location_on</span>
-            <span>Trường TH và THCS Phước Tân (3 Điểm trường)</span>
+            <span class="material-symbols-outlined">verified</span>
+            <span>Nền tảng Quản lý Kế hoạch & Công việc Trường học</span>
           </div>
         </div>
 
@@ -94,34 +94,6 @@ import { UserProfile, ActiveContextRole, UserRoleItem } from '../../core/models/
               }
             </button>
           </form>
-
-          <!-- QUICK DEMO LOGINS -->
-          <div class="demo-section">
-            <div class="divider">
-              <span>Hoặc bấm chọn nhanh tài khoản mẫu để thử nghiệm</span>
-            </div>
-
-            <div class="demo-grid">
-              @for (acc of authService.demoAccounts; track acc.identifier) {
-                <button
-                  type="button"
-                  class="demo-account-btn tap-target"
-                  [class.admin-card]="acc.role === 'ADMIN'"
-                  (click)="fillDemoAccount(acc.identifier)"
-                  [title]="acc.name + ' (' + acc.roleTitle + ') - ' + acc.desc"
-                >
-                  <img [src]="acc.avatar" [alt]="acc.name" class="demo-avatar" />
-                  <div class="demo-info">
-                    <span class="demo-name">{{ acc.name }}</span>
-                    <span class="demo-role" [style.color]="acc.color">{{ acc.roleTitle }}</span>
-                  </div>
-                  @if (acc.role === 'ADMIN') {
-                    <span class="admin-chip">Admin</span>
-                  }
-                </button>
-              }
-            </div>
-          </div>
         }
 
         <!-- STEP 2: CHỌN NGỮ CẢNH VAI TRÒ LÀM VIỆC (KHI CÓ NHIỀU VAI TRÒ) -->
@@ -653,8 +625,8 @@ export class LoginComponent {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
-  identifier = '0903111222';
-  password = '123456';
+  identifier = '';
+  password = '';
   showPassword = false;
 
   isLoading = signal(false);
@@ -664,12 +636,6 @@ export class LoginComponent {
   loggedUser = signal<UserProfile | null>(null);
   availableRoles = signal<UserRoleItem[]>([]);
   rememberRoleChoice = true;
-
-  fillDemoAccount(identifier: string) {
-    this.identifier = identifier;
-    this.password = '123456';
-    this.onLogin();
-  }
 
   onLogin() {
     if (!this.identifier.trim() || !this.password.trim()) {
@@ -800,6 +766,16 @@ export class LoginComponent {
   }
 
   private navigateAfterLogin() {
+    const user = this.loggedUser() || this.authService.currentUser();
+    if (user?.isSystemAdmin || this.authService.isSystemAdmin()) {
+      const returnUrl = this.route.snapshot.queryParams['returnUrl'];
+      if (returnUrl && !returnUrl.startsWith('/dashboard') && returnUrl !== '/') {
+        this.router.navigateByUrl(returnUrl);
+      } else {
+        this.router.navigateByUrl('/system-admin');
+      }
+      return;
+    }
     const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/dashboard';
     this.router.navigateByUrl(returnUrl);
   }

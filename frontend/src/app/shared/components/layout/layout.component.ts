@@ -2,7 +2,7 @@ import { Component, inject, OnInit, OnDestroy, HostListener } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { Subject, Subscription, debounceTime, distinctUntilChanged, switchMap, of } from 'rxjs';
-import { AuthService, DemoAccountInfo } from '../../../core/services/auth.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { ContactCardService } from '../../../core/services/contact-card.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { SearchService } from '../../../core/services/search.service';
@@ -20,19 +20,19 @@ import { UserPickerItem } from '../../../core/models/user.models';
       <aside class="desktop-sidebar hide-on-mobile">
         <div class="sidebar-header">
           <div class="logo-box">
-            <span class="material-symbols-outlined logo-icon">insights</span>
+            <span class="material-symbols-outlined logo-icon">{{ authService.isSystemAdmin() ? 'hub' : 'insights' }}</span>
           </div>
           <div class="brand-text">
             <div class="brand-top">
               <h1 class="app-name">TN EDU</h1>
-              <span class="version-tag">2026-2027</span>
+              <span class="version-tag">{{ authService.isSystemAdmin() ? 'SaaS' : '2026-2027' }}</span>
             </div>
-            <span class="school-name">TH & THCS PHƯỚC TÂN</span>
+            <span class="school-name">{{ authService.isSystemAdmin() ? 'QUẢN TRỊ NỀN TẢNG SAAS' : (authService.currentUser()?.tenantName || 'TH & THCS PHƯỚC TÂN') }}</span>
           </div>
         </div>
 
-        <!-- Campus / Role Context Selector Pill -->
-        @if (authService.activeRole(); as role) {
+        <!-- Campus / Role Context Selector Pill (Only for School-level users) -->
+        @if (!authService.isSystemAdmin() && authService.activeRole(); as role) {
           <div class="context-pill" [ngClass]="getRolePillClass()" [title]="'Đang làm việc với vai trò: ' + role.roleTitle">
             <span class="material-symbols-outlined pill-icon">{{ getRoleIcon() }}</span>
             <div class="pill-info">
@@ -44,83 +44,95 @@ import { UserPickerItem } from '../../../core/models/user.models';
 
         <!-- Navigation Menu -->
         <nav class="sidebar-nav">
-          <a routerLink="/dashboard" routerLinkActive="active" class="nav-link">
-            <span class="material-symbols-outlined nav-icon">dashboard</span>
-            <span class="nav-text">Dashboard</span>
-          </a>
-
-          <a routerLink="/school-info" routerLinkActive="active" class="nav-link">
-            <span class="material-symbols-outlined nav-icon">domain</span>
-            <span class="nav-text">Hồ sơ & Quy mô trường</span>
-          </a>
-
-          <a routerLink="/plans" routerLinkActive="active" class="nav-link">
-            <span class="material-symbols-outlined nav-icon">calendar_month</span>
-            <span class="nav-text">Lập kế hoạch & Phê duyệt</span>
-          </a>
-
-          <a routerLink="/tasks" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">
-            <span class="material-symbols-outlined nav-icon">assignment</span>
-            <span class="nav-text">Quản lý công việc</span>
-          </a>
-
-          <a routerLink="/my-tasks" routerLinkActive="active" class="nav-link">
-            <span class="material-symbols-outlined nav-icon">task_alt</span>
-            <span class="nav-text">Việc của tôi</span>
-          </a>
-
-          <a routerLink="/my-kpi" routerLinkActive="active" class="nav-link" title="Đánh giá & Tính điểm KPI cá nhân">
-            <span class="material-symbols-outlined nav-icon">monitoring</span>
-            <span class="nav-text">KPI của tôi</span>
-          </a>
-
-          <a routerLink="/org" routerLinkActive="active" class="nav-link">
-            <span class="material-symbols-outlined nav-icon">apartment</span>
-            <span class="nav-text">Cơ cấu & Điểm trường</span>
-          </a>
-
-          <a routerLink="/reports" routerLinkActive="active" class="nav-link" title="Báo cáo & Xuất Excel">
-            <span class="material-symbols-outlined nav-icon">analytics</span>
-            <span class="nav-text">Báo cáo & Thống kê</span>
-          </a>
-
-          <a routerLink="/notifications" routerLinkActive="active" class="nav-link">
-            <span class="material-symbols-outlined nav-icon">notifications</span>
-            <span class="nav-text">Thông báo</span>
-            @if (notifService.unreadCount() > 0) {
-              <span class="sidebar-unread-badge">{{ notifService.unreadCount() }}</span>
-            }
-          </a>
-
-          @if (authService.isAdmin()) {
-            <a routerLink="/admin-settings" routerLinkActive="active" class="nav-link admin-link" title="Cấu hình hệ thống">
-              <span class="material-symbols-outlined nav-icon admin-icon">admin_panel_settings</span>
-              <span class="nav-text">Cấu hình hệ thống</span>
-              <span class="sidebar-admin-badge">Admin</span>
-            </a>
-          }
-
           @if (authService.isSystemAdmin()) {
+            <!-- SYSTEM ADMIN: ONLY PLATFORM TENANTS & AUDIT LOGS -->
             <a routerLink="/system-admin" routerLinkActive="active" class="nav-link saas-link" title="Quản trị Nền tảng SaaS">
               <span class="material-symbols-outlined nav-icon saas-icon">hub</span>
-              <span class="nav-text">Quản trị Nền tảng SaaS</span>
+              <span class="nav-text">Quản lý Trường học (Tenants)</span>
               <span class="sidebar-saas-badge">SaaS</span>
             </a>
+
+            <a routerLink="/notifications" routerLinkActive="active" class="nav-link">
+              <span class="material-symbols-outlined nav-icon">notifications</span>
+              <span class="nav-text">Thông báo hệ thống</span>
+              @if (notifService.unreadCount() > 0) {
+                <span class="sidebar-unread-badge">{{ notifService.unreadCount() }}</span>
+              }
+            </a>
+          } @else {
+            <!-- SCHOOL-LEVEL USERS: SCHOOL MANAGEMENT MODULES -->
+            <a routerLink="/dashboard" routerLinkActive="active" class="nav-link">
+              <span class="material-symbols-outlined nav-icon">dashboard</span>
+              <span class="nav-text">Dashboard</span>
+            </a>
+
+            <a routerLink="/school-info" routerLinkActive="active" class="nav-link">
+              <span class="material-symbols-outlined nav-icon">domain</span>
+              <span class="nav-text">Hồ sơ & Quy mô trường</span>
+            </a>
+
+            <a routerLink="/plans" routerLinkActive="active" class="nav-link">
+              <span class="material-symbols-outlined nav-icon">calendar_month</span>
+              <span class="nav-text">Lập kế hoạch & Phê duyệt</span>
+            </a>
+
+            <a routerLink="/tasks" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">
+              <span class="material-symbols-outlined nav-icon">assignment</span>
+              <span class="nav-text">Quản lý công việc</span>
+            </a>
+
+            <a routerLink="/my-tasks" routerLinkActive="active" class="nav-link">
+              <span class="material-symbols-outlined nav-icon">task_alt</span>
+              <span class="nav-text">Việc của tôi</span>
+            </a>
+
+            <a routerLink="/my-kpi" routerLinkActive="active" class="nav-link" title="Đánh giá & Tính điểm KPI cá nhân">
+              <span class="material-symbols-outlined nav-icon">monitoring</span>
+              <span class="nav-text">KPI của tôi</span>
+            </a>
+
+            <a routerLink="/org" routerLinkActive="active" class="nav-link">
+              <span class="material-symbols-outlined nav-icon">apartment</span>
+              <span class="nav-text">Cơ cấu & Điểm trường</span>
+            </a>
+
+            <a routerLink="/reports" routerLinkActive="active" class="nav-link" title="Báo cáo & Xuất Excel">
+              <span class="material-symbols-outlined nav-icon">analytics</span>
+              <span class="nav-text">Báo cáo & Thống kê</span>
+            </a>
+
+            <a routerLink="/notifications" routerLinkActive="active" class="nav-link">
+              <span class="material-symbols-outlined nav-icon">notifications</span>
+              <span class="nav-text">Thông báo</span>
+              @if (notifService.unreadCount() > 0) {
+                <span class="sidebar-unread-badge">{{ notifService.unreadCount() }}</span>
+              }
+            </a>
+
+            @if (authService.isAdmin()) {
+              <a routerLink="/admin-settings" routerLinkActive="active" class="nav-link admin-link" title="Cấu hình hệ thống">
+                <span class="material-symbols-outlined nav-icon admin-icon">admin_panel_settings</span>
+                <span class="nav-text">Cấu hình hệ thống</span>
+                <span class="sidebar-admin-badge">Admin</span>
+              </a>
+            }
           }
         </nav>
 
-        <!-- Quick Create Task Action in Sidebar -->
-        <div class="sidebar-action">
-          <button type="button" class="create-task-btn" routerLink="/tasks" [queryParams]="{ create: 'true' }">
-            <span class="material-symbols-outlined">add_circle</span>
-            <span>{{ authService.isGiaoVien() ? 'Đề xuất việc mới' : 'Giao việc mới (RACI)' }}</span>
-          </button>
-        </div>
+        <!-- Quick Create Task Action in Sidebar (Only for School Users) -->
+        @if (!authService.isSystemAdmin()) {
+          <div class="sidebar-action">
+            <button type="button" class="create-task-btn" routerLink="/tasks" [queryParams]="{ create: 'true' }">
+              <span class="material-symbols-outlined">add_circle</span>
+              <span>{{ authService.isGiaoVien() ? 'Đề xuất việc mới' : 'Giao việc mới (RACI)' }}</span>
+            </button>
+          </div>
+        }
 
         <!-- Version footer -->
         <div class="sidebar-bottom-badge">
           <span class="material-symbols-outlined icon-mini">verified</span>
-          <span>Phiên bản Năm học 2026-2027</span>
+          <span>{{ authService.isSystemAdmin() ? 'TN EDU SaaS Enterprise' : 'Phiên bản Năm học 2026-2027' }}</span>
         </div>
 
         <!-- User Profile & Logout in Sidebar Footer -->
@@ -130,7 +142,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
               <img [src]="user.avatarUrl" [alt]="user.fullName" class="user-avatar" />
               <div class="user-details">
                 <span class="user-name" [title]="user.fullName">{{ user.fullName }}</span>
-                <span class="user-title" [title]="user.title || ''">{{ user.title || 'Cán bộ giáo viên' }}</span>
+                <span class="user-title" [title]="user.title || ''">{{ authService.isSystemAdmin() ? 'Quản trị Nền tảng SaaS' : (user.title || 'Cán bộ giáo viên') }}</span>
               </div>
               <button type="button" class="logout-btn" (click)="logout()" title="Đăng xuất">
                 <span class="material-symbols-outlined">logout</span>
@@ -142,165 +154,146 @@ import { UserPickerItem } from '../../../core/models/user.models';
 
       <!-- 2. MAIN CONTENT AREA -->
       <div class="main-wrapper">
-        <!-- TOP HEADER: CLEAN BRAND TITLE & QUICK ROLE SWITCHER (DESKTOP) -->
+        <!-- TOP HEADER: CLEAN BRAND TITLE & USER CONTROLS -->
         <header class="top-nav-bar hide-on-mobile">
           <div class="nav-bar-left">
             <div class="header-brand-title hide-on-mobile">
-              <span class="material-symbols-outlined brand-star-icon">school</span>
-              <span class="brand-school">{{ authService.currentUser()?.tenantName || authService.currentUser()?.schoolName || 'Trường TH và THCS Phước Tân' }}</span>
-              <span class="brand-scale-badge">{{ authService.currentUser()?.tenantCode ? ('Mã: ' + authService.currentUser()?.tenantCode) : '122 Lớp • 5.669 Học sinh' }}</span>
+              <span class="material-symbols-outlined brand-star-icon">{{ authService.isSystemAdmin() ? 'hub' : 'school' }}</span>
+              <span class="brand-school">{{ authService.isSystemAdmin() ? 'TN EDU • QUẢN TRỊ NỀN TẢNG SAAS' : (authService.currentUser()?.tenantName || authService.currentUser()?.schoolName || 'Trường TH và THCS Phước Tân') }}</span>
+              <span class="brand-scale-badge">{{ authService.isSystemAdmin() ? 'Platform Management' : (authService.currentUser()?.tenantCode ? ('Mã: ' + authService.currentUser()?.tenantCode) : '122 Lớp • 5.669 Học sinh') }}</span>
             </div>
           </div>
 
-          <!-- GLOBAL SEARCH OMNIBAR -->
-          <div class="global-search-container hide-on-mobile" (click)="$event.stopPropagation()">
-            <div class="search-input-wrapper" [class.focused]="isSearchOpen">
-              <span class="material-symbols-outlined search-icon">search</span>
-              <input
-                type="text"
-                class="global-search-input"
-                placeholder="Tìm kiếm công việc, kế hoạch, nhân sự... (Ctrl+K)"
-                [value]="searchQuery"
-                (input)="onSearchInput($event)"
-                (focus)="onSearchFocus()"
-                (keydown)="onSearchKeyDown($event)"
-              />
-              @if (isSearching) {
-                <span class="material-symbols-outlined spin search-loader">progress_activity</span>
-              } @else if (searchQuery) {
-                <button type="button" class="clear-search-btn" (click)="clearSearch()">
-                  <span class="material-symbols-outlined">close</span>
-                </button>
-              } @else {
-                <kbd class="search-kbd">Ctrl K</kbd>
+          <!-- GLOBAL SEARCH OMNIBAR (For School Users) -->
+          @if (!authService.isSystemAdmin()) {
+            <div class="global-search-container hide-on-mobile" (click)="$event.stopPropagation()">
+              <div class="search-input-wrapper" [class.focused]="isSearchOpen">
+                <span class="material-symbols-outlined search-icon">search</span>
+                <input
+                  type="text"
+                  class="global-search-input"
+                  placeholder="Tìm kiếm công việc, kế hoạch, nhân sự... (Ctrl+K)"
+                  [value]="searchQuery"
+                  (input)="onSearchInput($event)"
+                  (focus)="onSearchFocus()"
+                  (keydown)="onSearchKeyDown($event)"
+                />
+                @if (isSearching) {
+                  <span class="material-symbols-outlined spin search-loader">progress_activity</span>
+                } @else if (searchQuery) {
+                  <button type="button" class="clear-search-btn" (click)="clearSearch()">
+                    <span class="material-symbols-outlined">close</span>
+                  </button>
+                } @else {
+                  <kbd class="search-kbd">Ctrl K</kbd>
+                }
+              </div>
+
+              <!-- SEARCH RESULTS DROPDOWN -->
+              @if (isSearchOpen && (searchResults || isSearching)) {
+                <div class="search-dropdown-menu">
+                  @if (isSearching) {
+                    <div class="search-empty-state">
+                      <span class="material-symbols-outlined spin">progress_activity</span>
+                      <span>Đang tìm kiếm...</span>
+                    </div>
+                  } @else if (searchResults && searchResults.total === 0) {
+                    <div class="search-empty-state">
+                      <span class="material-symbols-outlined">search_off</span>
+                      <span>Không tìm thấy kết quả nào cho "{{ searchQuery }}"</span>
+                    </div>
+                  } @else if (searchResults) {
+                    <!-- TASKS SECTION -->
+                    @if (searchResults.tasks.length > 0) {
+                      <div class="result-group">
+                        <div class="result-group-header">
+                          <span class="material-symbols-outlined group-icon">assignment</span>
+                          <span>CÔNG VIỆC ({{ searchResults.tasks.length }})</span>
+                        </div>
+                        <div class="result-items">
+                          @for (task of searchResults.tasks; track task.id) {
+                            <div class="result-item" (click)="selectTask(task.id)">
+                              <div class="result-item-main">
+                                <span class="item-title">{{ task.title }}</span>
+                                <div class="item-meta">
+                                  @if (task.code) {
+                                    <span class="meta-code">#{{ task.code }}</span>
+                                  }
+                                  <span class="meta-status">{{ task.status }}</span>
+                                  @if (task.assignee) {
+                                    <span class="meta-assignee">👤 {{ task.assignee.fullName }}</span>
+                                  }
+                                </div>
+                              </div>
+                              <div class="result-item-progress">
+                                <span class="progress-val">{{ task.progressPercent }}%</span>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    }
+
+                    <!-- PLANS SECTION -->
+                    @if (searchResults.plans.length > 0) {
+                      <div class="result-group">
+                        <div class="result-group-header">
+                          <span class="material-symbols-outlined group-icon">calendar_month</span>
+                          <span>KẾ HOẠCH ({{ searchResults.plans.length }})</span>
+                        </div>
+                        <div class="result-items">
+                          @for (plan of searchResults.plans; track plan.id) {
+                            <div class="result-item" (click)="selectPlan(plan.id)">
+                              <div class="result-item-main">
+                                <span class="item-title">{{ plan.title }}</span>
+                                <div class="item-meta">
+                                  <span class="meta-level">{{ plan.level }}</span>
+                                  <span class="meta-dates">{{ plan.startDate | date:'dd/MM' }} - {{ plan.endDate | date:'dd/MM/yyyy' }}</span>
+                                </div>
+                              </div>
+                              <div class="result-item-progress">
+                                <span class="progress-val">{{ plan.progressPercent }}%</span>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    }
+
+                    <!-- USERS SECTION -->
+                    @if (searchResults.users.length > 0) {
+                      <div class="result-group">
+                        <div class="result-group-header">
+                          <span class="material-symbols-outlined group-icon">person</span>
+                          <span>NHÂN SỰ ({{ searchResults.users.length }})</span>
+                        </div>
+                        <div class="result-items">
+                          @for (usr of searchResults.users; track usr.id) {
+                            <div class="result-item user-result" (click)="selectUser(usr.id)">
+                              <img [src]="usr.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + usr.fullName" class="user-item-avatar" />
+                              <div class="result-item-main">
+                                <span class="item-title">{{ usr.fullName }}</span>
+                                <div class="item-meta">
+                                  <span class="meta-title">{{ usr.title || 'Cán bộ giáo viên' }}</span>
+                                  @if (usr.primaryOrgUnit) {
+                                    <span class="meta-org">• {{ usr.primaryOrgUnit.name }}</span>
+                                  }
+                                </div>
+                              </div>
+                              <span class="material-symbols-outlined contact-icon">contact_phone</span>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    }
+                  }
+                </div>
               }
             </div>
+          }
 
-            <!-- SEARCH RESULTS DROPDOWN -->
-            @if (isSearchOpen && (searchResults || isSearching)) {
-              <div class="search-dropdown-menu">
-                @if (isSearching) {
-                  <div class="search-empty-state">
-                    <span class="material-symbols-outlined spin">progress_activity</span>
-                    <span>Đang tìm kiếm...</span>
-                  </div>
-                } @else if (searchResults && searchResults.total === 0) {
-                  <div class="search-empty-state">
-                    <span class="material-symbols-outlined">search_off</span>
-                    <span>Không tìm thấy kết quả nào cho "{{ searchQuery }}"</span>
-                  </div>
-                } @else if (searchResults) {
-                  <!-- TASKS SECTION -->
-                  @if (searchResults.tasks.length > 0) {
-                    <div class="result-group">
-                      <div class="result-group-header">
-                        <span class="material-symbols-outlined group-icon">assignment</span>
-                        <span>CÔNG VIỆC ({{ searchResults.tasks.length }})</span>
-                      </div>
-                      <div class="result-items">
-                        @for (task of searchResults.tasks; track task.id) {
-                          <div class="result-item" (click)="selectTask(task.id)">
-                            <div class="result-item-main">
-                              <span class="item-title">{{ task.title }}</span>
-                              <div class="item-meta">
-                                @if (task.code) {
-                                  <span class="meta-code">#{{ task.code }}</span>
-                                }
-                                <span class="meta-status">{{ task.status }}</span>
-                                @if (task.assignee) {
-                                  <span class="meta-assignee">👤 {{ task.assignee.fullName }}</span>
-                                }
-                              </div>
-                            </div>
-                            <div class="result-item-progress">
-                              <span class="progress-val">{{ task.progressPercent }}%</span>
-                            </div>
-                          </div>
-                        }
-                      </div>
-                    </div>
-                  }
-
-                  <!-- PLANS SECTION -->
-                  @if (searchResults.plans.length > 0) {
-                    <div class="result-group">
-                      <div class="result-group-header">
-                        <span class="material-symbols-outlined group-icon">calendar_month</span>
-                        <span>KẾ HOẠCH ({{ searchResults.plans.length }})</span>
-                      </div>
-                      <div class="result-items">
-                        @for (plan of searchResults.plans; track plan.id) {
-                          <div class="result-item" (click)="selectPlan(plan.id)">
-                            <div class="result-item-main">
-                              <span class="item-title">{{ plan.title }}</span>
-                              <div class="item-meta">
-                                <span class="meta-level">{{ plan.level }}</span>
-                                <span class="meta-dates">{{ plan.startDate | date:'dd/MM' }} - {{ plan.endDate | date:'dd/MM/yyyy' }}</span>
-                              </div>
-                            </div>
-                            <div class="result-item-progress">
-                              <span class="progress-val">{{ plan.progressPercent }}%</span>
-                            </div>
-                          </div>
-                        }
-                      </div>
-                    </div>
-                  }
-
-                  <!-- USERS SECTION -->
-                  @if (searchResults.users.length > 0) {
-                    <div class="result-group">
-                      <div class="result-group-header">
-                        <span class="material-symbols-outlined group-icon">person</span>
-                        <span>NHÂN SỰ ({{ searchResults.users.length }})</span>
-                      </div>
-                      <div class="result-items">
-                        @for (usr of searchResults.users; track usr.id) {
-                          <div class="result-item user-result" (click)="selectUser(usr.id)">
-                            <img [src]="usr.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + usr.fullName" class="user-item-avatar" />
-                            <div class="result-item-main">
-                              <span class="item-title">{{ usr.fullName }}</span>
-                              <div class="item-meta">
-                                <span class="meta-title">{{ usr.title || 'Cán bộ giáo viên' }}</span>
-                                @if (usr.primaryOrgUnit) {
-                                  <span class="meta-org">• {{ usr.primaryOrgUnit.name }}</span>
-                                }
-                              </div>
-                            </div>
-                            <span class="material-symbols-outlined contact-icon">contact_phone</span>
-                          </div>
-                        }
-                      </div>
-                    </div>
-                  }
-                }
-              </div>
-            }
-          </div>
-
-          <!-- 4 QUICK DEMO ACCOUNTS SWITCH BUTTONS & USER STATUS -->
+          <!-- Right Controls: Language pill, Notification Bell, User Header Pill -->
           <div class="nav-bar-right">
-            <div class="demo-buttons-container hide-on-mobile">
-              <span class="demo-bar-label">⚡ Đổi nhanh vai trò:</span>
-              <div class="demo-buttons-row">
-                @for (acc of authService.demoAccounts; track acc.identifier) {
-                  <button
-                    type="button"
-                    class="demo-role-btn tap-target"
-                    [class.active]="isCurrentAccount(acc.identifier)"
-                    [ngClass]="'role-' + acc.role.toLowerCase()"
-                    (click)="switchAccount(acc)"
-                    [title]="acc.desc"
-                  >
-                    <span class="material-symbols-outlined btn-icon">{{ acc.icon }}</span>
-                    <span class="btn-name">{{ acc.name }}</span>
-                    <span class="btn-role-tag">{{ acc.roleTitle }}</span>
-                  </button>
-                }
-              </div>
-            </div>
-
-            <!-- Right Controls: Language pill, Notification Bell, User Header Pill -->
             <div class="header-user-controls">
               <span class="lang-pill" title="Ngôn ngữ tiếng Việt">VN</span>
 
@@ -318,7 +311,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
                   </div>
                   <div class="header-user-text hide-on-mobile">
                     <span class="header-user-name">{{ u.fullName }}</span>
-                    <span class="header-user-role">{{ u.title || authService.activeRole()?.roleTitle }}</span>
+                    <span class="header-user-role">{{ authService.isSystemAdmin() ? 'System Admin (SaaS)' : (u.title || authService.activeRole()?.roleTitle) }}</span>
                   </div>
                 </div>
               }
@@ -332,14 +325,14 @@ import { UserPickerItem } from '../../../core/models/user.models';
             <button type="button" class="mobile-menu-btn tap-target" (click)="toggleMobileDrawer()" title="Mở menu điều hướng">
               <span class="material-symbols-outlined">menu</span>
             </button>
-            <div class="mobile-brand" routerLink="/dashboard">
-              <span class="material-symbols-outlined brand-icon">school</span>
-              <span class="mobile-title">TH & THCS Phước Tân</span>
+            <div class="mobile-brand" [routerLink]="authService.isSystemAdmin() ? '/system-admin' : '/dashboard'">
+              <span class="material-symbols-outlined brand-icon">{{ authService.isSystemAdmin() ? 'hub' : 'school' }}</span>
+              <span class="mobile-title">{{ authService.isSystemAdmin() ? 'TN EDU SaaS' : (authService.currentUser()?.tenantName || 'TH & THCS Phước Tân') }}</span>
             </div>
           </div>
 
           <div class="mobile-actions">
-            @if (authService.isAdmin()) {
+            @if (!authService.isSystemAdmin() && authService.isAdmin()) {
               <a routerLink="/admin-settings" routerLinkActive="admin-active" class="mobile-icon-btn admin-mobile-btn" title="Cấu hình hệ thống">
                 <span class="material-symbols-outlined">admin_panel_settings</span>
               </a>
@@ -363,37 +356,59 @@ import { UserPickerItem } from '../../../core/models/user.models';
           <router-outlet></router-outlet>
         </main>
 
-        <!-- MOBILE BOTTOM NAVIGATION (5 Primary Tabs) -->
+        <!-- MOBILE BOTTOM NAVIGATION -->
         <nav class="mobile-bottom-nav hide-on-desktop">
-          <a routerLink="/dashboard" routerLinkActive="active" class="bottom-tab tap-target">
-            <span class="material-symbols-outlined tab-icon">dashboard</span>
-            <span class="tab-label">Tổng quan</span>
-          </a>
+          @if (authService.isSystemAdmin()) {
+            <a routerLink="/system-admin" routerLinkActive="active" class="bottom-tab tap-target">
+              <span class="material-symbols-outlined tab-icon">hub</span>
+              <span class="tab-label">Quản trị SaaS</span>
+            </a>
 
-          <a routerLink="/tasks" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="bottom-tab tap-target">
-            <span class="material-symbols-outlined tab-icon">assignment</span>
-            <span class="tab-label">Công việc</span>
-          </a>
+            <a routerLink="/notifications" routerLinkActive="active" class="bottom-tab tap-target">
+              <div class="tab-icon-wrapper">
+                <span class="material-symbols-outlined tab-icon">notifications</span>
+                @if (notifService.unreadCount() > 0) {
+                  <span class="bottom-notif-badge">{{ notifService.unreadCount() }}</span>
+                }
+              </div>
+              <span class="tab-label">Thông báo</span>
+            </a>
 
-          <a routerLink="/plans" routerLinkActive="active" class="bottom-tab tap-target">
-            <span class="material-symbols-outlined tab-icon">calendar_month</span>
-            <span class="tab-label">Kế hoạch</span>
-          </a>
+            <button type="button" class="bottom-tab bottom-tab-btn tap-target" (click)="logout()">
+              <span class="material-symbols-outlined tab-icon">logout</span>
+              <span class="tab-label">Đăng xuất</span>
+            </button>
+          } @else {
+            <a routerLink="/dashboard" routerLinkActive="active" class="bottom-tab tap-target">
+              <span class="material-symbols-outlined tab-icon">dashboard</span>
+              <span class="tab-label">Tổng quan</span>
+            </a>
 
-          <a routerLink="/my-tasks" routerLinkActive="active" class="bottom-tab tap-target">
-            <span class="material-symbols-outlined tab-icon">task_alt</span>
-            <span class="tab-label">Của tôi</span>
-          </a>
+            <a routerLink="/tasks" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="bottom-tab tap-target">
+              <span class="material-symbols-outlined tab-icon">assignment</span>
+              <span class="tab-label">Công việc</span>
+            </a>
 
-          <button type="button" class="bottom-tab bottom-tab-btn tap-target" [class.active]="isMobileDrawerOpen" (click)="toggleMobileDrawer()">
-            <div class="tab-icon-wrapper">
-              <span class="material-symbols-outlined tab-icon">menu</span>
-              @if (notifService.unreadCount() > 0) {
-                <span class="bottom-notif-badge">{{ notifService.unreadCount() }}</span>
-              }
-            </div>
-            <span class="tab-label">Menu</span>
-          </button>
+            <a routerLink="/plans" routerLinkActive="active" class="bottom-tab tap-target">
+              <span class="material-symbols-outlined tab-icon">calendar_month</span>
+              <span class="tab-label">Kế hoạch</span>
+            </a>
+
+            <a routerLink="/my-tasks" routerLinkActive="active" class="bottom-tab tap-target">
+              <span class="material-symbols-outlined tab-icon">task_alt</span>
+              <span class="tab-label">Của tôi</span>
+            </a>
+
+            <button type="button" class="bottom-tab bottom-tab-btn tap-target" [class.active]="isMobileDrawerOpen" (click)="toggleMobileDrawer()">
+              <div class="tab-icon-wrapper">
+                <span class="material-symbols-outlined tab-icon">menu</span>
+                @if (notifService.unreadCount() > 0) {
+                  <span class="bottom-notif-badge">{{ notifService.unreadCount() }}</span>
+                }
+              </div>
+              <span class="tab-label">Menu</span>
+            </button>
+          }
         </nav>
       </div>
 
@@ -408,7 +423,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
                   <img [src]="user.avatarUrl" [alt]="user.fullName" class="drawer-avatar" />
                   <div class="drawer-user-text">
                     <span class="drawer-user-name">{{ user.fullName }}</span>
-                    <span class="drawer-user-title">{{ user.title || 'Cán bộ giáo viên' }}</span>
+                    <span class="drawer-user-title">{{ authService.isSystemAdmin() ? 'Quản trị Nền tảng SaaS' : (user.title || 'Cán bộ giáo viên') }}</span>
                     <span class="drawer-user-phone">📞 {{ user.phone }}</span>
                   </div>
                 }
@@ -418,122 +433,107 @@ import { UserPickerItem } from '../../../core/models/user.models';
               </button>
             </div>
 
-            <!-- Active Context Pill in Drawer -->
-            @if (authService.activeRole(); as role) {
+            <!-- Active Context Pill in Drawer (Only for School Users) -->
+            @if (!authService.isSystemAdmin() && authService.activeRole(); as role) {
               <div class="drawer-context-pill" [ngClass]="getRolePillClass()">
                 <span class="material-symbols-outlined pill-icon">{{ getRoleIcon() }}</span>
                 <div class="pill-meta">
                   <span class="pill-role-title">{{ role.roleTitle }}</span>
-                  <span class="pill-scope-title">{{ role.scopeName || 'Toàn trường (122 Lớp • 5.669 HS)' }}</span>
+                  <span class="pill-scope-title">{{ role.scopeName || 'Toàn trường' }}</span>
                 </div>
               </div>
             }
-
-            <!-- Quick Demo Accounts Switcher on Mobile Drawer -->
-            <div class="drawer-section">
-              <div class="drawer-section-title">
-                <span class="material-symbols-outlined title-icon">swap_horiz</span>
-                <span>Chuyển nhanh 4 vai trò demo:</span>
-              </div>
-              <div class="drawer-demo-grid">
-                @for (acc of authService.demoAccounts; track acc.identifier) {
-                  <button
-                    type="button"
-                    class="drawer-demo-btn tap-target"
-                    [class.active]="isCurrentAccount(acc.identifier)"
-                    [ngClass]="'role-' + acc.role.toLowerCase()"
-                    (click)="switchAccountFromDrawer(acc)"
-                  >
-                    <span class="material-symbols-outlined btn-icon">{{ acc.icon }}</span>
-                    <div class="demo-btn-text">
-                      <span class="demo-name">{{ acc.name }}</span>
-                      <span class="demo-role">{{ acc.roleTitle }}</span>
-                    </div>
-                  </button>
-                }
-              </div>
-            </div>
 
             <!-- Full Navigation Links in Drawer -->
             <div class="drawer-section">
               <div class="drawer-section-title">
                 <span class="material-symbols-outlined title-icon">grid_view</span>
-                <span>Phân hệ hệ thống:</span>
+                <span>{{ authService.isSystemAdmin() ? 'Quản trị Nền tảng:' : 'Phân hệ hệ thống:' }}</span>
               </div>
               <nav class="drawer-nav-list">
-                <a routerLink="/dashboard" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
-                  <span class="material-symbols-outlined nav-icon">dashboard</span>
-                  <span class="nav-label">Tổng quan Dashboard</span>
-                </a>
-
-                <a routerLink="/school-info" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
-                  <span class="material-symbols-outlined nav-icon">domain</span>
-                  <span class="nav-label">Hồ sơ & Quy mô trường</span>
-                </a>
-
-                <a routerLink="/plans" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
-                  <span class="material-symbols-outlined nav-icon">calendar_month</span>
-                  <span class="nav-label">Lập kế hoạch & Phê duyệt</span>
-                </a>
-
-                <a routerLink="/tasks" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" (click)="closeMobileDrawer()" class="drawer-nav-item">
-                  <span class="material-symbols-outlined nav-icon">assignment</span>
-                  <span class="nav-label">Quản lý công việc (RACI)</span>
-                </a>
-
-                <a routerLink="/my-tasks" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
-                  <span class="material-symbols-outlined nav-icon">task_alt</span>
-                  <span class="nav-label">Việc của tôi</span>
-                </a>
-
-                <a routerLink="/my-kpi" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
-                  <span class="material-symbols-outlined nav-icon">monitoring</span>
-                  <span class="nav-label">KPI của tôi</span>
-                </a>
-
-                <a routerLink="/org" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
-                  <span class="material-symbols-outlined nav-icon">apartment</span>
-                  <span class="nav-label">Cơ cấu & Điểm trường</span>
-                </a>
-
-                <a routerLink="/reports" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
-                  <span class="material-symbols-outlined nav-icon">analytics</span>
-                  <span class="nav-label">Báo cáo & Xuất Excel</span>
-                </a>
-
-                <a routerLink="/notifications" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
-                  <span class="material-symbols-outlined nav-icon">notifications</span>
-                  <span class="nav-label">Thông báo hệ thống</span>
-                  @if (notifService.unreadCount() > 0) {
-                    <span class="drawer-unread-badge">{{ notifService.unreadCount() }}</span>
-                  }
-                </a>
-
-                @if (authService.isAdmin()) {
-                  <a routerLink="/admin-settings" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item admin-item">
-                    <span class="material-symbols-outlined nav-icon admin-icon">admin_panel_settings</span>
-                    <span class="nav-label">Cấu hình hệ thống</span>
-                    <span class="drawer-admin-tag">Admin</span>
-                  </a>
-                }
-
                 @if (authService.isSystemAdmin()) {
                   <a routerLink="/system-admin" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item saas-item">
                     <span class="material-symbols-outlined nav-icon saas-icon">hub</span>
-                    <span class="nav-label">Quản trị Nền tảng SaaS</span>
+                    <span class="nav-label">Quản lý Trường học (Tenants)</span>
                     <span class="drawer-saas-tag">SaaS</span>
                   </a>
+
+                  <a routerLink="/notifications" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                    <span class="material-symbols-outlined nav-icon">notifications</span>
+                    <span class="nav-label">Thông báo hệ thống</span>
+                    @if (notifService.unreadCount() > 0) {
+                      <span class="drawer-unread-badge">{{ notifService.unreadCount() }}</span>
+                    }
+                  </a>
+                } @else {
+                  <a routerLink="/dashboard" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                    <span class="material-symbols-outlined nav-icon">dashboard</span>
+                    <span class="nav-label">Tổng quan Dashboard</span>
+                  </a>
+
+                  <a routerLink="/school-info" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                    <span class="material-symbols-outlined nav-icon">domain</span>
+                    <span class="nav-label">Hồ sơ & Quy mô trường</span>
+                  </a>
+
+                  <a routerLink="/plans" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                    <span class="material-symbols-outlined nav-icon">calendar_month</span>
+                    <span class="nav-label">Lập kế hoạch & Phê duyệt</span>
+                  </a>
+
+                  <a routerLink="/tasks" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                    <span class="material-symbols-outlined nav-icon">assignment</span>
+                    <span class="nav-label">Quản lý công việc (RACI)</span>
+                  </a>
+
+                  <a routerLink="/my-tasks" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                    <span class="material-symbols-outlined nav-icon">task_alt</span>
+                    <span class="nav-label">Việc của tôi</span>
+                  </a>
+
+                  <a routerLink="/my-kpi" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                    <span class="material-symbols-outlined nav-icon">monitoring</span>
+                    <span class="nav-label">KPI của tôi</span>
+                  </a>
+
+                  <a routerLink="/org" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                    <span class="material-symbols-outlined nav-icon">apartment</span>
+                    <span class="nav-label">Cơ cấu & Điểm trường</span>
+                  </a>
+
+                  <a routerLink="/reports" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                    <span class="material-symbols-outlined nav-icon">analytics</span>
+                    <span class="nav-label">Báo cáo & Xuất Excel</span>
+                  </a>
+
+                  <a routerLink="/notifications" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
+                    <span class="material-symbols-outlined nav-icon">notifications</span>
+                    <span class="nav-label">Thông báo hệ thống</span>
+                    @if (notifService.unreadCount() > 0) {
+                      <span class="drawer-unread-badge">{{ notifService.unreadCount() }}</span>
+                    }
+                  </a>
+
+                  @if (authService.isAdmin()) {
+                    <a routerLink="/admin-settings" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item admin-item">
+                      <span class="material-symbols-outlined nav-icon admin-icon">admin_panel_settings</span>
+                      <span class="nav-label">Cấu hình hệ thống</span>
+                      <span class="drawer-admin-tag">Admin</span>
+                    </a>
+                  }
                 }
               </nav>
             </div>
 
-            <!-- Quick Action button -->
-            <div class="drawer-action-box">
-              <button type="button" class="drawer-create-btn tap-target" routerLink="/tasks" [queryParams]="{ create: 'true' }" (click)="closeMobileDrawer()">
-                <span class="material-symbols-outlined">add_circle</span>
-                <span>{{ authService.isGiaoVien() ? 'Đề xuất việc mới' : 'Giao việc mới (RACI)' }}</span>
-              </button>
-            </div>
+            <!-- Quick Action button (Only for school users) -->
+            @if (!authService.isSystemAdmin()) {
+              <div class="drawer-action-box">
+                <button type="button" class="drawer-create-btn tap-target" routerLink="/tasks" [queryParams]="{ create: 'true' }" (click)="closeMobileDrawer()">
+                  <span class="material-symbols-outlined">add_circle</span>
+                  <span>{{ authService.isGiaoVien() ? 'Đề xuất việc mới' : 'Giao việc mới (RACI)' }}</span>
+                </button>
+              </div>
+            }
 
             <!-- Drawer Footer: Logout & Version info -->
             <div class="drawer-footer">
@@ -541,7 +541,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
                 <span class="material-symbols-outlined">logout</span>
                 <span>Đăng xuất</span>
               </button>
-              <span class="drawer-version">TN EDU • TH & THCS Phước Tân 2026-2027</span>
+              <span class="drawer-version">{{ authService.isSystemAdmin() ? 'TN EDU • Nền tảng SaaS Đa Trường học' : 'TN EDU • Quản lý Trường học 2026-2027' }}</span>
             </div>
           </div>
         </div>
@@ -960,79 +960,6 @@ import { UserPickerItem } from '../../../core/models/user.models';
           white-space: nowrap;
         }
 
-        .demo-buttons-container {
-          display: flex;
-          align-items: center;
-          gap: 0.35rem;
-          flex-shrink: 0;
-          white-space: nowrap;
-
-          .demo-bar-label {
-            font-size: 0.72rem;
-            font-weight: 700;
-            color: #64748B;
-            white-space: nowrap;
-          }
-
-          .demo-buttons-row {
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
-            flex-wrap: nowrap;
-            flex-shrink: 0;
-          }
-        }
-
-        .demo-role-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          padding: 4px 7px;
-          border-radius: 6px;
-          border: 1px solid #E2E8F0;
-          background: #FFFFFF;
-          font-size: 0.72rem;
-          font-weight: 600;
-          color: #475569;
-          cursor: pointer;
-          transition: all 0.15s ease;
-          white-space: nowrap;
-          flex-shrink: 0;
-          line-height: 1;
-
-          .btn-icon {
-            font-size: 14px;
-            flex-shrink: 0;
-          }
-          .btn-name {
-            font-weight: 600;
-            white-space: nowrap;
-          }
-          .btn-role-tag {
-            font-size: 0.62rem;
-            background: #F1F5F9;
-            color: #64748B;
-            padding: 2px 4px;
-            border-radius: 4px;
-            white-space: nowrap;
-            line-height: 1.1;
-          }
-
-          &:hover {
-            border-color: #94A3B8;
-            background: #F8FAFC;
-          }
-
-          &.active {
-            border-color: #3B82F6;
-            background: #EFF6FF;
-            color: #1D4ED8;
-            .btn-role-tag {
-              background: #DBEAFE;
-              color: #1E40AF;
-            }
-          }
-        }
 
         .header-user-controls {
           display: flex;
@@ -1144,15 +1071,6 @@ import { UserPickerItem } from '../../../core/models/user.models';
 
       @media (max-width: 1440px) {
         .brand-scale-badge {
-          display: none !important;
-        }
-        .demo-bar-label {
-          display: none !important;
-        }
-      }
-
-      @media (max-width: 1220px) {
-        .demo-role-btn .btn-role-tag {
           display: none !important;
         }
       }
@@ -1503,72 +1421,6 @@ import { UserPickerItem } from '../../../core/models/user.models';
             .title-icon {
               font-size: 15px;
               color: #3B82F6;
-            }
-          }
-
-          .drawer-demo-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px;
-            margin-bottom: 6px;
-
-            .drawer-demo-btn {
-              display: flex;
-              align-items: center;
-              gap: 6px;
-              padding: 8px;
-              background: #F8FAFC;
-              border: 1px solid #E2E8F0;
-              border-radius: 8px;
-              text-align: left;
-              cursor: pointer;
-              min-height: 44px;
-
-              .btn-icon {
-                font-size: 16px;
-                color: #64748B;
-                flex-shrink: 0;
-              }
-
-              .demo-btn-text {
-                display: flex;
-                flex-direction: column;
-                overflow: hidden;
-
-                .demo-name {
-                  font-size: 0.72rem;
-                  font-weight: 700;
-                  color: #0F172A;
-                  white-space: nowrap;
-                  overflow: hidden;
-                  text-overflow: ellipsis;
-                }
-
-                .demo-role {
-                  font-size: 0.62rem;
-                  color: #64748B;
-                  white-space: nowrap;
-                  overflow: hidden;
-                  text-overflow: ellipsis;
-                }
-              }
-
-              &.active {
-                background: #EFF6FF;
-                border-color: #3B82F6;
-
-                .btn-icon {
-                  color: #2563EB;
-                }
-
-                .demo-name {
-                  color: #1D4ED8;
-                }
-              }
-
-              &:active {
-                transform: scale(0.97);
-              }
             }
           }
 
@@ -2088,41 +1940,10 @@ export class LayoutComponent implements OnInit, OnDestroy {
     this.isMobileDrawerOpen = false;
   }
 
-  switchAccountFromDrawer(account: DemoAccountInfo): void {
-    this.switchAccount(account);
-    this.closeMobileDrawer();
-  }
-
-  switchAndGoToAdminFromDrawer(): void {
-    this.switchAndGoToAdmin();
-    this.closeMobileDrawer();
-  }
-
   logout(): void {
     this.closeMobileDrawer();
     this.authService.logout();
     this.router.navigate(['/auth/login']);
-  }
-
-  switchAccount(account: DemoAccountInfo): void {
-    this.authService.switchDemoAccount(account.identifier).subscribe({ error: () => {} });
-  }
-
-  switchAndGoToAdmin(): void {
-    const adminAcc = this.authService.demoAccounts.find((a) => a.role === 'ADMIN');
-    if (adminAcc) {
-      this.authService.switchDemoAccount(adminAcc.identifier).subscribe({
-        next: () => {
-          this.router.navigate(['/admin-settings']);
-        },
-      });
-    }
-  }
-
-  isCurrentAccount(identifier: string): boolean {
-    const user = this.authService.currentUser();
-    if (!user) return false;
-    return user.phone === identifier || user.email === identifier;
   }
 
   getRolePillClass(): string {

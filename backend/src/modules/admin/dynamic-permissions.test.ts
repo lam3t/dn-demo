@@ -27,6 +27,9 @@ async function runDynamicPermissionsTests() {
   console.log('🧪 BẮT ĐẦU CHẠY INTEGRATION TESTS: PHASE 2 DYNAMIC RBAC & TENANT ADMIN');
   console.log('================================================================');
 
+  // 0. Đảm bảo tất cả tenant test ở trạng thái ACTIVE
+  await prisma.tenant.updateMany({ data: { status: 'ACTIVE' } });
+
   // 1. Lấy token System Admin
   const sysLogin = await request(testApp)
     .post('/api/auth/login')

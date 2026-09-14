@@ -11,6 +11,24 @@ export const authGuard: CanActivateFn = (route, state) => {
     return false;
   }
 
+  const isSysAdmin = authService.isSystemAdmin();
+  const url = state.url.split('?')[0];
+
+  // System Admin chỉ có quyền quản trị SaaS (/system-admin) và Thông báo (/notifications)
+  if (isSysAdmin) {
+    if (url === '/system-admin' || url === '/notifications' || url === '') {
+      return true;
+    }
+    router.navigate(['/system-admin']);
+    return false;
+  }
+
+  // Người dùng cấp trường không thể truy cập /system-admin
+  if (!isSysAdmin && url === '/system-admin') {
+    router.navigate(['/dashboard']);
+    return false;
+  }
+
   const expectedRoles = route.data?.['roles'] as string[];
   if (expectedRoles && expectedRoles.length > 0) {
     const activeRole = authService.activeRole()?.role;
@@ -24,3 +42,4 @@ export const authGuard: CanActivateFn = (route, state) => {
 
   return true;
 };
+

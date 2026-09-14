@@ -4,10 +4,16 @@ NỀN TẢNG QUẢN TRỊ TRƯỜNG PHỔ THÔNG ĐA TENANT (SaaS)
 TÀI LIỆU ĐẶC TẢ YÊU CẦU PHẦN MỀM
 (SOFTWARE REQUIREMENTS SPECIFICATION – SRS)
 BẢN PRODUCTION – PHIÊN BẢN ĐA TENANT (MULTI-SCHOOL SaaS)
-Phiên bản: v1.0
-Ngày lập: 14/09/2026
+Phiên bản: v1.1
+Ngày lập: 14/09/2026 · Cập nhật: 14/09/2026
 Công nghệ: Angular · Node.js · PostgreSQL
 Căn cứ: SRS Demo TN EDU v0.1 (09/09/2026) · Feature List – Giải pháp Quản trị Trường phổ thông v1.0.1 (120 chức năng đã chốt sau demo với Ban Giám hiệu)
+
+### Nhật ký thay đổi (Changelog)
+| Phiên bản | Ngày | Nội dung thay đổi |
+|---|---|---|
+| v1.0 | 14/09/2026 | Bản SRS Production đa tenant đầu tiên, chương 5 mô tả theo nhóm ở dạng gộp/tóm lược, chưa liệt kê chi tiết từng dòng của Feature List v1.0.1. |
+| **v1.1** | **14/09/2026** | **Viết lại chương 5** thành *Feature Register* — bảng liệt kê **đầy đủ nguyên văn cả 120/120 dòng** của Feature List v1.0.1 (TT, Tên chức năng, Mô tả nghiệp vụ giữ nguyên văn bản gốc), bổ sung 2 cột kỹ thuật cho mỗi dòng: **Permission key đề xuất** (khớp Permission Catalog mục 3.1/6) và **Trạng thái so với bản Demo** (đã có/cần bổ sung mới/mở rộng) để đội phát triển và Antigravity triển khai bám sát từng chức năng, không còn suy diễn hay gộp mô tả. Không có nội dung nghiệp vụ nào của bản v1.0 bị loại bỏ — phần narrative (bối cảnh, tiêu chí nghiệm thu theo nhóm) được giữ nguyên, bảng chi tiết được **chèn thêm** ngay sau mỗi nhóm.
 
 
 1. Giới thiệu
@@ -177,6 +183,8 @@ Data Warehouse, BI nâng cao, tìm kiếm toàn văn nâng cao, archive/retentio
 Subdomain/tên miền riêng theo từng trường (white-label domain) — Production dùng chung một domain theo mục 2.2, việc tách subdomain là lộ trình mở rộng.
 
 5. Yêu cầu chức năng chi tiết
+5.0 Cách đọc chương này — Feature Register đầy đủ 120/120 chức năng
+Mỗi nhóm dưới đây giữ nguyên phần narrative (bối cảnh nghiệp vụ, tiêu chí nghiệm thu) của bản v1.0, đồng thời bổ sung thêm một "Bảng đặc tả chi tiết" tái hiện NGUYÊN VĂN, ĐẦY ĐỦ, KHÔNG BỎ SÓT BẤT KỲ DÒNG NÀO trong 120 dòng của Feature List – Giải pháp Quản trị Trường phổ thông v1.0.1 (cột Tên chức năng và Mô tả nghiệp vụ giữ 100% văn bản gốc, không diễn giải lại, không rút gọn). Mỗi dòng được bổ sung 2 cột kỹ thuật để đội phát triển/Antigravity triển khai trực tiếp: Permission key đề xuất (khớp Permission Catalog mục 3.1/6) và Trạng thái so với bản Demo (kế thừa / cần bổ sung mới / mở rộng / mới hoàn toàn).
 5.1 Nhóm A – Nền tảng dùng chung (TT 1–25)
 Đây là bộ khung nghiệp vụ lõi mà mọi vai trò đều sử dụng hằng ngày, kế thừa gần như nguyên vẹn thiết kế UX của bản demo (M1, M6, M7, M8, M9), mở rộng thêm minh chứng tập trung, trao đổi/mention, nhật ký, tìm kiếm và báo cáo theo kỳ.
 5.1.1 Đăng nhập, hồ sơ cá nhân (TT 1–3)
@@ -193,6 +201,38 @@ Tiêu chí nghiệm thu:
 Người dùng ở vai trò bất kỳ chỉ tìm thấy dữ liệu trong đúng tenant và đúng phạm vi quyền của mình khi dùng Tìm kiếm toàn hệ thống.
 Đính kèm 1 minh chứng và cập nhật % tiến độ thực hiện được trong tối đa 3 thao tác chạm trên điện thoại.
 100% thay đổi trạng thái quan trọng của công việc sinh thông báo, kiểm chứng được trong Trung tâm thông báo.
+
+5.1.6 Bảng đặc tả chi tiết – Nhóm A (đầy đủ, nguyên văn Feature List v1.0.1, không bỏ sót dòng nào, TT 1–25)
+
+| TT | Tên chức năng | Mô tả nghiệp vụ (nguyên văn Feature List v1.0.1) | Permission key đề xuất | Trạng thái Production |
+|---|---|---|---|---|
+| **001** | Đăng nhập hệ thống | Người dùng đăng nhập bằng tài khoản được cấp; hệ thống xác định tenant, vai trò và phạm vi dữ liệu được phép truy cập. | `auth.login` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **002** | Xem thông tin cá nhân | Xem họ tên, chức vụ, tổ/bộ phận, phân hiệu, số điện thoại, thông tin liên hệ và các vai trò đang đảm nhiệm. | `profile.view` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **003** | Đổi mật khẩu | Cho phép người dùng chủ động thay đổi mật khẩu tài khoản. | `profile.change_password` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **004** | Danh sách công việc liên quan | Hiển thị các công việc người dùng là người thực hiện, người chịu trách nhiệm, người hỗ trợ, người kiểm tra hoặc người cần được thông báo. | `task.view_related` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **005** | Xem chi tiết công việc | Xem nội dung, thời hạn, trạng thái, người giao, người thực hiện, người phối hợp, phân hiệu, tổ/bộ phận, kế hoạch liên quan, minh chứng và lịch sử xử lý. | `task.view_detail` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **006** | Phân công theo RACI | Mỗi công việc có thể xác định: người thực hiện chính (Responsible), người chịu trách nhiệm/phê duyệt (Accountable), người tham vấn/hỗ trợ (Consulted) và người được thông báo (Informed). | `task.raci.assign` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **007** | Trạng thái công việc | Theo dõi các trạng thái cơ bản như: Chưa thực hiện, Đang thực hiện, Chờ kiểm tra/phê duyệt, Yêu cầu bổ sung, Hoàn thành, Quá hạn. | `task.status.view` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **008** | Cập nhật tiến độ | Người được quyền nhập % hoàn thành, nội dung đã thực hiện, khó khăn/vướng mắc và kết quả hiện tại. | `task.progress.update` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **009** | Cập nhật kết quả | Nhập kết quả thực tế sau khi thực hiện công việc, sản phẩm đầu ra và ghi chú liên quan. | `task.result.update` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **010** | Đính kèm minh chứng | Tải lên ảnh, PDF, Word, Excel hoặc tài liệu khác làm minh chứng cho quá trình và kết quả thực hiện công việc. | `task.attachment.upload` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **011** | Kho minh chứng số | Tập trung các minh chứng được tạo từ công việc, kế hoạch và KPI để tìm kiếm và khai thác lại. | `evidence.repository.view` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **012** | Tìm kiếm minh chứng | Tìm theo tên tài liệu, công việc, người cập nhật, khoảng thời gian, phân hiệu, tổ/bộ phận hoặc loại minh chứng. | `evidence.search` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **013** | Trao đổi trong công việc | Thành viên liên quan trao đổi trực tiếp trong từng công việc nhằm hạn chế trao đổi rời rạc qua nhiều kênh. | `task.comment.create` | **CẦN BỔ SUNG MỚI** — chưa có ở bản demo, phải phát triển thêm ở Phase 3. |
+| **014** | Mention người dùng | Cho phép sử dụng @Tên để nhắc một cá nhân vào nội dung trao đổi; người được mention nhận thông báo. | `task.comment.mention` | **CẦN BỔ SUNG MỚI** — chưa có ở bản demo, phải phát triển thêm ở Phase 3. |
+| **015** | Gọi điện giáo viên/nhân viên | Tại thông tin người dùng, nhấn số điện thoại để thực hiện cuộc gọi trên thiết bị hỗ trợ. | `contact.call` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **016** | Trung tâm thông báo | Hiển thị tập trung các thông báo về giao việc, cập nhật, yêu cầu bổ sung, phê duyệt, mention và các sự kiện liên quan. | `notification.center.view` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **017** | Nhắc công việc mới | Thông báo khi người dùng được giao công việc mới hoặc tham gia một công việc. | `(tự động – hệ thống sinh, không cần permission riêng)` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **018** | Nhắc việc sắp đến hạn | Tự động cảnh báo các công việc sắp hết thời hạn. | `(tự động – hệ thống sinh, không cần permission riêng)` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **019** | Nhắc việc quá hạn | Tự động cảnh báo khi công việc hết hạn nhưng chưa hoàn thành. | `(tự động – hệ thống sinh, không cần permission riêng)` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **020** | Nhật ký chỉnh sửa công việc | Ghi lại người sửa, thời điểm sửa và các thông tin quan trọng đã thay đổi. | `task.log.view` | **CẦN BỔ SUNG MỚI** — chưa có ở bản demo, phải phát triển thêm ở Phase 3. |
+| **021** | Nhật ký chỉnh sửa kế hoạch | Lưu lịch sử thay đổi nội dung, thời hạn, người phụ trách và cấu trúc của kế hoạch. | `plan.log.view` | **CẦN BỔ SUNG MỚI** — chưa có ở bản demo, phải phát triển thêm ở Phase 3. |
+| **022** | Tìm kiếm toàn hệ thống | Tìm kiếm kế hoạch, công việc, giáo viên/nhân viên và minh chứng trong phạm vi dữ liệu được cấp quyền. | `search.global` | **CẦN BỔ SUNG MỚI** — chưa có ở bản demo, phải phát triển thêm ở Phase 3. |
+| **023** | Bộ lọc dữ liệu | Lọc theo năm học, thời gian, phân hiệu, tổ/bộ phận, cá nhân, trạng thái, tiến độ và loại công việc. | `(tham số lọc – áp dụng trên mọi API danh sách theo phạm vi quyền)` | **CẦN BỔ SUNG MỚI** — chưa có ở bản demo, phải phát triển thêm ở Phase 3. |
+| **024** | Báo cáo công việc theo kỳ | Tổng hợp công việc theo tuần, tháng, học kỳ hoặc khoảng thời gian lựa chọn. | `report.task.view` | **CẦN BỔ SUNG MỚI** — chưa có ở bản demo, phải phát triển thêm ở Phase 3. |
+| **025** | Xuất dữ liệu Excel | Xuất danh sách công việc, báo cáo KPI và một số báo cáo tổng hợp ra Excel. | `report.export_excel` | **CẦN BỔ SUNG MỚI** — chưa có ở bản demo, phải phát triển thêm ở Phase 3. |
+
+
 5.2 Nhóm B – System Admin (quản trị nền tảng đa tenant) (TT 26–33)
 Tác nhân: System Admin. Đây là phân hệ hoàn toàn mới so với bản demo, vận hành ngoài phạm vi mọi tenant, phục vụ đội ngũ kinh doanh/vận hành nền tảng SaaS.
 5.2.1 Quản lý tenant
@@ -210,6 +250,21 @@ Tiêu chí nghiệm thu:
 Tạo được 1 tenant mới, gán gói thuê, khởi tạo tài khoản Tenant Admin, và tài khoản đó đăng nhập được ngay để bắt đầu cấu hình trường — toàn bộ trong một luồng liền mạch không cần can thiệp CSDL thủ công.
 Khoá 1 tenant thì toàn bộ tài khoản thuộc tenant đó không đăng nhập được; mở khoá lại thì hoạt động bình thường, dữ liệu không bị mất.
 Tenant đạt đến hạn mức tài khoản theo gói thuê thì Tenant Admin không tạo thêm được tài khoản mới, có thông báo rõ lý do và hướng dẫn liên hệ nâng cấp gói.
+
+5.2.4 Bảng đặc tả chi tiết – Nhóm B (đầy đủ, nguyên văn Feature List v1.0.1, không bỏ sót dòng nào, TT 26–33)
+
+| TT | Tên chức năng | Mô tả nghiệp vụ (nguyên văn Feature List v1.0.1) | Permission key đề xuất | Trạng thái Production |
+|---|---|---|---|---|
+| **026** | Danh sách tenant | Xem danh sách các trường đang sử dụng hệ thống. | `system-admin.tenant.view` | **MỚI HOÀN TOÀN** — module System Admin không tồn tại ở bản demo, phải xây từ đầu theo Phase 1. |
+| **027** | Thêm tenant | Khởi tạo một trường mới trên nền tảng, tạo mã tenant và các thông tin ban đầu. | `system-admin.tenant.create` | **MỚI HOÀN TOÀN** — module System Admin không tồn tại ở bản demo, phải xây từ đầu theo Phase 1. |
+| **028** | Cập nhật tenant | Thay đổi tên trường, trạng thái hoạt động và thông tin cấu hình cơ bản. | `system-admin.tenant.update` | **MỚI HOÀN TOÀN** — module System Admin không tồn tại ở bản demo, phải xây từ đầu theo Phase 1. |
+| **029** | Khóa/Mở tenant | Tạm ngừng hoặc kích hoạt lại quyền sử dụng hệ thống của trường. | `system-admin.tenant.lock_unlock` | **MỚI HOÀN TOÀN** — module System Admin không tồn tại ở bản demo, phải xây từ đầu theo Phase 1. |
+| **030** | Quản lý gói thuê | Khai báo các gói sử dụng phần mềm theo chính sách kinh doanh. | `system-admin.package.manage` | **MỚI HOÀN TOÀN** — module System Admin không tồn tại ở bản demo, phải xây từ đầu theo Phase 1. |
+| **031** | Gán gói thuê cho tenant | Xác định gói thuê, thời gian hiệu lực, số lượng tài khoản hoặc hạn mức sử dụng của từng trường. | `system-admin.subscription.assign` | **MỚI HOÀN TOÀN** — module System Admin không tồn tại ở bản demo, phải xây từ đầu theo Phase 1. |
+| **032** | Theo dõi thời hạn thuê | Theo dõi ngày bắt đầu, ngày hết hạn và trạng thái gói dịch vụ của từng tenant. | `system-admin.subscription.monitor` | **MỚI HOÀN TOÀN** — module System Admin không tồn tại ở bản demo, phải xây từ đầu theo Phase 1. |
+| **033** | Tài khoản Tenant Admin | Khởi tạo tài khoản quản trị ban đầu cho từng trường. | `system-admin.tenant_admin.create` | **MỚI HOÀN TOÀN** — module System Admin không tồn tại ở bản demo, phải xây từ đầu theo Phase 1. |
+
+
 5.3 Nhóm C – Admin trường (Tenant Admin) (TT 34–51)
 Tác nhân: Tenant Admin, Hiệu trưởng (thường được gán kèm quyền Admin trường). Toàn bộ chức năng nhóm này nằm trong đúng 1 tenant, đáp ứng yêu cầu "các trường tự cấu hình thông tin độc lập".
 5.3.1 Thông tin nhà trường & phân hiệu (TT 34–36)
@@ -229,6 +284,31 @@ Tiêu chí nghiệm thu:
 Tenant Admin thực hiện được toàn bộ vòng đời cấu hình một trường mới (thông tin trường → phân hiệu → tổ chức → nhân sự → tài khoản → phân quyền → danh mục) mà không cần hỗ trợ kỹ thuật từ System Admin.
 Chuyển 1 giáo viên từ phân hiệu này sang phân hiệu khác trong tối đa 3 lần bấm, giáo viên đó xuất hiện đúng trong danh sách nhân sự của phân hiệu mới ngay lập tức.
 Xoá một phân hiệu chỉ được phép khi không còn nhân sự/công việc gắn với phân hiệu đó, ngược lại hệ thống báo rõ lý do không xoá được.
+
+5.3.6 Bảng đặc tả chi tiết – Nhóm C (đầy đủ, nguyên văn Feature List v1.0.1, không bỏ sót dòng nào, TT 34–51)
+
+| TT | Tên chức năng | Mô tả nghiệp vụ (nguyên văn Feature List v1.0.1) | Permission key đề xuất | Trạng thái Production |
+|---|---|---|---|---|
+| **034** | Thông tin nhà trường | Cập nhật mã trường, tên trường, địa chỉ, thông tin liên hệ và năm học hiện tại. | `tenant-admin.school.update` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+| **035** | Danh sách phân hiệu/điểm trường | Khai báo điểm chính và các phân hiệu thuộc trường. | `tenant-admin.location.list` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+| **036** | Thông tin phân hiệu | Quản lý tên, địa chỉ, người phụ trách và một số số liệu cơ bản của từng phân hiệu. | `tenant-admin.location.manage` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+| **037** | Danh sách lớp | Khai báo các lớp theo năm học, khối lớp và phân hiệu. | `tenant-admin.class.manage` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+| **038** | Số liệu học sinh | Quản lý các số liệu phục vụ quản trị như tổng học sinh, nam, nữ và các chỉ tiêu thống kê cần thiết; Version 1.0 chưa cần quản lý hồ sơ chi tiết từng học sinh. | `tenant-admin.student_stat.manage` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+| **039** | Danh sách tổ chuyên môn | Khai báo các tổ chuyên môn của toàn trường. | `tenant-admin.org_unit.manage` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+| **040** | Danh sách bộ phận | Khai báo các bộ phận như Văn phòng, Y tế, Thư viện, Thiết bị, CNTT... | `tenant-admin.org_unit.manage` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+| **041** | Danh sách giáo viên/nhân viên | Quản lý họ tên, chức vụ/chức danh, phân hiệu, tổ/bộ phận, số điện thoại và trạng thái làm việc. | `tenant-admin.staff.manage` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+| **042** | Phân công phân hiệu | Một giáo viên/nhân viên có thể được gán làm việc tại một hoặc nhiều phân hiệu. | `tenant-admin.staff.assign_location` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+| **043** | Phân công tổ/bộ phận | Xác định giáo viên/nhân viên thuộc tổ chuyên môn hoặc bộ phận nào. | `tenant-admin.staff.assign_org_unit` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+| **044** | Tạo tài khoản từ danh sách nhân sự | Tạo tài khoản người dùng dựa trên danh sách giáo viên/nhân viên đã khai báo. | `tenant-admin.account.create_from_staff` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+| **045** | Khóa/Mở tài khoản | Quản lý trạng thái sử dụng tài khoản. | `tenant-admin.account.lock_unlock` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+| **046** | Cấp lại mật khẩu | Thiết lập lại mật khẩu khi người dùng quên hoặc cần reset tài khoản. | `tenant-admin.account.reset_password` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+| **047** | Phân quyền chức năng | Gán vai trò Hiệu trưởng, Phó Hiệu trưởng, Tổ trưởng, Trưởng bộ phận, Giáo viên/Nhân viên... | `tenant-admin.role.assign_permission` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+| **048** | Phân quyền phạm vi dữ liệu | Xác định người dùng được xem dữ liệu toàn trường, một phân hiệu, một tổ chuyên môn hoặc một bộ phận. | `tenant-admin.account.assign_scope` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+| **049** | Danh mục KPI khác | Khai báo các KPI ngoài KPI công việc tự động tính. | `tenant-admin.kpi_definition.manage` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+| **050** | Cấu hình KPI | Khai báo tên KPI, đơn vị tính, mức đạt/chỉ tiêu và đối tượng áp dụng. | `tenant-admin.kpi_definition.configure` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+| **051** | Quản lý danh mục dùng chung | Quản lý các danh mục cơ bản như loại công việc, mức ưu tiên, trạng thái, loại minh chứng và đơn vị tính. | `tenant-admin.category.manage` | **MỞ RỘNG TỪ DEMO (M12/M13)** — bản demo có cấu hình cơ bản dạng đơn-tenant/cố định, Production phải chuyển thành cấu hình được theo từng tenant, xây ở Phase 2. |
+
+
 5.4 Nhóm D – Hiệu trưởng (TT 52–77)
 Tác nhân: Hiệu trưởng — vai trò có phạm vi rộng nhất trong tenant (dưới Tenant Admin), tập trung vào điều hành, giao việc, kiểm tra/phê duyệt và đánh giá toàn trường.
 Dashboard toàn trường + phân tích theo phân hiệu, theo tổ/bộ phận, theo cá nhân (TT 52–55).
@@ -243,6 +323,39 @@ Tiêu chí nghiệm thu:
 Hiệu trưởng mở Dashboard xác định được phân hiệu/tổ nào đang chậm nhất trong vòng ≤ 5 giây quan sát.
 Giao được 1 công việc cho tổ chuyên môn với đầy đủ RACI trong ≤ 60 giây với người dùng lần đầu.
 Từ danh sách công việc chờ duyệt, phê duyệt hoặc yêu cầu bổ sung 1 công việc trong tối đa 2 bước thao tác.
+
+5.4.1 Bảng đặc tả chi tiết – Nhóm D (đầy đủ, nguyên văn Feature List v1.0.1, không bỏ sót dòng nào, TT 52–77)
+
+| TT | Tên chức năng | Mô tả nghiệp vụ (nguyên văn Feature List v1.0.1) | Permission key đề xuất | Trạng thái Production |
+|---|---|---|---|---|
+| **052** | Dashboard toàn trường | Tổng hợp tình hình công việc toàn trường: tổng số việc, chưa thực hiện, đang thực hiện, hoàn thành, sắp hết hạn và quá hạn. | `dashboard.school.view` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **053** | Phân tích theo phân hiệu | Xem tình hình công việc của điểm chính và từng phân hiệu. | `dashboard.school.by_location` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **054** | Phân tích theo tổ/bộ phận | Xem tình trạng công việc theo tổ chuyên môn và các bộ phận chức năng. | `dashboard.school.by_org_unit` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **055** | Phân tích theo cá nhân | Xem khối lượng và kết quả công việc của giáo viên/nhân viên. | `dashboard.school.by_individual` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **056** | Cây kế hoạch hoạt động | Xem cấu trúc Năm học → Học kỳ → Tháng → Tuần → Công việc. | `plan.tree.view` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **057** | Thêm kế hoạch | Tạo kế hoạch năm, học kỳ, tháng hoặc tuần; khai báo mục tiêu/nội dung chính, thời gian và phạm vi thực hiện. | `plan.create` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **058** | Cập nhật kế hoạch | Điều chỉnh nội dung, thời gian và các thông tin liên quan của kế hoạch. | `plan.update` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **059** | Xem công việc của kế hoạch | Xem toàn bộ các nhiệm vụ/công việc được tạo trong một kế hoạch. | `plan.view_tasks` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **060** | Tạo công việc | Tạo công việc thuộc kế hoạch hoặc công việc phát sinh ngoài kế hoạch. | `task.create` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **061** | Giao việc cho cá nhân | Giao trực tiếp cho Phó Hiệu trưởng, tổ trưởng, giáo viên hoặc nhân viên. | `task.assign_individual` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **062** | Giao việc cho tổ/bộ phận | Giao nhiệm vụ cho một tổ chuyên môn hoặc bộ phận như Y tế, Văn phòng, Thiết bị... | `task.assign_org_unit` | **CẦN BỔ SUNG MỚI** — chưa có ở bản demo, phải phát triển thêm ở Phase 3. |
+| **063** | Thiết lập RACI | Xác định người thực hiện chính, người chịu trách nhiệm, người hỗ trợ/tham vấn và người được thông báo. | `task.raci.assign` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **064** | Danh sách công việc toàn trường | Xem và tìm kiếm tất cả công việc trong phạm vi nhà trường. | `task.view_school` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **065** | Xem công việc theo phân hiệu | Theo dõi riêng công việc của từng phân hiệu. | `task.view_by_location` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **066** | Xem công việc theo tổ/bộ phận | Theo dõi hoạt động của từng tổ chuyên môn hoặc bộ phận. | `task.view_by_org_unit` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **067** | Kiểm tra kết quả công việc | Xem tiến độ, kết quả, trao đổi và minh chứng của người thực hiện. | `task.review` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **068** | Phê duyệt hoàn thành | Xác nhận công việc đã hoàn thành và đạt yêu cầu. | `task.approve` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **069** | Yêu cầu bổ sung | Trả công việc về người thực hiện và ghi rõ nội dung cần bổ sung/chỉnh sửa. | `task.request_revision` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **070** | Đánh giá kết quả công việc | Đánh giá theo các mức: Hoàn thành trước tiến độ; Hoàn thành đúng tiến độ; Hoàn thành nhưng chậm; Yêu cầu bổ sung/Chưa đạt. | `task.evaluate` | **CẦN BỔ SUNG MỚI** — chưa có ở bản demo, phải phát triển thêm ở Phase 3. |
+| **071** | KPI cá nhân | Xem các KPI của chính Hiệu trưởng và cập nhật các KPI không lấy tự động từ phần mềm. | `kpi.view_own` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **072** | KPI giáo viên/nhân viên | Xem KPI của từng cá nhân trong trường. | `kpi.view_staff` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **073** | Báo cáo KPI tuần/tháng | Tổng hợp KPI theo kỳ, cho phép lọc theo phân hiệu, tổ/bộ phận hoặc cá nhân. | `kpi.report_period` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **074** | Xuất KPI Excel | Xuất báo cáo KPI phục vụ tổng hợp, họp và lưu trữ. | `kpi.export_excel` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **075** | Kho minh chứng toàn trường | Xem và tìm kiếm minh chứng trong phạm vi toàn trường. | `evidence.view_school` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **076** | Báo cáo tổng hợp công việc | Xem tổng hợp thực hiện công việc theo kỳ, phân hiệu, tổ/bộ phận và cá nhân. | `report.task.summary` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **077** | Duyệt công việc đề xuất | Xem và quyết định chấp nhận/từ chối các công việc do cấp dưới đề xuất khi thuộc thẩm quyền. | `proposal.approve` | **CẦN BỔ SUNG MỚI** — chưa có ở bản demo, phải phát triển thêm ở Phase 3. |
+
+
 5.5 Nhóm E – Phó Hiệu trưởng (TT 78–93)
 Tác nhân: Phó Hiệu trưởng. Về bản chất là tập con quyền của Hiệu trưởng, giới hạn theo phạm vi phân hiệu/lĩnh vực được Hiệu trưởng giao (cấu hình qua phân quyền phạm vi tại mục 5.3.4).
 Dashboard theo phạm vi phụ trách; xem kế hoạch toàn trường (để nắm căn cứ điều hành) và kế hoạch riêng của phân hiệu; thêm/cập nhật kế hoạch trong phạm vi được phép (TT 78–81).
@@ -253,6 +366,29 @@ KPI cá nhân và KPI của nhân sự phụ trách; báo cáo công việc phâ
 Tiêu chí nghiệm thu:
 Phó Hiệu trưởng phụ trách phân hiệu A không nhìn thấy dữ liệu chi tiết (kế hoạch nội bộ, KPI cá nhân, minh chứng) của phân hiệu B trừ khi được Tenant Admin cấp thêm quyền.
 Phê duyệt hoặc yêu cầu bổ sung một công việc trong phạm vi phụ trách hoạt động đúng như luồng workflow chung ở mục 5.1.2/9.4.
+
+5.5.1 Bảng đặc tả chi tiết – Nhóm E (đầy đủ, nguyên văn Feature List v1.0.1, không bỏ sót dòng nào, TT 78–93)
+
+| TT | Tên chức năng | Mô tả nghiệp vụ (nguyên văn Feature List v1.0.1) | Permission key đề xuất | Trạng thái Production |
+|---|---|---|---|---|
+| **078** | Dashboard phân hiệu/phạm vi phụ trách | Xem tổng hợp công việc thuộc phân hiệu hoặc phạm vi được Hiệu trưởng giao quản lý. | `dashboard.scope.view` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **079** | Xem kế hoạch toàn trường | Được xem kế hoạch chung làm căn cứ điều hành tại phân hiệu. | `plan.view_school` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **080** | Xem kế hoạch phân hiệu | Xem các kế hoạch/công việc trực tiếp liên quan đến phân hiệu phụ trách. | `plan.view_location` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **081** | Thêm/cập nhật kế hoạch trong phạm vi được phép | Lập hoặc điều chỉnh kế hoạch thuộc phạm vi được Hiệu trưởng giao quyền. | `plan.manage_scoped` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **082** | Nhận công việc từ Hiệu trưởng | Theo dõi các nhiệm vụ được giao từ Hiệu trưởng. | `task.view_assigned_by_principal` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **083** | Cập nhật công việc cá nhân | Cập nhật tiến độ, kết quả và minh chứng của nhiệm vụ Phó Hiệu trưởng trực tiếp thực hiện. | `task.update_own` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **084** | Giao việc cho tổ/bộ phận | Phân rã nhiệm vụ và giao cho tổ chuyên môn/bộ phận thuộc phạm vi phụ trách. | `task.assign_org_unit_scoped` | **CẦN BỔ SUNG MỚI** — chưa có ở bản demo, phải phát triển thêm ở Phase 3. |
+| **085** | Giao việc cho giáo viên/nhân viên | Giao trực tiếp công việc cho cá nhân trong phạm vi được quyền quản lý. | `task.assign_individual_scoped` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **086** | Theo dõi công việc phân hiệu | Xem toàn bộ công việc của phân hiệu phụ trách. | `task.view_location` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **087** | Kiểm tra công việc | Kiểm tra kết quả, tiến độ và minh chứng của cấp dưới. | `task.review_scoped` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **088** | Phê duyệt/Yêu cầu bổ sung | Phê duyệt công việc thuộc thẩm quyền hoặc yêu cầu người thực hiện bổ sung. | `task.approve_scoped` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **089** | Đánh giá kết quả thực hiện | Ghi nhận việc hoàn thành trước hạn, đúng hạn, hoàn thành chậm hoặc chưa đạt. | `task.evaluate_scoped` | **CẦN BỔ SUNG MỚI** — chưa có ở bản demo, phải phát triển thêm ở Phase 3. |
+| **090** | KPI cá nhân | Xem và cập nhật KPI của bản thân. | `kpi.view_own` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **091** | Xem KPI nhân sự phụ trách | Theo dõi KPI của giáo viên/nhân viên thuộc phân hiệu/phạm vi quản lý. | `kpi.view_staff_scoped` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **092** | Báo cáo công việc phân hiệu | Tổng hợp tình hình công việc của phân hiệu theo tuần/tháng. | `report.location` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **093** | Minh chứng trong phạm vi quản lý | Xem và tìm kiếm các minh chứng của phân hiệu/phạm vi được phân công. | `evidence.view_scoped` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+
+
 5.6 Nhóm F – Tổ trưởng / Trưởng bộ phận (TT 94–104)
 Dashboard công việc được giao/thực hiện/hỗ trợ/kiểm tra; nhận việc từ cấp trên; xem công việc của cả tổ/bộ phận (TT 94–96).
 Giao việc cho thành viên trong tổ/bộ phận, phân công RACI ở phạm vi tổ (TT 97–98).
@@ -260,6 +396,24 @@ Cập nhật công việc cá nhân trực tiếp thực hiện; theo dõi tiế
 Trao đổi/mention ngay trong công việc; KPI cá nhân; báo cáo công việc tổ/bộ phận theo kỳ (TT 102–104).
 Tiêu chí nghiệm thu:
 Tổ trưởng thấy được đầy đủ tiến độ của mọi thành viên trong tổ trên một màn hình duy nhất, phân biệt rõ theo màu trạng thái.
+
+5.6.1 Bảng đặc tả chi tiết – Nhóm F (đầy đủ, nguyên văn Feature List v1.0.1, không bỏ sót dòng nào, TT 94–104)
+
+| TT | Tên chức năng | Mô tả nghiệp vụ (nguyên văn Feature List v1.0.1) | Permission key đề xuất | Trạng thái Production |
+|---|---|---|---|---|
+| **094** | Dashboard công việc | Hiển thị công việc mà tổ trưởng/trưởng bộ phận được giao, thực hiện, hỗ trợ hoặc kiểm tra. | `dashboard.team.view` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **095** | Nhận việc từ cấp trên | Nhận nhiệm vụ từ Hiệu trưởng hoặc Phó Hiệu trưởng. | `task.view_assigned_by_superior` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **096** | Xem công việc của tổ/bộ phận | Xem các công việc đang thực hiện bởi các thành viên trong tổ/bộ phận. | `task.view_team` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **097** | Giao việc cho thành viên | Phân công nhiệm vụ cho giáo viên/nhân viên thuộc tổ hoặc bộ phận. | `task.assign_team_member` | **CẦN BỔ SUNG MỚI** — chưa có ở bản demo, phải phát triển thêm ở Phase 3. |
+| **098** | Phân công RACI | Chỉ định người thực hiện, người phối hợp/hỗ trợ và các bên cần được thông tin trong phạm vi công việc. | `task.raci.assign_team` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **099** | Cập nhật công việc cá nhân | Cập nhật tiến độ, kết quả và minh chứng với các nhiệm vụ tổ trưởng/trưởng bộ phận trực tiếp thực hiện. | `task.update_own` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **100** | Theo dõi tiến độ thành viên | Theo dõi việc chưa làm, đang làm, sắp hạn và quá hạn của các thành viên. | `task.track_team_progress` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **101** | Kiểm tra kết quả thành viên | Xem kết quả và minh chứng trước khi báo cáo hoặc trình cấp trên. | `task.review_team` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **102** | Trao đổi trong công việc | Trao đổi, hướng dẫn và mention thành viên ngay trên công việc. | `task.comment.create` | **CẦN BỔ SUNG MỚI** — chưa có ở bản demo, phải phát triển thêm ở Phase 3. |
+| **103** | KPI cá nhân | Xem KPI tự động từ công việc và cập nhật các KPI khác theo cấu hình. | `kpi.view_own` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **104** | Báo cáo công việc tổ/bộ phận | Tổng hợp tình hình thực hiện công việc của tổ/bộ phận theo kỳ. | `report.team` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+
+
 5.7 Nhóm G – Giáo viên / Nhân viên (TT 105–120)
 Dashboard cá nhân: việc được giao, việc hỗ trợ/phối hợp/kiểm tra, sắp hạn, quá hạn (TT 105).
 Nhận việc, xem chi tiết nhiệm vụ đầy đủ (yêu cầu, kết quả cần đạt, thời gian, người giao, người phối hợp, minh chứng yêu cầu) (TT 106–107).
@@ -270,6 +424,28 @@ Dashboard KPI cá nhân: số việc được giao trong kỳ, tỷ lệ hoàn t
 Tiêu chí nghiệm thu:
 Giáo viên biết chính xác cần làm gì hôm nay ngay khi mở app, không cần tìm kiếm thêm.
 Gửi hoàn thành 1 công việc chỉ khi đã đủ minh chứng bắt buộc (nếu người giao yêu cầu); nếu thiếu, hệ thống chặn và nêu rõ còn thiếu gì.
+
+5.7.1 Bảng đặc tả chi tiết – Nhóm G (đầy đủ, nguyên văn Feature List v1.0.1, không bỏ sót dòng nào, TT 105–120)
+
+| TT | Tên chức năng | Mô tả nghiệp vụ (nguyên văn Feature List v1.0.1) | Permission key đề xuất | Trạng thái Production |
+|---|---|---|---|---|
+| **105** | Dashboard cá nhân | Hiển thị tổng quan công việc được giao, công việc hỗ trợ, công việc cần phối hợp/kiểm tra, việc sắp hạn và quá hạn. | `dashboard.personal.view` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **106** | Nhận việc | Xem các nhiệm vụ được cấp trên giao. | `task.view_assigned` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **107** | Xem chi tiết nhiệm vụ | Xem yêu cầu, kết quả cần đạt, thời gian, người giao, người phối hợp và minh chứng yêu cầu. | `task.view_detail` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **108** | Cập nhật tiến độ | Cập nhật % hoàn thành và thông tin thực hiện. | `task.progress.update` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **109** | Báo cáo kết quả | Cập nhật nội dung kết quả thực tế sau khi thực hiện. | `task.result.update` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **110** | Cập nhật minh chứng | Tải tài liệu, ảnh hoặc đường dẫn để chứng minh kết quả công việc. | `evidence.upload` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **111** | Gửi kiểm tra/phê duyệt | Sau khi hoàn thành, chuyển công việc cho người có trách nhiệm kiểm tra/phê duyệt. | `task.submit_for_review` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **112** | Bổ sung theo yêu cầu | Nhận yêu cầu bổ sung và cập nhật lại công việc trước khi gửi kiểm tra lại. | `task.revise` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **113** | Đề xuất công việc | Tạo đề xuất một nhiệm vụ/công việc phát sinh và gửi cấp trên xem xét. | `proposal.create` | **CẦN BỔ SUNG MỚI** — chưa có ở bản demo, phải phát triển thêm ở Phase 3. |
+| **114** | Trao đổi/mention | Trao đổi với người giao việc và thành viên liên quan trong từng công việc. | `task.comment.create` | **CẦN BỔ SUNG MỚI** — chưa có ở bản demo, phải phát triển thêm ở Phase 3. |
+| **115** | Dashboard KPI cá nhân | Hiển thị số việc được giao trong kỳ, số việc đã hoàn thành, chưa hoàn thành và tình trạng tiến độ. | `kpi.dashboard_personal` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **116** | KPI hoàn thành trước hạn | Tự động thống kê số/tỷ lệ công việc hoàn thành trước thời hạn. | `kpi.view_own` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **117** | KPI hoàn thành đúng hạn | Tự động thống kê số/tỷ lệ công việc hoàn thành đúng thời hạn. | `kpi.view_own` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **118** | KPI hoàn thành chậm | Tự động thống kê số/tỷ lệ công việc đã hoàn thành nhưng quá thời hạn. | `kpi.view_own` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **119** | KPI chưa hoàn thành | Tự động thống kê số/tỷ lệ công việc chưa hoàn thành trong kỳ. | `kpi.view_own` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+| **120** | Cập nhật KPI khác | Nhập kết quả của các KPI không thể tự động lấy từ công việc, theo danh mục Admin đã cấu hình. | `kpi.update_manual` | Kế thừa từ Demo — refactor thêm `tenant_id` + RLS + PermissionGuard, không viết lại logic đã đúng. |
+
 5.8 Cơ chế tính KPI (chi tiết bổ sung)
 KPI là mảng nghiệp vụ mới so với bản demo, xuất hiện xuyên suốt các vai trò (TT 49–50, 71–74, 90–91, 103, 115–120), cần một công thức và bộ máy tính toán nhất quán:
 KPI tự động: hệ thống tự tính từ dữ liệu công việc đã hoàn thành trong kỳ, phân theo 4 nhóm — hoàn thành trước hạn, đúng hạn, chậm hạn, chưa hoàn thành — theo đúng dueDate và thời điểm chuyển trạng thái Hoàn thành/Đóng đã ghi trong TaskLog.

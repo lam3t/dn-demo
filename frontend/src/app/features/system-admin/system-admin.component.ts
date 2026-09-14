@@ -351,15 +351,6 @@ export class SystemAdminComponent implements OnInit {
     }
   }
 
-  switchToSystemAdmin() {
-    this.authService.switchDemoAccount('0900000001').subscribe({
-      next: () => {
-        this.successMessage.set('Đã chuyển sang tài khoản Quản trị Nền tảng (System Admin)');
-        this.loadInitialData();
-        setTimeout(() => this.successMessage.set(null), 3000);
-      },
-    });
-  }
 
   getStatusBadgeClass(status: string): string {
     switch (status) {
