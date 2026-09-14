@@ -14,6 +14,11 @@ import notificationRoutes from './modules/notifications/notification.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import dashboardRoutes from './modules/dashboard/dashboard.routes';
 import schoolRoutes from './modules/school/school.routes';
+import systemAdminRoutes from './modules/system-admin/system-admin.routes';
+import searchRoutes from './modules/search/search.routes';
+import reportRoutes from './modules/reports/report.routes';
+import kpiRoutes from './modules/kpi/kpi.routes';
+import { tenantRateLimiter } from './shared/middleware/tenant-rate-limiter';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
 
 const app: Express = express();
@@ -41,6 +46,9 @@ app.use(
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Tenant-aware Rate Limiter (Phase 5)
+app.use(tenantRateLimiter.middleware());
+
 // Static files for uploaded evidence / files
 const uploadsPath = path.join(__dirname, '../uploads');
 app.use('/uploads', express.static(uploadsPath));
@@ -48,6 +56,7 @@ app.use('/uploads', express.static(uploadsPath));
 // API Routes
 app.use('/api', healthRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/system-admin', systemAdminRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/school', schoolRoutes);
 app.use('/api/locations', locationRoutes);
@@ -59,6 +68,9 @@ app.use('/api/tasks/:id/attachments', attachmentRoutes);
 app.use('/api/attachments', attachmentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/kpi', kpiRoutes);
 
 // Error handlers
 app.use(notFoundHandler);

@@ -77,3 +77,59 @@ export interface LocationSummaryDto {
   completedTaskCount: number;
   totalTaskCount: number;
 }
+
+// --------------------------------------------------------
+// PHASE 2 DTOs
+// --------------------------------------------------------
+
+export interface CreateRoleDto {
+  code: string;
+  name: string;
+  description?: string;
+  permissionKeys?: string[];
+}
+
+export interface UpdateRoleDto {
+  name?: string;
+  description?: string;
+}
+
+export interface UpdateRolePermissionsDto {
+  permissionKeys: string[];
+}
+
+export interface CreateSharedCategoryDto {
+  type: string;
+  code: string;
+  name: string;
+  orderIndex?: number;
+  isDefault?: boolean;
+}
+
+export interface UpdateSharedCategoryDto {
+  name?: string;
+  orderIndex?: number;
+  isDefault?: boolean;
+  isActive?: boolean;
+}
+
+export interface CreateKPIDefinitionDto {
+  code: string;
+  name: string;
+  description?: string;
+  unit?: string;
+  targetValue?: number;
+  weight?: number;
+  applicableRoles?: string[];
+}
+
+export interface UpdateKPIDefinitionDto {
+  name?: string;
+  description?: string;
+  unit?: string;
+  targetValue?: number;
+  weight?: number;
+  applicableRoles?: string[];
+  isActive?: boolean;
+}
+

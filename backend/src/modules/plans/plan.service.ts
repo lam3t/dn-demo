@@ -2,6 +2,7 @@ import prisma from '../../prisma';
 import { AppError } from '../../middlewares/error.middleware';
 import { PlanLevel, TaskPriority, TaskStatus, TaskAssignmentRole } from '@prisma/client';
 import appCache from '../../utils/cache';
+import { resolveTenantId } from '../../utils/tenant.util';
 
 const PLAN_LEVEL_ORDER: Record<PlanLevel, number> = {
   NAM: 0,
@@ -100,12 +101,14 @@ export class PlanService {
    */
   async getAll(params: {
     schoolId?: string;
+    tenantId?: string;
     level?: PlanLevel;
     parentPlanId?: string | null;
     search?: string;
   }) {
     const where: any = {};
-    if (params.schoolId) where.schoolId = params.schoolId;
+    if (params.tenantId) where.tenantId = params.tenantId;
+    else if (params.schoolId) where.schoolId = params.schoolId;
     if (params.level) where.level = params.level;
     if (params.parentPlanId !== undefined) where.parentPlanId = params.parentPlanId;
     if (params.search) {
@@ -131,15 +134,17 @@ export class PlanService {
   /**
    * Lấy cây kế hoạch đầy đủ lồng nhau kèm danh sách Task con ở mỗi cấp
    */
-  async getTree(rootPlanId?: string, schoolId?: string): Promise<PlanTreeNode[]> {
-    const cacheKey = `plans:tree:${rootPlanId || 'root'}:${schoolId || 'all'}`;
+  async getTree(rootPlanId?: string, schoolId?: string, tenantId?: string): Promise<PlanTreeNode[]> {
+    const scopeKey = tenantId || schoolId || 'all';
+    const cacheKey = `plans:tree:${rootPlanId || 'root'}:${scopeKey}`;
     const cached = appCache.get<PlanTreeNode[]>(cacheKey);
     if (cached) {
       return cached;
     }
 
     let whereCondition: any = {};
-    if (schoolId) whereCondition.schoolId = schoolId;
+    if (tenantId) whereCondition.tenantId = tenantId;
+    else if (schoolId) whereCondition.schoolId = schoolId;
 
     if (rootPlanId) {
       // Kiểm tra plan tồn tại
@@ -241,9 +246,12 @@ export class PlanService {
   /**
    * Lấy chi tiết một kế hoạch
    */
-  async getById(id: string) {
-    const plan = await prisma.plan.findUnique({
-      where: { id },
+  async getById(id: string, tenantId?: string) {
+    const where: any = { id };
+    if (tenantId) where.tenantId = tenantId;
+
+    const plan = await prisma.plan.findFirst({
+      where,
       include: {
         parentPlan: true,
         childrenPlans: {
@@ -288,6 +296,7 @@ export class PlanService {
    */
   async create(data: {
     schoolId: string;
+    tenantId?: string;
     title: string;
     description?: string;
     level: PlanLevel;
@@ -297,9 +306,11 @@ export class PlanService {
     createdById: string;
   }) {
     await this.validatePlanHierarchy(data.level, data.parentPlanId);
+    const tenantId = await resolveTenantId(data.schoolId, data.tenantId);
 
     const plan = await prisma.plan.create({
       data: {
+        tenantId,
         schoolId: data.schoolId,
         title: data.title,
         description: data.description,
@@ -337,9 +348,13 @@ export class PlanService {
       startDate?: Date | string;
       endDate?: Date | string;
       progressPercent?: number;
-    }
+    },
+    tenantId?: string
   ) {
-    const existing = await prisma.plan.findUnique({ where: { id } });
+    const where: any = { id };
+    if (tenantId) where.tenantId = tenantId;
+
+    const existing = await prisma.plan.findFirst({ where });
     if (!existing) {
       throw new AppError('Không tìm thấy kế hoạch.', 404);
     }
@@ -377,9 +392,12 @@ export class PlanService {
   /**
    * Xóa kế hoạch (Hỗ trợ xóa đệ quy kế hoạch con và giải phóng công việc trực thuộc)
    */
-  async delete(id: string) {
-    const existing = await prisma.plan.findUnique({
-      where: { id },
+  async delete(id: string, tenantId?: string) {
+    const where: any = { id };
+    if (tenantId) where.tenantId = tenantId;
+
+    const existing = await prisma.plan.findFirst({
+      where,
     });
 
     if (!existing) {
@@ -479,6 +497,7 @@ export class PlanService {
 
       const task = await prisma.task.create({
         data: {
+          tenantId: plan.tenantId,
           schoolId: plan.schoolId,
           planId: plan.id,
           code: taskCode,
@@ -494,15 +513,17 @@ export class PlanService {
           createdById,
           assignments: {
             create: [
-              { userId: item.chuTriId, role: TaskAssignmentRole.CHU_TRI, note: 'Chịu trách nhiệm chính' },
+              { tenantId: plan.tenantId, userId: item.chuTriId, role: TaskAssignmentRole.CHU_TRI, note: 'Chịu trách nhiệm chính' },
               ...(item.phoiHopIds || []).map((uid) => ({
+                tenantId: plan.tenantId,
                 userId: uid,
                 role: TaskAssignmentRole.PHOI_HOP,
                 note: 'Đầu mối phối hợp',
               })),
-              ...(item.kiemTraId ? [{ userId: item.kiemTraId, role: TaskAssignmentRole.KIEM_TRA, note: 'Kiểm tra chất lượng' }] : []),
-              ...(item.pheDuyetId ? [{ userId: item.pheDuyetId, role: TaskAssignmentRole.PHE_DUYET, note: 'Ban Giám hiệu phê duyệt' }] : []),
+              ...(item.kiemTraId ? [{ tenantId: plan.tenantId, userId: item.kiemTraId, role: TaskAssignmentRole.KIEM_TRA, note: 'Kiểm tra chất lượng' }] : []),
+              ...(item.pheDuyetId ? [{ tenantId: plan.tenantId, userId: item.pheDuyetId, role: TaskAssignmentRole.PHE_DUYET, note: 'Ban Giám hiệu phê duyệt' }] : []),
               ...(item.theoDoiIds || []).map((uid) => ({
+                tenantId: plan.tenantId,
                 userId: uid,
                 role: TaskAssignmentRole.THEO_DOI,
                 note: 'Theo dõi tiến độ',
@@ -511,6 +532,7 @@ export class PlanService {
           },
           logs: {
             create: {
+              tenantId: plan.tenantId,
               userId: createdById,
               action: 'TAO_MOI_TU_KE_HOACH',
               newStatus: TaskStatus.DA_GIAO,
@@ -574,6 +596,7 @@ export class PlanService {
     // 1. Tạo Plan gốc mới
     const newRootPlan = await prisma.plan.create({
       data: {
+        tenantId: sourcePlan.tenantId,
         schoolId: sourcePlan.schoolId,
         title,
         description: sourcePlan.description,
@@ -590,6 +613,7 @@ export class PlanService {
       for (const t of sourcePlan.tasks) {
         await prisma.task.create({
           data: {
+            tenantId: sourcePlan.tenantId,
             schoolId: t.schoolId,
             planId: newRootPlan.id,
             code: `${t.code || 'CV'}-CP`,
@@ -605,6 +629,7 @@ export class PlanService {
             createdById,
             assignments: {
               create: t.assignments.map((a) => ({
+                tenantId: sourcePlan.tenantId,
                 userId: a.userId,
                 role: a.role,
                 note: a.note,
@@ -619,6 +644,7 @@ export class PlanService {
     for (const child of sourcePlan.childrenPlans) {
       const newChildPlan = await prisma.plan.create({
         data: {
+          tenantId: sourcePlan.tenantId,
           schoolId: child.schoolId,
           title: child.title,
           description: child.description,
@@ -635,6 +661,7 @@ export class PlanService {
         for (const t of child.tasks) {
           await prisma.task.create({
             data: {
+              tenantId: sourcePlan.tenantId,
               schoolId: t.schoolId,
               planId: newChildPlan.id,
               code: `${t.code || 'CV'}-CP`,
@@ -650,6 +677,7 @@ export class PlanService {
               createdById,
               assignments: {
                 create: t.assignments.map((a) => ({
+                  tenantId: sourcePlan.tenantId,
                   userId: a.userId,
                   role: a.role,
                   note: a.note,
@@ -663,6 +691,51 @@ export class PlanService {
 
     appCache.invalidateTags(['plans', 'tasks', 'dashboard']);
     return this.getById(newRootPlan.id);
+  }
+
+  /**
+   * Lấy nhật ký thay đổi kế hoạch (TT 20–21)
+   */
+  async getPlanLogs(planId: string) {
+    return prisma.planLog.findMany({
+      where: { planId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            title: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Ghi log hành động kế hoạch
+   */
+  async logPlanAction(
+    tenantId: string,
+    planId: string,
+    userId: string,
+    action: string,
+    note?: string,
+    oldValues?: any,
+    newValues?: any
+  ) {
+    return prisma.planLog.create({
+      data: {
+        tenantId,
+        planId,
+        userId,
+        action,
+        note,
+        oldValues,
+        newValues,
+      },
+    });
   }
 }
 

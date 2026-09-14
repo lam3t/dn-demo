@@ -203,6 +203,16 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                               <span class="material-symbols-outlined">attach_file</span>
                             </span>
                           }
+                          @if (task.evaluationRating) {
+                            <span class="eval-rating-badge" [ngClass]="'eval-' + task.evaluationRating">
+                              {{ task.evaluationRating === 'XUAT_SAC' ? '⭐ Xuất sắc' : task.evaluationRating === 'TOT' ? '🟢 Tốt' : task.evaluationRating === 'HOAN_THANH' ? '🔵 Hoàn thành' : '🔴 Chưa đạt' }}
+                            </span>
+                          }
+                          @if (task.isProposal) {
+                            <span class="proposal-status-badge" [ngClass]="'prop-' + (task.proposalStatus || 'CHO_DUYET')">
+                              {{ task.proposalStatus === 'DA_DUYET' ? 'Đã duyệt đề xuất' : task.proposalStatus === 'TU_CHOI' ? 'Đề xuất bị từ chối' : 'Chờ BGH duyệt đề xuất' }}
+                            </span>
+                          }
                         </div>
                         @if (task.plan) {
                           <span class="plan-sub">Kế hoạch: {{ task.plan.title }}</span>
@@ -213,8 +223,8 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                     <td class="col-loc">
                       <div class="loc-cell">
                         <span class="loc-name">{{ task.location?.name || 'Toàn trường' }}</span>
-                        @if (task.orgUnit) {
-                          <span class="org-name">{{ task.orgUnit.name }}</span>
+                        @if (task.assignedOrgUnit || task.orgUnit) {
+                          <span class="org-name">{{ task.assignedOrgUnit?.name || task.orgUnit?.name }}</span>
                         }
                       </div>
                     </td>
@@ -656,6 +666,35 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                 .material-symbols-outlined {
                   font-size: 16px;
                 }
+              }
+
+              .eval-rating-badge {
+                display: inline-flex;
+                align-items: center;
+                font-size: 0.7rem;
+                font-weight: 800;
+                padding: 1px 6px;
+                border-radius: 4px;
+                white-space: nowrap;
+
+                &.eval-XUAT_SAC { background: #FEF3C7; color: #B45309; border: 1px solid #FCD34D; }
+                &.eval-TOT { background: #DCFCE7; color: #15803D; border: 1px solid #86EFAC; }
+                &.eval-HOAN_THANH { background: #EFF6FF; color: #1D4ED8; border: 1px solid #93C5FD; }
+                &.eval-CHUA_DAT { background: #FEE2E2; color: #B91C1C; border: 1px solid #FCA5A5; }
+              }
+
+              .proposal-status-badge {
+                display: inline-flex;
+                align-items: center;
+                font-size: 0.68rem;
+                font-weight: 700;
+                padding: 1px 6px;
+                border-radius: 4px;
+                white-space: nowrap;
+
+                &.prop-CHO_DUYET { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; }
+                &.prop-DA_DUYET { background: #DCFCE7; color: #166534; border: 1px solid #86EFAC; }
+                &.prop-TU_CHOI { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
               }
             }
 

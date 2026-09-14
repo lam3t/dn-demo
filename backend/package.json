@@ -20,7 +20,12 @@
     "test:tasks": "ts-node src/modules/tasks/tasks.test.ts",
     "test:dashboard": "ts-node src/modules/dashboard/dashboard.test.ts",
     "test:admin": "ts-node src/modules/admin/admin.test.ts",
-    "test:all": "npm run test:auth && npm run test:users && npm run test:plans && npm run test:tasks && npm run test:dashboard && npm run test:admin"
+    "test:multi-tenant": "ts-node src/modules/system-admin/multi-tenant.test.ts",
+    "test:permissions": "ts-node src/modules/admin/dynamic-permissions.test.ts",
+    "test:phase3": "ts-node src/modules/tasks/phase3-features.test.ts",
+    "test:kpi": "ts-node src/modules/kpi/kpi-calculation.test.ts",
+    "test:security": "ts-node src/modules/auth/security-penetration.test.ts",
+    "test:all": "npm run test:auth && npm run test:users && npm run test:plans && npm run test:tasks && npm run test:dashboard && npm run test:admin && npm run test:multi-tenant && npm run test:permissions && npm run test:phase3 && npm run test:kpi && npm run test:security"
   },
   "keywords": [
     "education",
@@ -33,11 +38,14 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
+    "bullmq": "^6.3.6",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "embedded-postgres": "^18.4.0-beta.17",
+    "exceljs": "^4.4.0",
     "express": "^4.21.1",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "zod": "^3.23.8"
@@ -46,7 +54,9 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.17",
+    "@types/exceljs": "^0.5.3",
     "@types/express": "^4.17.21",
+    "@types/ioredis": "^4.28.10",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.9.0",

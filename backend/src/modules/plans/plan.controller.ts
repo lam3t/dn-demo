@@ -36,7 +36,8 @@ export class PlanController {
   async getById(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const plan = await planService.getById(id);
+      const tenantId = req.user?.tenantId;
+      const plan = await planService.getById(id, tenantId);
       res.status(200).json({ success: true, data: plan });
     } catch (error) {
       next(error);
@@ -47,9 +48,11 @@ export class PlanController {
     try {
       const schoolId = req.body.schoolId || req.user!.schoolId;
       const createdById = req.user!.id;
+      const tenantId = req.user?.tenantId;
 
       const plan = await planService.create({
         ...req.body,
+        tenantId,
         schoolId,
         createdById,
       });
@@ -67,7 +70,8 @@ export class PlanController {
   async update(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const plan = await planService.update(id, req.body);
+      const tenantId = req.user?.tenantId;
+      const plan = await planService.update(id, req.body, tenantId);
 
       res.status(200).json({
         success: true,
@@ -82,7 +86,8 @@ export class PlanController {
   async delete(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      await planService.delete(id);
+      const tenantId = req.user?.tenantId;
+      await planService.delete(id, tenantId);
 
       res.status(200).json({
         success: true,
@@ -122,6 +127,20 @@ export class PlanController {
         success: true,
         message: 'Sao chép kế hoạch thành công.',
         data: duplicatedPlan,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getLogs(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const logs = await planService.getPlanLogs(id);
+
+      res.status(200).json({
+        success: true,
+        data: logs,
       });
     } catch (error) {
       next(error);

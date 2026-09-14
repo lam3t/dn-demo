@@ -19,6 +19,7 @@ import {
   TaskStatus,
   TaskPriority,
   TaskAssignmentRole,
+  TaskEvaluationRating,
   TaskLogItem,
   TaskAttachmentItem,
   TaskCommentItem,
@@ -529,6 +530,39 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                       }
                     </div>
                   </div>
+                }
+              </div>
+
+              <!-- EVALUATION CARD (TT 70, 89) -->
+              <div class="side-card evaluation-card">
+                <div class="eval-header-row">
+                  <h4 class="side-title">
+                    <span class="material-symbols-outlined eval-star-icon">hotel_class</span>
+                    <span>Đánh giá kết quả (4 mức)</span>
+                  </h4>
+                  @if (canEvaluateTask()) {
+                    <button type="button" class="btn-eval-edit tap-target" (click)="showEvalModal.set(true)">
+                      <span class="material-symbols-outlined">rate_review</span>
+                      <span>{{ task()!.evaluationRating ? 'Sửa' : 'Đánh giá' }}</span>
+                    </button>
+                  }
+                </div>
+
+                @if (task()!.evaluationRating) {
+                  <div class="eval-result-pill" [ngClass]="'eval-' + task()!.evaluationRating">
+                    <span class="eval-rating-title">{{ getEvaluationLabel(task()!.evaluationRating!) }}</span>
+                    @if (task()!.evaluationComment) {
+                      <p class="eval-comment-text">"{{ task()!.evaluationComment }}"</p>
+                    }
+                    <div class="eval-meta-info">
+                      <span>Đánh giá bởi: <strong>{{ task()!.evaluatedBy?.fullName || 'Ban Giám hiệu' }}</strong></span>
+                      @if (task()!.evaluatedAt) {
+                        <span> • {{ formatDate(task()!.evaluatedAt!) }}</span>
+                      }
+                    </div>
+                  </div>
+                } @else {
+                  <p class="unassigned-text">Chưa có đánh giá xếp loại kết quả.</p>
                 }
               </div>
 
@@ -1439,6 +1473,51 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
         }
       }
 
+      /* SIDEBAR: EVALUATION CARD (TT 70, 89) */
+      .evaluation-card {
+        background: #FDFBF7;
+        border: 1px solid #FDE68A;
+
+        .eval-header-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          .eval-star-icon { color: #D97706; font-size: 18px; }
+          .btn-eval-edit {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            background: #FEF3C7;
+            border: 1px solid #FCD34D;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #92400E;
+            cursor: pointer;
+            &:hover { background: #FDE68A; }
+          }
+        }
+
+        .eval-result-pill {
+          padding: 8px 10px;
+          border-radius: 8px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+
+          &.eval-XUAT_SAC { background: #FEF3C7; border: 1px solid #FCD34D; .eval-rating-title { color: #B45309; } }
+          &.eval-TOT { background: #DCFCE7; border: 1px solid #86EFAC; .eval-rating-title { color: #15803D; } }
+          &.eval-HOAN_THANH { background: #EFF6FF; border: 1px solid #93C5FD; .eval-rating-title { color: #1D4ED8; } }
+          &.eval-CHUA_DAT { background: #FEE2E2; border: 1px solid #FCA5A5; .eval-rating-title { color: #B91C1C; } }
+
+          .eval-rating-title { font-size: 0.88rem; font-weight: 800; }
+          .eval-comment-text { font-size: 0.78rem; color: #475569; font-style: italic; margin: 0; }
+          .eval-meta-info { font-size: 0.72rem; color: #64748B; }
+        }
+      }
+
       /* SIDEBAR: META INFO */
       .meta-info-card {
         .meta-row {
@@ -1955,11 +2034,53 @@ export class TaskDetailModalComponent implements OnInit {
     return 'edit';
   }
 
+  showEvalModal = signal(false);
+  selectedRating = signal<TaskEvaluationRating>('TOT');
+  evalCommentText = '';
+  isSubmittingEval = signal(false);
+
+  canEvaluateTask(): boolean {
+    return this.authService.isBGH() || this.authService.isToTruong() || this.authService.isAdmin();
+  }
+
+  getEvaluationLabel(rating: TaskEvaluationRating): string {
+    switch (rating) {
+      case 'XUAT_SAC': return '⭐ Xuất sắc';
+      case 'TOT': return '🟢 Tốt';
+      case 'HOAN_THANH': return '🔵 Hoàn thành';
+      case 'CHUA_DAT': return '🔴 Chưa đạt';
+      default: return rating;
+    }
+  }
+
+  submitEvaluation() {
+    const t = this.task();
+    if (!t) return;
+    this.isSubmittingEval.set(true);
+    this.taskService.evaluateTask(t.id, {
+      rating: this.selectedRating(),
+      comment: this.evalCommentText,
+    }).subscribe({
+      next: (updated) => {
+        this.isSubmittingEval.set(false);
+        this.showEvalModal.set(false);
+        this.evalCommentText = '';
+        this.loadTask(t.id);
+        this.taskUpdated.emit(updated);
+      },
+      error: (err) => {
+        this.isSubmittingEval.set(false);
+        alert(err.error?.message || 'Không thể lưu đánh giá.');
+      },
+    });
+  }
+
   formatLogAction(log: TaskLogItem): string {
     if (log.action === 'CREATE_TASK') return 'Đã giao công việc mới';
     if (log.action === 'UPDATE_STATUS') return `Chuyển trạng thái sang: ${log.newStatus}`;
     if (log.action === 'UPDATE_PROGRESS') return `Cập nhật tiến độ lên ${log.newProgress}%`;
     if (log.action === 'ATTACH_FILE') return 'Đính kèm tệp minh chứng';
+    if (log.action === 'DANH_GIA_KET_QUA') return 'Đánh giá xếp loại kết quả';
     return log.action;
   }
 }

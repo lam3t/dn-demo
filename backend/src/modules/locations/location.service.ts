@@ -2,6 +2,7 @@ import prisma from '../../prisma';
 import { AppError } from '../../middlewares/error.middleware';
 import { TaskStatus } from '@prisma/client';
 import appCache from '../../utils/cache';
+import { resolveTenantId } from '../../utils/tenant.util';
 
 export class LocationService {
   async getAll(schoolId?: string) {
@@ -241,8 +242,11 @@ export class LocationService {
       });
     }
 
+    const tenantId = await resolveTenantId(data.schoolId, (data as any).tenantId);
+
     const created = await prisma.location.create({
       data: {
+        tenantId,
         schoolId: data.schoolId,
         name: data.name,
         code: data.code.toUpperCase().trim(),

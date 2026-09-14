@@ -1,6 +1,7 @@
 import prisma from '../../prisma';
 import { AppError } from '../../middlewares/error.middleware';
 import { Role } from '@prisma/client';
+import { resolveTenantId } from '../../utils/tenant.util';
 
 export interface OrgTreeNode {
   id: string;
@@ -33,9 +34,10 @@ export interface OrgTreeNode {
 }
 
 export class OrgUnitService {
-  async getAll(schoolId?: string) {
+  async getAll(schoolId?: string, tenantId?: string) {
     const where: any = {};
-    if (schoolId) where.schoolId = schoolId;
+    if (tenantId) where.tenantId = tenantId;
+    else if (schoolId) where.schoolId = schoolId;
 
     return prisma.orgUnit.findMany({
       where,
@@ -47,9 +49,10 @@ export class OrgUnitService {
     });
   }
 
-  async getTree(schoolId?: string): Promise<OrgTreeNode[]> {
+  async getTree(schoolId?: string, tenantId?: string): Promise<OrgTreeNode[]> {
     const where: any = {};
-    if (schoolId) where.schoolId = schoolId;
+    if (tenantId) where.tenantId = tenantId;
+    else if (schoolId) where.schoolId = schoolId;
 
     const orgs = await prisma.orgUnit.findMany({
       where,
@@ -199,6 +202,7 @@ export class OrgUnitService {
     code: string;
     parentId?: string;
     orderIndex?: number;
+    tenantId?: string;
   }) {
     if (data.parentId) {
       const parent = await prisma.orgUnit.findUnique({ where: { id: data.parentId } });
@@ -207,8 +211,11 @@ export class OrgUnitService {
       }
     }
 
+    const tenantId = await resolveTenantId(data.schoolId, data.tenantId);
+
     return prisma.orgUnit.create({
       data: {
+        tenantId,
         schoolId: data.schoolId,
         name: data.name,
         code: data.code.toUpperCase().trim(),

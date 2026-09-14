@@ -11,7 +11,16 @@ import {
   AddUserRoleDto,
   AdminUserFilterDto,
   PermissionMatrixItem,
+  CreateRoleDto,
+  UpdateRoleDto,
+  UpdateRolePermissionsDto,
+  CreateSharedCategoryDto,
+  UpdateSharedCategoryDto,
+  CreateKPIDefinitionDto,
+  UpdateKPIDefinitionDto,
 } from './admin.types';
+import { resolveTenantId } from '../../utils/tenant.util';
+import { invalidateUserPermissions } from '../../utils/permission.util';
 
 export class AdminService {
   /**
@@ -22,11 +31,22 @@ export class AdminService {
     action: string,
     targetType: string,
     targetId: string,
-    detail?: string
+    detail?: string,
+    tenantId?: string
   ) {
     try {
+      let effectiveTenantId = tenantId;
+      if (!effectiveTenantId) {
+        const actor = await prisma.user.findUnique({
+          where: { id: actorUserId },
+          select: { tenantId: true, schoolId: true },
+        });
+        effectiveTenantId = (actor?.tenantId || (await resolveTenantId(actor?.schoolId))) as string;
+      }
+
       await prisma.adminAuditLog.create({
         data: {
+          tenantId: effectiveTenantId,
           actorUserId,
           action,
           targetType,
@@ -44,14 +64,16 @@ export class AdminService {
    * 1. GET /api/admin/users
    * Danh sách đầy đủ tài khoản cho Quản trị viên
    */
-  async getUsers(filters: AdminUserFilterDto, schoolId?: string) {
+  async getUsers(filters: AdminUserFilterDto, schoolId?: string, tenantId?: string) {
     const page = Math.max(1, Number(filters.page) || 1);
     const pageSize = Math.min(100, Math.max(1, Number(filters.pageSize) || 20));
     const searchQuery = (filters.search || '').trim();
 
     const where: any = {};
 
-    if (schoolId) {
+    if (tenantId) {
+      where.tenantId = tenantId;
+    } else if (schoolId) {
       where.schoolId = schoolId;
     }
 
@@ -258,8 +280,57 @@ export class AdminService {
       }
     }
 
+    const tenantId = await resolveTenantId(schoolId, (data as any).tenantId);
+
+    // Kiểm tra hạn mức tài khoản (maxAccounts) theo Gói dịch vụ / Subscription
+    if (tenantId) {
+      const activeSubscription = await prisma.tenantSubscription.findFirst({
+        where: { tenantId, status: 'ACTIVE' },
+        include: { package: true },
+      });
+
+      if (activeSubscription && activeSubscription.package) {
+        const maxAccounts = activeSubscription.package.maxAccounts;
+        const currentCount = await prisma.user.count({
+          where: { tenantId, isActive: true },
+        });
+
+        if (currentCount >= maxAccounts) {
+          throw new AppError(
+            `Không thể tạo thêm tài khoản: Nhà trường đã đạt hạn mức tối đa (${currentCount}/${maxAccounts} tài khoản) của gói dịch vụ "${activeSubscription.package.name}". Vui lòng liên hệ Quản trị viên nền tảng để nâng cấp gói.`,
+            400
+          );
+        }
+      }
+    }
+
+    // Tra cứu roleId tương ứng theo RoleModel
+    const rolesToCreate = await Promise.all(
+      initialRoles.map(async (r) => {
+        let roleId = (r as any).roleId || null;
+        if (!roleId && tenantId) {
+          const roleModel = await prisma.roleModel.findFirst({
+            where: {
+              OR: [
+                { tenantId, code: r.role },
+                { tenantId: null, code: r.role },
+              ],
+            },
+          });
+          roleId = roleModel?.id || null;
+        }
+        return {
+          role: r.role,
+          roleId,
+          scopeLocationId: r.scopeLocationId,
+          scopeOrgUnitId: r.scopeOrgUnitId,
+        };
+      })
+    );
+
     const newUser = await prisma.user.create({
       data: {
+        tenantId,
         schoolId,
         fullName: data.fullName.trim(),
         email,
@@ -273,7 +344,7 @@ export class AdminService {
           `https://ui-avatars.com/api/?name=${encodeURIComponent(data.fullName)}&background=1F3864&color=fff`,
         isActive: true,
         roles: {
-          create: initialRoles,
+          create: rolesToCreate,
         },
       },
       include: {
@@ -870,6 +941,537 @@ export class AdminService {
       },
     ];
   }
+
+  // --------------------------------------------------------
+  // PHASE 2: DYNAMIC PERMISSIONS & RBAC MATRIX
+  // --------------------------------------------------------
+
+  /**
+   * 10. GET /api/admin/permissions
+   * Danh mục tất cả Permission catalog (~60-70 keys) gom theo Category
+   */
+  async getPermissions() {
+    const permissions = await prisma.permission.findMany({
+      orderBy: [{ category: 'asc' }, { key: 'asc' }],
+    });
+    return permissions;
+  }
+
+  /**
+   * 11. GET /api/admin/roles
+   * Danh sách Roles của Tenant kèm Permission Matrix hiện hành
+   */
+  async getRoles(tenantId: string) {
+    const roles = await prisma.roleModel.findMany({
+      where: {
+        OR: [{ tenantId }, { tenantId: null }],
+      },
+      include: {
+        rolePermissions: {
+          include: {
+            permission: true,
+          },
+        },
+        _count: {
+          select: { userRoles: true },
+        },
+      },
+      orderBy: [{ isSystem: 'desc' }, { createdAt: 'asc' }],
+    });
+
+    return roles.map((r) => ({
+      id: r.id,
+      tenantId: r.tenantId,
+      code: r.code,
+      name: r.name,
+      description: r.description,
+      isSystem: r.isSystem,
+      userCount: r._count.userRoles,
+      permissionKeys: r.rolePermissions.map((rp) => rp.permission.key),
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    }));
+  }
+
+  /**
+   * 12. POST /api/admin/roles
+   * Tạo Role tùy biến (Custom Role) cho Tenant
+   */
+  async createRole(actorUserId: string, tenantId: string, data: CreateRoleDto) {
+    const code = data.code?.toUpperCase().trim();
+    if (!code || !data.name?.trim()) {
+      throw new AppError('Mã vai trò (code) và Tên vai trò (name) là bắt buộc.', 400);
+    }
+
+    // Kiểm tra trùng code trong tenant
+    const existing = await prisma.roleModel.findFirst({
+      where: { tenantId, code },
+    });
+    if (existing) {
+      throw new AppError(`Mã vai trò [${code}] đã tồn tại trong trường này.`, 400);
+    }
+
+    const role = await prisma.roleModel.create({
+      data: {
+        tenantId,
+        code,
+        name: data.name.trim(),
+        description: data.description || null,
+        isSystem: false,
+      },
+    });
+
+    if (data.permissionKeys && data.permissionKeys.length > 0) {
+      const perms = await prisma.permission.findMany({
+        where: { key: { in: data.permissionKeys } },
+      });
+      await prisma.rolePermission.createMany({
+        data: perms.map((p) => ({
+          roleId: role.id,
+          permissionId: p.id,
+        })),
+      });
+    }
+
+    invalidateUserPermissions(undefined, tenantId);
+
+    await this.logAudit(
+      actorUserId,
+      'CREATE_ROLE',
+      'ROLE',
+      role.id,
+      `Tạo vai trò tùy biến [${role.code} - ${role.name}]`,
+      tenantId
+    );
+
+    return role;
+  }
+
+  /**
+   * 13. PATCH /api/admin/roles/:id
+   * Cập nhật thông tin Role
+   */
+  async updateRole(actorUserId: string, tenantId: string, roleId: string, data: UpdateRoleDto) {
+    const role = await prisma.roleModel.findFirst({
+      where: {
+        id: roleId,
+        OR: [{ tenantId }, { tenantId: null }],
+      },
+    });
+
+    if (!role) {
+      throw new AppError('Không tìm thấy vai trò cần chỉnh sửa.', 404);
+    }
+
+    const updated = await prisma.roleModel.update({
+      where: { id: roleId },
+      data: {
+        name: data.name?.trim() || role.name,
+        description: data.description !== undefined ? data.description : role.description,
+      },
+    });
+
+    await this.logAudit(
+      actorUserId,
+      'UPDATE_ROLE',
+      'ROLE',
+      roleId,
+      `Cập nhật thông tin vai trò [${updated.code}]`,
+      tenantId
+    );
+
+    return updated;
+  }
+
+  /**
+   * 14. PUT /api/admin/roles/:id/permissions
+   * Cấu hình lại ma trận Permission cho một Role
+   */
+  async updateRolePermissions(
+    actorUserId: string,
+    tenantId: string,
+    roleId: string,
+    data: UpdateRolePermissionsDto
+  ) {
+    const role = await prisma.roleModel.findFirst({
+      where: {
+        id: roleId,
+        OR: [{ tenantId }, { tenantId: null }],
+      },
+    });
+
+    if (!role) {
+      throw new AppError('Không tìm thấy vai trò cần cấu hình quyền.', 404);
+    }
+
+    // Xóa permission cũ của role
+    await prisma.rolePermission.deleteMany({
+      where: { roleId },
+    });
+
+    // Thêm permission mới
+    if (data.permissionKeys && data.permissionKeys.length > 0) {
+      const perms = await prisma.permission.findMany({
+        where: { key: { in: data.permissionKeys } },
+      });
+
+      if (perms.length > 0) {
+        await prisma.rolePermission.createMany({
+          data: perms.map((p) => ({
+            roleId,
+            permissionId: p.id,
+          })),
+        });
+      }
+    }
+
+    // Xóa cache permission
+    invalidateUserPermissions(undefined, tenantId);
+
+    await this.logAudit(
+      actorUserId,
+      'UPDATE_ROLE_PERMISSIONS',
+      'ROLE',
+      roleId,
+      `Cập nhật tập quyền cho vai trò [${role.code}] (${data.permissionKeys.length} quyền)`,
+      tenantId
+    );
+
+    return {
+      success: true,
+      message: `Cập nhật phân quyền cho vai trò [${role.name}] thành công.`,
+      permissionCount: data.permissionKeys.length,
+    };
+  }
+
+  /**
+   * 15. DELETE /api/admin/roles/:id
+   * Xóa vai trò tùy biến (Custom Role)
+   */
+  async deleteRole(actorUserId: string, tenantId: string, roleId: string) {
+    const role = await prisma.roleModel.findFirst({
+      where: { id: roleId, tenantId },
+      include: {
+        userRoles: true,
+      },
+    });
+
+    if (!role) {
+      throw new AppError('Không tìm thấy vai trò hoặc vai trò không thuộc quyền quản lý của trường.', 404);
+    }
+
+    if (role.isSystem) {
+      throw new AppError('Không thể xóa vai trò mặc định của hệ thống.', 400);
+    }
+
+    if (role.userRoles.length > 0) {
+      throw new AppError(
+        `Không thể xóa vai trò này vì đang được gán cho ${role.userRoles.length} tài khoản người dùng. Vui lòng chuyển vai trò của họ trước khi xóa.`,
+        400
+      );
+    }
+
+    await prisma.roleModel.delete({ where: { id: roleId } });
+    invalidateUserPermissions(undefined, tenantId);
+
+    await this.logAudit(
+      actorUserId,
+      'DELETE_ROLE',
+      'ROLE',
+      roleId,
+      `Xóa vai trò tùy biến [${role.code} - ${role.name}]`,
+      tenantId
+    );
+
+    return {
+      success: true,
+      message: 'Xóa vai trò thành công.',
+    };
+  }
+
+  // --------------------------------------------------------
+  // PHASE 2: DANH MỤC DÙNG CHUNG (SHARED CATEGORIES)
+  // --------------------------------------------------------
+
+  /**
+   * 16. GET /api/admin/categories
+   */
+  async getCategories(tenantId: string, type?: string) {
+    const where: any = { tenantId };
+    if (type) {
+      where.type = type;
+    }
+    return prisma.sharedCategory.findMany({
+      where,
+      orderBy: [{ type: 'asc' }, { orderIndex: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  /**
+   * 17. POST /api/admin/categories
+   */
+  async createCategory(actorUserId: string, tenantId: string, data: CreateSharedCategoryDto) {
+    if (!data.type || !data.code || !data.name) {
+      throw new AppError('Loại danh mục (type), mã (code) và tên (name) là bắt buộc.', 400);
+    }
+
+    const existing = await prisma.sharedCategory.findUnique({
+      where: {
+        tenantId_type_code: {
+          tenantId,
+          type: data.type,
+          code: data.code,
+        },
+      },
+    });
+
+    if (existing) {
+      throw new AppError(`Mã danh mục [${data.code}] thuộc loại [${data.type}] đã tồn tại.`, 400);
+    }
+
+    if (data.isDefault) {
+      await prisma.sharedCategory.updateMany({
+        where: { tenantId, type: data.type },
+        data: { isDefault: false },
+      });
+    }
+
+    const category = await prisma.sharedCategory.create({
+      data: {
+        tenantId,
+        type: data.type,
+        code: data.code,
+        name: data.name.trim(),
+        orderIndex: data.orderIndex || 0,
+        isDefault: !!data.isDefault,
+      },
+    });
+
+    await this.logAudit(
+      actorUserId,
+      'CREATE_CATEGORY',
+      'CATEGORY',
+      category.id,
+      `Thêm danh mục [${category.type} - ${category.name}]`,
+      tenantId
+    );
+
+    return category;
+  }
+
+  /**
+   * 18. PATCH /api/admin/categories/:id
+   */
+  async updateCategory(actorUserId: string, tenantId: string, id: string, data: UpdateSharedCategoryDto) {
+    const existing = await prisma.sharedCategory.findFirst({
+      where: { id, tenantId },
+    });
+    if (!existing) {
+      throw new AppError('Không tìm thấy danh mục.', 404);
+    }
+
+    if (data.isDefault) {
+      await prisma.sharedCategory.updateMany({
+        where: { tenantId, type: existing.type },
+        data: { isDefault: false },
+      });
+    }
+
+    const updated = await prisma.sharedCategory.update({
+      where: { id },
+      data: {
+        name: data.name !== undefined ? data.name.trim() : existing.name,
+        orderIndex: data.orderIndex !== undefined ? data.orderIndex : existing.orderIndex,
+        isDefault: data.isDefault !== undefined ? data.isDefault : existing.isDefault,
+        isActive: data.isActive !== undefined ? data.isActive : existing.isActive,
+      },
+    });
+
+    return updated;
+  }
+
+  /**
+   * 19. DELETE /api/admin/categories/:id
+   */
+  async deleteCategory(actorUserId: string, tenantId: string, id: string) {
+    const existing = await prisma.sharedCategory.findFirst({
+      where: { id, tenantId },
+    });
+    if (!existing) {
+      throw new AppError('Không tìm thấy danh mục.', 404);
+    }
+
+    await prisma.sharedCategory.delete({ where: { id } });
+    return { success: true, message: 'Xóa danh mục thành công.' };
+  }
+
+  // --------------------------------------------------------
+  // PHASE 2: CẤU HÌNH CHỈ SỐ KPI (KPI DEFINITIONS)
+  // --------------------------------------------------------
+
+  /**
+   * 20. GET /api/admin/kpi-definitions
+   */
+  async getKPIDefinitions(tenantId: string) {
+    return prisma.kPIDefinition.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  /**
+   * 21. POST /api/admin/kpi-definitions
+   */
+  async createKPIDefinition(actorUserId: string, tenantId: string, data: CreateKPIDefinitionDto) {
+    if (!data.code || !data.name) {
+      throw new AppError('Mã chỉ số (code) và tên chỉ số (name) là bắt buộc.', 400);
+    }
+
+    const existing = await prisma.kPIDefinition.findFirst({
+      where: { tenantId, code: data.code },
+    });
+    if (existing) {
+      throw new AppError(`Mã chỉ số KPI [${data.code}] đã tồn tại trong trường này.`, 400);
+    }
+
+    const kpi = await prisma.kPIDefinition.create({
+      data: {
+        tenantId,
+        code: data.code,
+        name: data.name.trim(),
+        description: data.description || null,
+        unit: data.unit || 'Điểm',
+        targetValue: data.targetValue !== undefined ? data.targetValue : null,
+        weight: data.weight !== undefined ? data.weight : 1.0,
+        applicableRoles: data.applicableRoles ? JSON.stringify(data.applicableRoles) : null,
+      },
+    });
+
+    await this.logAudit(
+      actorUserId,
+      'CREATE_KPI_DEF',
+      'KPI_DEF',
+      kpi.id,
+      `Tạo cấu hình chỉ số KPI: ${kpi.name}`,
+      tenantId
+    );
+
+    return kpi;
+  }
+
+  /**
+   * 22. PATCH /api/admin/kpi-definitions/:id
+   */
+  async updateKPIDefinition(actorUserId: string, tenantId: string, id: string, data: UpdateKPIDefinitionDto) {
+    const existing = await prisma.kPIDefinition.findFirst({
+      where: { id, tenantId },
+    });
+    if (!existing) {
+      throw new AppError('Không tìm thấy chỉ số KPI.', 404);
+    }
+
+    const updated = await prisma.kPIDefinition.update({
+      where: { id },
+      data: {
+        name: data.name !== undefined ? data.name.trim() : existing.name,
+        description: data.description !== undefined ? data.description : existing.description,
+        unit: data.unit !== undefined ? data.unit : existing.unit,
+        targetValue: data.targetValue !== undefined ? data.targetValue : existing.targetValue,
+        weight: data.weight !== undefined ? data.weight : existing.weight,
+        applicableRoles: data.applicableRoles !== undefined ? JSON.stringify(data.applicableRoles) : existing.applicableRoles,
+        isActive: data.isActive !== undefined ? data.isActive : existing.isActive,
+      },
+    });
+
+    return updated;
+  }
+
+  /**
+   * 23. DELETE /api/admin/kpi-definitions/:id
+   */
+  async deleteKPIDefinition(actorUserId: string, tenantId: string, id: string) {
+    const existing = await prisma.kPIDefinition.findFirst({
+      where: { id, tenantId },
+    });
+    if (!existing) {
+      throw new AppError('Không tìm thấy chỉ số KPI.', 404);
+    }
+
+    await prisma.kPIDefinition.delete({ where: { id } });
+    return { success: true, message: 'Xóa chỉ số KPI thành công.' };
+  }
+
+  // --------------------------------------------------------
+  // PHASE 2: HẠN MỨC TÀI NGUYÊN (QUOTA & USAGE)
+  // --------------------------------------------------------
+
+  /**
+   * 24. GET /api/admin/quota
+   * Thông tin gói cước và hạn mức tài khoản sử dụng của Tenant
+   */
+  async getTenantQuota(tenantId: string) {
+    const subscription = await prisma.tenantSubscription.findFirst({
+      where: { tenantId, status: 'ACTIVE' },
+      include: { package: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const activeUsersCount = await prisma.user.count({
+      where: { tenantId, isActive: true },
+    });
+
+    const totalUsersCount = await prisma.user.count({
+      where: { tenantId },
+    });
+
+    const attachmentAggregate = await prisma.attachment.aggregate({
+      where: { tenantId },
+      _sum: { fileSize: true },
+      _count: { id: true },
+    });
+
+    const usedBytes = attachmentAggregate._sum.fileSize || 0;
+    const usedMB = Number((usedBytes / (1024 * 1024)).toFixed(2));
+    const usedGB = Number((usedBytes / (1024 * 1024 * 1024)).toFixed(3));
+
+    const maxAccounts = subscription?.package?.maxAccounts || 100;
+    const storageQuotaGB = subscription?.package?.storageQuotaGB || 20;
+
+    return {
+      tenantId,
+      package: subscription?.package
+        ? {
+            id: subscription.package.id,
+            name: subscription.package.name,
+            code: subscription.package.code,
+            price: subscription.package.price,
+            enabledModules: subscription.package.enabledModules
+              ? JSON.parse(subscription.package.enabledModules)
+              : [],
+          }
+        : null,
+      subscription: subscription
+        ? {
+            id: subscription.id,
+            startDate: subscription.startDate,
+            endDate: subscription.endDate,
+            status: subscription.status,
+          }
+        : null,
+      quota: {
+        maxAccounts,
+        activeAccounts: activeUsersCount,
+        totalAccounts: totalUsersCount,
+        remainingAccounts: Math.max(0, maxAccounts - activeUsersCount),
+        accountUsagePercent: Number(((activeUsersCount / maxAccounts) * 100).toFixed(1)),
+        storageQuotaGB,
+        usedStorageMB: usedMB,
+        usedStorageGB: usedGB,
+        storageUsagePercent: Number(((usedGB / storageQuotaGB) * 100).toFixed(1)),
+      },
+    };
+  }
 }
 
 export const adminService = new AdminService();
+

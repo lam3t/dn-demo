@@ -1,6 +1,7 @@
 import prisma from '../../prisma';
 import { AppError } from '../../middlewares/error.middleware';
 import { NotificationType, TaskStatus, TaskAssignmentRole } from '@prisma/client';
+import { resolveTenantId } from '../../utils/tenant.util';
 
 export class NotificationService {
   /**
@@ -12,9 +13,20 @@ export class NotificationService {
     title: string;
     content: string;
     link?: string;
+    tenantId?: string;
   }) {
+    let effectiveTenantId = params.tenantId;
+    if (!effectiveTenantId) {
+      const user = await prisma.user.findUnique({
+        where: { id: params.userId },
+        select: { tenantId: true, schoolId: true },
+      });
+      effectiveTenantId = (user?.tenantId || (await resolveTenantId(user?.schoolId))) as string;
+    }
+
     return prisma.notification.create({
       data: {
+        tenantId: effectiveTenantId,
         userId: params.userId,
         type: params.type,
         title: params.title,

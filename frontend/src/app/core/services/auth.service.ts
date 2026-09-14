@@ -23,15 +23,37 @@ export interface DemoAccountInfo {
 
 export const DEMO_ACCOUNTS: DemoAccountInfo[] = [
   {
-    name: 'Phạm Thị Nam',
+    name: 'Quản trị Nền tảng (System Admin)',
+    role: 'SYSTEM_ADMIN',
+    roleTitle: 'System Admin SaaS',
+    scopeName: 'Toàn hệ thống đa trường',
+    identifier: '0900000001',
+    avatar: 'https://ui-avatars.com/api/?name=System+Admin&background=0F172A&color=fff',
+    desc: 'Quản trị nền tảng SaaS • Khởi tạo Tenant • Quản lý Gói dịch vụ & Thuê bao trường học',
+    color: '#0F172A',
+    icon: 'hub',
+  },
+  {
+    name: 'Phạm Thị Nam (Tenant 1)',
     role: 'HIEU_TRUONG',
-    roleTitle: 'Hiệu trưởng',
-    scopeName: 'Toàn trường (122 lớp • 5.669 HS)',
+    roleTitle: 'Hiệu trưởng THCS Phước Tân',
+    scopeName: 'TH & THCS Phước Tân (5.669 HS)',
     identifier: '0903111222',
     avatar: 'https://ui-avatars.com/api/?name=Pham+Thi+Nam&background=1F3864&color=fff',
-    desc: 'Quản trị toàn trường • Xem BI Dashboard • Quản lý 3 điểm trường & 122 lớp',
+    desc: 'Quản trị toàn trường Phước Tân • Xem BI Dashboard • Quản lý 3 điểm trường & 122 lớp',
     color: '#1F3864',
     icon: 'stars',
+  },
+  {
+    name: 'Nguyễn Văn Hùng (Tenant 2)',
+    role: 'HIEU_TRUONG',
+    roleTitle: 'Hiệu trưởng THCS Nguyễn Huệ',
+    scopeName: 'THCS Nguyễn Huệ (1.850 HS)',
+    identifier: '0905555666',
+    avatar: 'https://ui-avatars.com/api/?name=Nguyen+Van+Hung&background=0D9488&color=fff',
+    desc: 'Tenant Admin Trường THCS Nguyễn Huệ • Dữ liệu cô lập hoàn toàn với Phước Tân',
+    color: '#0D9488',
+    icon: 'domain',
   },
   {
     name: 'Lê Hoàng Long',
@@ -95,6 +117,10 @@ export class AuthService {
   accountSwitched$ = new Subject<UserProfile>();
 
   isAuthenticated = computed(() => !!this.currentUserSignal() && !!this.accessTokenSignal());
+
+  isSystemAdmin = computed(() => {
+    return !!this.currentUserSignal()?.isSystemAdmin || this.activeRoleSignal()?.role === 'SYSTEM_ADMIN';
+  });
 
   isBGH = computed(() => {
     const role = this.activeRoleSignal()?.role;
@@ -180,6 +206,8 @@ export class AuthService {
         return 'Nhân viên';
       case 'ADMIN':
         return 'Quản trị hệ thống';
+      case 'SYSTEM_ADMIN':
+        return 'Quản trị nền tảng SaaS';
       default:
         return role;
     }

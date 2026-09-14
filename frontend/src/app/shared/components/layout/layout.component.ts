@@ -1,9 +1,12 @@
-import { Component, inject, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
+import { Subject, Subscription, debounceTime, distinctUntilChanged, switchMap, of } from 'rxjs';
 import { AuthService, DemoAccountInfo } from '../../../core/services/auth.service';
 import { ContactCardService } from '../../../core/services/contact-card.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { SearchService } from '../../../core/services/search.service';
+import { GlobalSearchResult } from '../../../core/models/search.models';
 import { ContactMiniCardComponent } from '../contact-mini-card/contact-mini-card.component';
 import { UserPickerItem } from '../../../core/models/user.models';
 
@@ -96,6 +99,14 @@ import { UserPickerItem } from '../../../core/models/user.models';
               <span class="sidebar-admin-badge">Admin</span>
             </a>
           }
+
+          @if (authService.isSystemAdmin()) {
+            <a routerLink="/system-admin" routerLinkActive="active" class="nav-link saas-link" title="Quản trị Nền tảng SaaS">
+              <span class="material-symbols-outlined nav-icon saas-icon">hub</span>
+              <span class="nav-text">Quản trị Nền tảng SaaS</span>
+              <span class="sidebar-saas-badge">SaaS</span>
+            </a>
+          }
         </nav>
 
         <!-- Quick Create Task Action in Sidebar -->
@@ -136,9 +147,135 @@ import { UserPickerItem } from '../../../core/models/user.models';
           <div class="nav-bar-left">
             <div class="header-brand-title hide-on-mobile">
               <span class="material-symbols-outlined brand-star-icon">school</span>
-              <span class="brand-school">Trường TH và THCS Phước Tân</span>
-              <span class="brand-scale-badge">122 Lớp • 5.669 Học sinh</span>
+              <span class="brand-school">{{ authService.currentUser()?.tenantName || authService.currentUser()?.schoolName || 'Trường TH và THCS Phước Tân' }}</span>
+              <span class="brand-scale-badge">{{ authService.currentUser()?.tenantCode ? ('Mã: ' + authService.currentUser()?.tenantCode) : '122 Lớp • 5.669 Học sinh' }}</span>
             </div>
+          </div>
+
+          <!-- GLOBAL SEARCH OMNIBAR -->
+          <div class="global-search-container hide-on-mobile" (click)="$event.stopPropagation()">
+            <div class="search-input-wrapper" [class.focused]="isSearchOpen">
+              <span class="material-symbols-outlined search-icon">search</span>
+              <input
+                type="text"
+                class="global-search-input"
+                placeholder="Tìm kiếm công việc, kế hoạch, nhân sự... (Ctrl+K)"
+                [value]="searchQuery"
+                (input)="onSearchInput($event)"
+                (focus)="onSearchFocus()"
+                (keydown)="onSearchKeyDown($event)"
+              />
+              @if (isSearching) {
+                <span class="material-symbols-outlined spin search-loader">progress_activity</span>
+              } @else if (searchQuery) {
+                <button type="button" class="clear-search-btn" (click)="clearSearch()">
+                  <span class="material-symbols-outlined">close</span>
+                </button>
+              } @else {
+                <kbd class="search-kbd">Ctrl K</kbd>
+              }
+            </div>
+
+            <!-- SEARCH RESULTS DROPDOWN -->
+            @if (isSearchOpen && (searchResults || isSearching)) {
+              <div class="search-dropdown-menu">
+                @if (isSearching) {
+                  <div class="search-empty-state">
+                    <span class="material-symbols-outlined spin">progress_activity</span>
+                    <span>Đang tìm kiếm...</span>
+                  </div>
+                } @else if (searchResults && searchResults.total === 0) {
+                  <div class="search-empty-state">
+                    <span class="material-symbols-outlined">search_off</span>
+                    <span>Không tìm thấy kết quả nào cho "{{ searchQuery }}"</span>
+                  </div>
+                } @else if (searchResults) {
+                  <!-- TASKS SECTION -->
+                  @if (searchResults.tasks.length > 0) {
+                    <div class="result-group">
+                      <div class="result-group-header">
+                        <span class="material-symbols-outlined group-icon">assignment</span>
+                        <span>CÔNG VIỆC ({{ searchResults.tasks.length }})</span>
+                      </div>
+                      <div class="result-items">
+                        @for (task of searchResults.tasks; track task.id) {
+                          <div class="result-item" (click)="selectTask(task.id)">
+                            <div class="result-item-main">
+                              <span class="item-title">{{ task.title }}</span>
+                              <div class="item-meta">
+                                @if (task.code) {
+                                  <span class="meta-code">#{{ task.code }}</span>
+                                }
+                                <span class="meta-status">{{ task.status }}</span>
+                                @if (task.assignee) {
+                                  <span class="meta-assignee">👤 {{ task.assignee.fullName }}</span>
+                                }
+                              </div>
+                            </div>
+                            <div class="result-item-progress">
+                              <span class="progress-val">{{ task.progressPercent }}%</span>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+
+                  <!-- PLANS SECTION -->
+                  @if (searchResults.plans.length > 0) {
+                    <div class="result-group">
+                      <div class="result-group-header">
+                        <span class="material-symbols-outlined group-icon">calendar_month</span>
+                        <span>KẾ HOẠCH ({{ searchResults.plans.length }})</span>
+                      </div>
+                      <div class="result-items">
+                        @for (plan of searchResults.plans; track plan.id) {
+                          <div class="result-item" (click)="selectPlan(plan.id)">
+                            <div class="result-item-main">
+                              <span class="item-title">{{ plan.title }}</span>
+                              <div class="item-meta">
+                                <span class="meta-level">{{ plan.level }}</span>
+                                <span class="meta-dates">{{ plan.startDate | date:'dd/MM' }} - {{ plan.endDate | date:'dd/MM/yyyy' }}</span>
+                              </div>
+                            </div>
+                            <div class="result-item-progress">
+                              <span class="progress-val">{{ plan.progressPercent }}%</span>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+
+                  <!-- USERS SECTION -->
+                  @if (searchResults.users.length > 0) {
+                    <div class="result-group">
+                      <div class="result-group-header">
+                        <span class="material-symbols-outlined group-icon">person</span>
+                        <span>NHÂN SỰ ({{ searchResults.users.length }})</span>
+                      </div>
+                      <div class="result-items">
+                        @for (usr of searchResults.users; track usr.id) {
+                          <div class="result-item user-result" (click)="selectUser(usr.id)">
+                            <img [src]="usr.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + usr.fullName" class="user-item-avatar" />
+                            <div class="result-item-main">
+                              <span class="item-title">{{ usr.fullName }}</span>
+                              <div class="item-meta">
+                                <span class="meta-title">{{ usr.title || 'Cán bộ giáo viên' }}</span>
+                                @if (usr.primaryOrgUnit) {
+                                  <span class="meta-org">• {{ usr.primaryOrgUnit.name }}</span>
+                                }
+                              </div>
+                            </div>
+                            <span class="material-symbols-outlined contact-icon">contact_phone</span>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                }
+              </div>
+            }
           </div>
 
           <!-- 4 QUICK DEMO ACCOUNTS SWITCH BUTTONS & USER STATUS -->
@@ -377,6 +514,14 @@ import { UserPickerItem } from '../../../core/models/user.models';
                     <span class="material-symbols-outlined nav-icon admin-icon">admin_panel_settings</span>
                     <span class="nav-label">Cấu hình hệ thống</span>
                     <span class="drawer-admin-tag">Admin</span>
+                  </a>
+                }
+
+                @if (authService.isSystemAdmin()) {
+                  <a routerLink="/system-admin" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item saas-item">
+                    <span class="material-symbols-outlined nav-icon saas-icon">hub</span>
+                    <span class="nav-label">Quản trị Nền tảng SaaS</span>
+                    <span class="drawer-saas-tag">SaaS</span>
                   </a>
                 }
               </nav>
@@ -1575,6 +1720,230 @@ import { UserPickerItem } from '../../../core/models/user.models';
         }
       }
 
+      /* GLOBAL SEARCH OMNIBAR */
+      .global-search-container {
+        position: relative;
+        flex: 1;
+        max-width: 440px;
+        margin: 0 1rem;
+
+        .search-input-wrapper {
+          display: flex;
+          align-items: center;
+          background: #F1F5F9;
+          border: 1px solid #CBD5E1;
+          border-radius: 8px;
+          padding: 4px 10px;
+          transition: all 0.2s ease;
+
+          &:hover {
+            border-color: #94A3B8;
+            background: #FFFFFF;
+          }
+
+          &.focused {
+            border-color: #3B82F6;
+            background: #FFFFFF;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+          }
+
+          .search-icon {
+            font-size: 18px;
+            color: #64748B;
+            margin-right: 6px;
+            flex-shrink: 0;
+          }
+
+          .global-search-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-size: 0.8rem;
+            color: #1E293B;
+            outline: none;
+            width: 100%;
+
+            &::placeholder {
+              color: #94A3B8;
+            }
+          }
+
+          .search-loader {
+            font-size: 16px;
+            color: #3B82F6;
+          }
+
+          .clear-search-btn {
+            background: transparent;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            color: #94A3B8;
+            display: flex;
+            align-items: center;
+
+            &:hover {
+              color: #475569;
+            }
+
+            .material-symbols-outlined {
+              font-size: 16px;
+            }
+          }
+
+          .search-kbd {
+            font-size: 0.65rem;
+            font-family: inherit;
+            background: #E2E8F0;
+            color: #64748B;
+            padding: 1px 5px;
+            border-radius: 4px;
+            border: 1px solid #CBD5E1;
+            font-weight: 600;
+          }
+        }
+
+        .search-dropdown-menu {
+          position: absolute;
+          top: calc(100% + 6px);
+          left: 0;
+          right: 0;
+          background: #FFFFFF;
+          border: 1px solid #E2E8F0;
+          border-radius: 10px;
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+          max-height: 480px;
+          overflow-y: auto;
+          z-index: 1000;
+          padding: 8px 0;
+          animation: dropDownIn 0.15s ease-out;
+
+          .search-empty-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 24px 16px;
+            color: #64748B;
+            font-size: 0.82rem;
+
+            .material-symbols-outlined {
+              font-size: 20px;
+            }
+          }
+
+          .result-group {
+            margin-bottom: 8px;
+
+            &:last-child {
+              margin-bottom: 0;
+            }
+
+            .result-group-header {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              padding: 6px 14px 4px;
+              font-size: 0.68rem;
+              font-weight: 700;
+              color: #64748B;
+              letter-spacing: 0.05em;
+
+              .group-icon {
+                font-size: 14px;
+                color: #3B82F6;
+              }
+            }
+
+            .result-items {
+              display: flex;
+              flex-direction: column;
+
+              .result-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 8px 14px;
+                cursor: pointer;
+                transition: background 0.12s;
+                gap: 10px;
+
+                &:hover {
+                  background: #F1F5F9;
+                }
+
+                .result-item-main {
+                  flex: 1;
+                  display: flex;
+                  flex-direction: column;
+                  overflow: hidden;
+
+                  .item-title {
+                    font-size: 0.82rem;
+                    font-weight: 600;
+                    color: #1E293B;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                  }
+
+                  .item-meta {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    font-size: 0.7rem;
+                    color: #64748B;
+                    margin-top: 2px;
+
+                    .meta-code {
+                      font-weight: 700;
+                      color: #2563EB;
+                    }
+
+                    .meta-status {
+                      background: #F1F5F9;
+                      padding: 0 4px;
+                      border-radius: 3px;
+                    }
+                  }
+                }
+
+                .result-item-progress {
+                  .progress-val {
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    color: #059669;
+                    background: #ECFDF5;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                  }
+                }
+
+                &.user-result {
+                  .user-item-avatar {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 50%;
+                    border: 1px solid #CBD5E1;
+                    flex-shrink: 0;
+                  }
+
+                  .contact-icon {
+                    font-size: 18px;
+                    color: #3B82F6;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      @keyframes dropDownIn {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
       @keyframes slideInLeft {
         from { transform: translateX(-100%); }
         to { transform: translateX(0); }
@@ -1598,20 +1967,118 @@ export class LayoutComponent implements OnInit, OnDestroy {
   authService = inject(AuthService);
   contactCardService = inject(ContactCardService);
   notifService = inject(NotificationService);
+  private searchService = inject(SearchService);
   private router = inject(Router);
 
   isMobileDrawerOpen = false;
 
+  // Global Search state
+  searchQuery = '';
+  isSearchOpen = false;
+  isSearching = false;
+  searchResults: GlobalSearchResult | null = null;
+  private searchSubject = new Subject<string>();
+  private searchSub?: Subscription;
+
   ngOnInit(): void {
     this.notifService.getNotifications({ unreadOnly: true }).subscribe({ error: () => {} });
 
-    // Auto-close mobile drawer when route changes
+    // Setup debounced search
+    this.searchSub = this.searchSubject
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((q) => {
+          const trimmed = q.trim();
+          if (!trimmed || trimmed.length < 2) {
+            this.isSearching = false;
+            this.searchResults = null;
+            return of(null);
+          }
+          this.isSearching = true;
+          return this.searchService.searchGlobal(trimmed, 'ALL');
+        })
+      )
+      .subscribe({
+        next: (results) => {
+          this.isSearching = false;
+          this.searchResults = results;
+        },
+        error: () => {
+          this.isSearching = false;
+        },
+      });
+
+    // Auto-close mobile drawer & search when route changes
     this.router.events.subscribe(() => {
       this.isMobileDrawerOpen = false;
+      this.isSearchOpen = false;
     });
   }
 
-  ngOnDestroy(): void {}
+  ngOnDestroy(): void {
+    this.searchSub?.unsubscribe();
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    this.isSearchOpen = false;
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onGlobalKeyDown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      const input = document.querySelector('.global-search-input') as HTMLInputElement;
+      if (input) {
+        input.focus();
+        this.isSearchOpen = true;
+      }
+    } else if (event.key === 'Escape' && this.isSearchOpen) {
+      this.isSearchOpen = false;
+    }
+  }
+
+  onSearchInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.searchQuery = input.value;
+    this.isSearchOpen = true;
+    this.searchSubject.next(this.searchQuery);
+  }
+
+  onSearchFocus(): void {
+    this.isSearchOpen = true;
+    if (this.searchQuery.trim().length >= 2 && !this.searchResults) {
+      this.searchSubject.next(this.searchQuery);
+    }
+  }
+
+  onSearchKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.isSearchOpen = false;
+    }
+  }
+
+  clearSearch(): void {
+    this.searchQuery = '';
+    this.searchResults = null;
+    this.isSearchOpen = false;
+  }
+
+  selectTask(taskId: string): void {
+    this.isSearchOpen = false;
+    this.router.navigate(['/tasks'], { queryParams: { taskId } });
+  }
+
+  selectPlan(planId: string): void {
+    this.isSearchOpen = false;
+    this.router.navigate(['/plans'], { queryParams: { planId } });
+  }
+
+  selectUser(userId: string): void {
+    this.isSearchOpen = false;
+    this.contactCardService.open(userId);
+  }
 
   toggleMobileDrawer(): void {
     this.isMobileDrawerOpen = !this.isMobileDrawerOpen;
@@ -1661,6 +2128,8 @@ export class LayoutComponent implements OnInit, OnDestroy {
   getRolePillClass(): string {
     const role = this.authService.activeRole()?.role;
     switch (role) {
+      case 'SYSTEM_ADMIN':
+        return 'pill-sysadmin';
       case 'ADMIN':
         return 'pill-admin';
       case 'HIEU_TRUONG':
@@ -1678,6 +2147,8 @@ export class LayoutComponent implements OnInit, OnDestroy {
   getRoleIcon(): string {
     const role = this.authService.activeRole()?.role;
     switch (role) {
+      case 'SYSTEM_ADMIN':
+        return 'hub';
       case 'ADMIN':
         return 'admin_panel_settings';
       case 'HIEU_TRUONG':

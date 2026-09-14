@@ -10,6 +10,7 @@ router.use(requireAuth);
 router.get('/', (req, res, next) => planController.getAll(req, res, next));
 router.get('/tree', (req, res, next) => planController.getTree(req, res, next));
 router.get('/:id/tree', (req, res, next) => planController.getTree(req, res, next));
+router.get('/:id/logs', (req, res, next) => planController.getLogs(req, res, next));
 router.get('/:id', (req, res, next) => planController.getById(req, res, next));
 
 // Tạo/sửa/xóa kế hoạch

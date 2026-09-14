@@ -4,7 +4,8 @@ export type RoleType =
   | 'TO_TRUONG'
   | 'GIAO_VIEN'
   | 'NHAN_VIEN'
-  | 'ADMIN';
+  | 'ADMIN'
+  | 'SYSTEM_ADMIN';
 
 export interface UserRoleItem {
   role: RoleType;
@@ -21,7 +22,11 @@ export interface UserProfile {
   fullName: string;
   title?: string | null;
   avatarUrl?: string | null;
-  schoolId: string;
+  tenantId?: string | null;
+  tenantName?: string;
+  tenantCode?: string;
+  isSystemAdmin?: boolean;
+  schoolId?: string | null;
   schoolName?: string;
   primaryLocationId?: string | null;
   primaryLocationName?: string;

@@ -78,6 +78,12 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'system-admin',
+        canActivate: [authGuard],
+        loadComponent: () =>
+          import('./features/system-admin/system-admin.component').then((m) => m.SystemAdminComponent),
+      },
+      {
         path: 'dev/people-picker',
         loadComponent: () =>
           import('./features/dev/people-picker-demo.component').then((m) => m.PeoplePickerDemoComponent),

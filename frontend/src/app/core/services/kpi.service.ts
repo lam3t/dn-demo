@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, of, map } from 'rxjs';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable, of, map, catchError } from 'rxjs';
 import { TaskService } from './task.service';
 import { AuthService } from './auth.service';
 import { KpiRowItem, KpiSummaryScores, KpiEvaluationSheet, KpiPeriod } from '../models/kpi.models';
@@ -9,10 +10,59 @@ import { TaskItem } from '../models/task.models';
   providedIn: 'root',
 })
 export class KpiService {
+  private http = inject(HttpClient);
   private taskService = inject(TaskService);
   private authService = inject(AuthService);
 
   private readonly STORAGE_KEY_PREFIX = 'tn_edu_kpi_sheet_';
+
+  // --- 1. BACKEND API INTEGRATIONS (PHASE 4) ---
+
+  getMyKpi(periodKey: string = 'QUY_3'): Observable<any> {
+    const params = new HttpParams().set('periodKey', periodKey);
+    return this.http
+      .get<{ success: boolean; data: any }>('/api/kpi/my', { params })
+      .pipe(map((res) => res.data));
+  }
+
+  getUserKpi(userId: string, periodKey: string = 'QUY_3'): Observable<any> {
+    const params = new HttpParams().set('periodKey', periodKey);
+    return this.http
+      .get<{ success: boolean; data: any }>(`/api/kpi/user/${userId}`, { params })
+      .pipe(map((res) => res.data));
+  }
+
+  getOrgUnitKpiSummary(orgUnitId: string, periodKey: string = 'QUY_3'): Observable<any> {
+    const params = new HttpParams().set('periodKey', periodKey);
+    return this.http
+      .get<{ success: boolean; data: any }>(`/api/kpi/summary/org/${orgUnitId}`, { params })
+      .pipe(map((res) => res.data));
+  }
+
+  getSchoolKpiSummary(periodKey: string = 'QUY_3'): Observable<any> {
+    const params = new HttpParams().set('periodKey', periodKey);
+    return this.http
+      .get<{ success: boolean; data: any }>('/api/kpi/summary/school', { params })
+      .pipe(map((res) => res.data));
+  }
+
+  recomputeKpi(periodKey: string = 'QUY_3', userId?: string): Observable<any> {
+    return this.http
+      .post<{ success: boolean; message: string; data: any }>('/api/kpi/recompute', {
+        periodKey,
+        userId,
+      })
+      .pipe(map((res) => res.data));
+  }
+
+  exportKpiExcelBlob(periodKey: string = 'QUY_3', userId?: string): Observable<Blob> {
+    let params = new HttpParams().set('periodKey', periodKey);
+    if (userId) params = params.set('userId', userId);
+    return this.http.get('/api/kpi/export-excel', {
+      params,
+      responseType: 'blob',
+    });
+  }
 
   /**
    * Tính toán lại các chỉ số của từng dòng và toàn bộ bảng đánh giá KPI
@@ -614,4 +664,19 @@ export class KpiService {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }
+
+  /**
+   * Tải file Excel Blob được sinh từ Backend API
+   */
+  downloadExcelBlob(blob: Blob, filename: string): void {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }
 }
+

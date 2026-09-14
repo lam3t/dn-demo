@@ -1,8 +1,10 @@
 import prisma from '../../prisma';
 import { AppError } from '../../middlewares/error.middleware';
-import { TaskStatus, TaskPriority, TaskAssignmentRole, Role } from '@prisma/client';
+import { TaskStatus, TaskPriority, TaskAssignmentRole, Role, TaskEvaluationRating, NotificationType } from '@prisma/client';
 import { planService } from '../plans/plan.service';
 import appCache from '../../utils/cache';
+import { resolveTenantId } from '../../utils/tenant.util';
+import { QueueService } from '../../services/queue.service';
 
 export interface TaskQueryParams {
   status?: TaskStatus;
@@ -10,30 +12,39 @@ export interface TaskQueryParams {
   role?: TaskAssignmentRole;
   locationId?: string;
   orgUnitId?: string;
+  assignedOrgUnitId?: string;
   planId?: string;
   overdue?: boolean | string;
   isOverdue?: boolean | string;
   myTasks?: boolean | string;
   currentUserId?: string;
   search?: string;
+  isProposal?: boolean | string;
+  proposalStatus?: string;
   page?: number;
   pageSize?: number;
   schoolId?: string;
+  tenantId?: string;
 }
 
 export interface CreateTaskDto {
   schoolId: string;
+  tenantId?: string;
   title: string;
   code?: string;
   description?: string;
   planId?: string | null;
   locationId?: string | null;
   orgUnitId?: string | null;
+  assignedOrgUnitId?: string | null;
+  isOrgAssignment?: boolean;
   priority?: TaskPriority;
   startDate?: Date | string | null;
   dueDate?: Date | string | null;
   requireAttachment?: boolean;
   createdById: string;
+  isProposal?: boolean;
+  proposalNote?: string;
   assignments?: Array<{
     userId: string;
     role: TaskAssignmentRole;
@@ -43,7 +54,7 @@ export interface CreateTaskDto {
 
 export class TaskService {
   /**
-   * Lấy danh sách công việc theo bộ lọc đa năng (Việc của tôi, trạng thái, quá hạn...)
+   * Lấy danh sách công việc theo bộ lọc đa năng
    */
   async getAll(params: TaskQueryParams) {
     const cacheKey = `tasks:query:${JSON.stringify(params)}`;
@@ -57,7 +68,9 @@ export class TaskService {
 
     const conditions: any[] = [];
 
-    if (params.schoolId) {
+    if (params.tenantId) {
+      conditions.push({ tenantId: params.tenantId });
+    } else if (params.schoolId) {
       conditions.push({ schoolId: params.schoolId });
     }
 
@@ -73,8 +86,21 @@ export class TaskService {
       conditions.push({ orgUnitId: params.orgUnitId });
     }
 
+    if (params.assignedOrgUnitId) {
+      conditions.push({ assignedOrgUnitId: params.assignedOrgUnitId });
+    }
+
     if (params.planId) {
       conditions.push({ planId: params.planId });
+    }
+
+    if (params.isProposal !== undefined) {
+      const isProp = params.isProposal === true || params.isProposal === 'true';
+      conditions.push({ isProposal: isProp });
+    }
+
+    if (params.proposalStatus) {
+      conditions.push({ proposalStatus: params.proposalStatus });
     }
 
     if (params.search && params.search.trim()) {
@@ -88,27 +114,23 @@ export class TaskService {
       });
     }
 
-    // Lọc Việc của tôi / Phân công RACI (Chủ trì, Phối hợp, Kiểm tra, Nắm bắt, Phê duyệt)
+    // Lọc Việc của tôi / Phân công RACI
     const isMyTasks = params.myTasks === true || params.myTasks === 'true';
     const targetUserId = params.assigneeId || (isMyTasks ? params.currentUserId : undefined);
 
     if (targetUserId) {
+      const assignmentCondition: any = { userId: targetUserId };
+      if (params.role) {
+        assignmentCondition.role = params.role;
+      }
       conditions.push({
         assignments: {
-          some: {
-            userId: targetUserId,
-            ...(params.role && { role: params.role }),
-          },
+          some: assignmentCondition,
         },
-      });
-    } else if (isMyTasks) {
-      // Nếu yêu cầu myTasks=true nhưng chưa đăng nhập hoặc không xác định được user -> Trả về rỗng, tuyệt đối không trả việc toàn trường
-      conditions.push({
-        id: 'NO_USER_IDENTIFIER_FOR_MY_TASKS',
       });
     }
 
-    // Lọc công việc Quá hạn: dueDate < now và status chưa hoàn thành/đóng
+    // Lọc quá hạn (overdue)
     const isOverdueQuery =
       params.overdue === true ||
       params.overdue === 'true' ||
@@ -116,9 +138,8 @@ export class TaskService {
       params.isOverdue === 'true';
 
     if (isOverdueQuery) {
-      const now = new Date();
       conditions.push({
-        dueDate: { lt: now },
+        dueDate: { lt: new Date() },
         status: {
           notIn: [TaskStatus.HOAN_THANH, TaskStatus.XAC_NHAN, TaskStatus.DONG, TaskStatus.HUY],
         },
@@ -127,7 +148,7 @@ export class TaskService {
 
     const where = conditions.length > 0 ? { AND: conditions } : {};
 
-    const [total, items] = await Promise.all([
+    const [total, rawTasks] = await Promise.all([
       prisma.task.count({ where }),
       prisma.task.findMany({
         where,
@@ -135,10 +156,53 @@ export class TaskService {
         take: pageSize,
         orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
         include: {
-          plan: { select: { id: true, title: true, level: true } },
-          location: { select: { id: true, name: true, code: true, phone: true } },
-          orgUnit: { select: { id: true, name: true, code: true } },
-          createdBy: { select: { id: true, fullName: true, title: true, avatarUrl: true, phone: true } },
+          plan: {
+            select: {
+              id: true,
+              title: true,
+              level: true,
+            },
+          },
+          location: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          orgUnit: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          assignedOrgUnit: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          createdBy: {
+            select: {
+              id: true,
+              fullName: true,
+              avatarUrl: true,
+            },
+          },
+          evaluatedBy: {
+            select: {
+              id: true,
+              fullName: true,
+            },
+          },
+          proposedBy: {
+            select: {
+              id: true,
+              fullName: true,
+            },
+          },
           assignments: {
             include: {
               user: {
@@ -147,9 +211,10 @@ export class TaskService {
                   fullName: true,
                   title: true,
                   phone: true,
+                  email: true,
                   avatarUrl: true,
-                  primaryLocation: { select: { id: true, name: true } },
-                  primaryOrgUnit: { select: { id: true, name: true } },
+                  primaryLocation: { select: { id: true, name: true, code: true } },
+                  primaryOrgUnit: { select: { id: true, name: true, code: true } },
                 },
               },
             },
@@ -165,7 +230,6 @@ export class TaskService {
       }),
     ]);
 
-    // Thêm cờ isOverdue tính toán theo thời gian thực
     const now = new Date();
     const completedStatuses: TaskStatus[] = [
       TaskStatus.HOAN_THANH,
@@ -173,23 +237,35 @@ export class TaskService {
       TaskStatus.DONG,
       TaskStatus.HUY,
     ];
-    const enrichedItems = items.map((task) => {
+
+    const tasks = rawTasks.map((task) => {
       const isOverdue =
         Boolean(task.dueDate && new Date(task.dueDate) < now) &&
         !completedStatuses.includes(task.status);
 
+      const chuTriAssignment = task.assignments.find(
+        (a) => a.role === TaskAssignmentRole.CHU_TRI
+      );
+
       return {
         ...task,
         isOverdue,
+        assignee: chuTriAssignment?.user || null,
+        attachmentCount: task._count.attachments,
+        commentCount: task._count.comments,
+        logCount: task._count.logs,
       };
     });
 
+    const totalPages = Math.ceil(total / pageSize);
     const result = {
-      items: enrichedItems,
+      items: tasks,
       total,
       page,
       pageSize,
-      totalPages: Math.ceil(total / pageSize),
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
     };
 
     appCache.set(cacheKey, result, 10, ['tasks']);
@@ -197,15 +273,19 @@ export class TaskService {
   }
 
   /**
-   * Lấy chi tiết đầy đủ 1 Task: assignments, logs, attachments, comments
+   * Lấy chi tiết đầy đủ 1 Task
    */
-  async getByIdFull(id: string) {
-    const task = await prisma.task.findUnique({
-      where: { id },
+  async getByIdFull(id: string, tenantId?: string) {
+    const where: any = { id };
+    if (tenantId) where.tenantId = tenantId;
+
+    const task = await prisma.task.findFirst({
+      where,
       include: {
         plan: true,
         location: true,
         orgUnit: true,
+        assignedOrgUnit: true,
         createdBy: {
           select: {
             id: true,
@@ -214,6 +294,20 @@ export class TaskService {
             phone: true,
             avatarUrl: true,
             email: true,
+          },
+        },
+        evaluatedBy: {
+          select: {
+            id: true,
+            fullName: true,
+            title: true,
+          },
+        },
+        proposedBy: {
+          select: {
+            id: true,
+            fullName: true,
+            title: true,
           },
         },
         assignments: {
@@ -298,26 +392,27 @@ export class TaskService {
   }
 
   /**
-   * Tạo công việc mới (có thể gắn planId hoặc để trống = việc đột xuất)
+   * Tạo công việc mới (hỗ trợ giao cho cá nhân hoặc cả tổ/bộ phận TT 62, 84, 97)
    */
   async create(data: CreateTaskDto) {
     if (!data.title) {
       throw new AppError('Tiêu đề công việc không được để trống.', 400);
     }
 
-    // Tự sinh mã công việc nếu chưa có
     const code = data.code || `CV-${Date.now().toString().slice(-6)}`;
+    const tenantId = await resolveTenantId(data.schoolId, data.tenantId);
 
-    // Validate RACI nếu có truyền assignments
+    // Validate RACI nếu giao cho cá nhân
     if (data.assignments && data.assignments.length > 0) {
       const chuTriCount = data.assignments.filter((a) => a.role === TaskAssignmentRole.CHU_TRI).length;
-      if (chuTriCount !== 1) {
+      if (chuTriCount !== 1 && !data.isOrgAssignment) {
         throw new AppError('Bắt buộc phải có đúng 1 người chịu trách nhiệm CHỦ TRÌ công việc.', 400);
       }
     }
 
     const task = await prisma.task.create({
       data: {
+        tenantId,
         schoolId: data.schoolId,
         code,
         title: data.title,
@@ -325,15 +420,26 @@ export class TaskService {
         planId: data.planId || null,
         locationId: data.locationId || null,
         orgUnitId: data.orgUnitId || null,
+        assignedOrgUnitId: data.assignedOrgUnitId || null,
+        isOrgAssignment: Boolean(data.isOrgAssignment || data.assignedOrgUnitId),
         priority: data.priority || TaskPriority.TRUNG_BINH,
-        status: data.assignments && data.assignments.length > 0 ? TaskStatus.DA_GIAO : TaskStatus.NHAP,
+        status: data.isProposal
+          ? TaskStatus.NHAP
+          : (data.assignments && data.assignments.length > 0) || data.assignedOrgUnitId
+          ? TaskStatus.DA_GIAO
+          : TaskStatus.NHAP,
         progressPercent: 0,
         requireAttachment: data.requireAttachment ?? false,
         startDate: data.startDate ? new Date(data.startDate) : new Date(),
         dueDate: data.dueDate ? new Date(data.dueDate) : null,
         createdById: data.createdById,
+        isProposal: Boolean(data.isProposal),
+        proposalStatus: data.isProposal ? 'CHO_DUYET' : null,
+        proposalNote: data.proposalNote || null,
+        proposedById: data.isProposal ? data.createdById : null,
         assignments: {
           create: (data.assignments || []).map((a) => ({
+            tenantId,
             userId: a.userId,
             role: a.role,
             note: a.note || null,
@@ -341,18 +447,42 @@ export class TaskService {
         },
         logs: {
           create: {
+            tenantId,
             userId: data.createdById,
-            action: 'TAO_MOI',
-            newStatus: data.assignments && data.assignments.length > 0 ? TaskStatus.DA_GIAO : TaskStatus.NHAP,
+            action: data.isProposal ? 'DE_XUAT_CONG_VIEC' : 'TAO_MOI',
+            newStatus: data.isProposal ? TaskStatus.NHAP : TaskStatus.DA_GIAO,
             newProgress: 0,
-            note: data.planId ? 'Tạo mới công việc theo kế hoạch' : 'Tạo mới công việc phát sinh/đột xuất',
+            note: data.isProposal
+              ? `Đề xuất công việc: ${data.proposalNote || data.title}`
+              : data.assignedOrgUnitId
+              ? 'Giao việc cho Tổ / Bộ phận'
+              : data.planId
+              ? 'Tạo mới công việc theo kế hoạch'
+              : 'Tạo mới công việc phát sinh/đột xuất',
           },
         },
       },
       include: {
         assignments: { include: { user: true } },
+        assignedOrgUnit: true,
       },
     });
+
+    // Bắn thông báo ngầm qua QueueService
+    if (data.assignments && data.assignments.length > 0) {
+      for (const a of data.assignments) {
+        if (a.userId !== data.createdById) {
+          await QueueService.pushNotification({
+            tenantId,
+            userId: a.userId,
+            type: NotificationType.GIAO_VIEC,
+            title: `Bạn được phân công công việc: ${task.title}`,
+            content: `Vai trò: ${a.role} | Hạn hoàn thành: ${task.dueDate ? new Date(task.dueDate).toLocaleDateString('vi-VN') : 'Không có'}`,
+            link: `/tasks/${task.id}`,
+          });
+        }
+      }
+    }
 
     if (task.planId) {
       await planService.recalculatePlanProgress(task.planId);
@@ -363,7 +493,155 @@ export class TaskService {
   }
 
   /**
-   * Gán người theo mô hình RACI: CHU_TRI bắt buộc đúng 1 người
+   * Đánh giá kết quả công việc 4 mức (TT 70, 89)
+   */
+  async evaluateTask(
+    taskId: string,
+    currentUserId: string,
+    userRoles: Role[],
+    payload: { rating: TaskEvaluationRating; comment?: string }
+  ) {
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) {
+      throw new AppError('Không tìm thấy công việc.', 404);
+    }
+
+    const allowedRoles: Role[] = [
+      Role.ADMIN,
+      Role.HIEU_TRUONG,
+      Role.PHO_HIEU_TRUONG,
+      Role.TO_TRUONG,
+    ];
+    const canEvaluate = userRoles.some((r) => allowedRoles.includes(r));
+    if (!canEvaluate) {
+      throw new AppError('Bạn không có thẩm quyền đánh giá kết quả công việc này.', 403);
+    }
+
+    const updatedTask = await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        evaluationRating: payload.rating,
+        evaluationComment: payload.comment || null,
+        evaluatedAt: new Date(),
+        evaluatedById: currentUserId,
+      },
+      include: { evaluatedBy: true },
+    });
+
+    await prisma.taskLog.create({
+      data: {
+        tenantId: task.tenantId,
+        taskId,
+        userId: currentUserId,
+        action: 'DANH_GIA_KET_QUA',
+        note: `Đánh giá kết quả: [${payload.rating}] ${payload.comment ? '— ' + payload.comment : ''}`,
+      },
+    });
+
+    appCache.invalidateTags(['tasks', 'dashboard']);
+    return updatedTask;
+  }
+
+  /**
+   * Đề xuất công việc từ cấp dưới (TT 77, 113)
+   */
+  async proposeTask(data: CreateTaskDto & { proposalNote?: string }) {
+    return this.create({
+      ...data,
+      isProposal: true,
+    });
+  }
+
+  /**
+   * Duyệt đề xuất công việc (TT 77, 113)
+   */
+  async approveProposal(taskId: string, currentUserId: string, note?: string) {
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) {
+      throw new AppError('Không tìm thấy công việc đề xuất.', 404);
+    }
+
+    const updatedTask = await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        proposalStatus: 'DA_DUYET',
+        status: TaskStatus.DA_GIAO,
+      },
+    });
+
+    await prisma.taskLog.create({
+      data: {
+        tenantId: task.tenantId,
+        taskId,
+        userId: currentUserId,
+        action: 'DUYET_DE_XUAT',
+        oldStatus: task.status,
+        newStatus: TaskStatus.DA_GIAO,
+        note: note || 'Phê duyệt đề xuất công việc',
+      },
+    });
+
+    if (task.proposedById) {
+      await QueueService.pushNotification({
+        tenantId: task.tenantId,
+        userId: task.proposedById,
+        type: NotificationType.HE_THONG,
+        title: `Đề xuất công việc đã được duyệt: ${task.title}`,
+        content: `Đề xuất của bạn đã được phê duyệt và chuyển sang trạng thái Đang thực hiện.`,
+        link: `/tasks/${task.id}`,
+      });
+    }
+
+    appCache.invalidateTags(['tasks', 'dashboard']);
+    return updatedTask;
+  }
+
+  /**
+   * Từ chối đề xuất công việc (TT 77, 113)
+   */
+  async rejectProposal(taskId: string, currentUserId: string, reason?: string) {
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) {
+      throw new AppError('Không tìm thấy công việc đề xuất.', 404);
+    }
+
+    const updatedTask = await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        proposalStatus: 'TU_CHOI',
+        status: TaskStatus.HUY,
+      },
+    });
+
+    await prisma.taskLog.create({
+      data: {
+        tenantId: task.tenantId,
+        taskId,
+        userId: currentUserId,
+        action: 'TU_CHOI_DE_XUAT',
+        oldStatus: task.status,
+        newStatus: TaskStatus.HUY,
+        note: reason || 'Từ chối đề xuất công việc',
+      },
+    });
+
+    if (task.proposedById) {
+      await QueueService.pushNotification({
+        tenantId: task.tenantId,
+        userId: task.proposedById,
+        type: NotificationType.CAN_BO_SUNG,
+        title: `Đề xuất công việc bị từ chối: ${task.title}`,
+        content: `Lý do: ${reason || 'Không phù hợp với kế hoạch hiện tại.'}`,
+        link: `/tasks/${task.id}`,
+      });
+    }
+
+    appCache.invalidateTags(['tasks', 'dashboard']);
+    return updatedTask;
+  }
+
+  /**
+   * Gán người theo mô hình RACI
    */
   async updateAssignments(
     taskId: string,
@@ -384,18 +662,17 @@ export class TaskService {
       throw new AppError('Bắt buộc phải có đúng 1 người chịu trách nhiệm CHỦ TRÌ công việc.', 400);
     }
 
-    // Xóa phân công cũ và tạo phân công mới trong transaction
     await prisma.$transaction([
       prisma.taskAssignment.deleteMany({ where: { taskId } }),
       prisma.taskAssignment.createMany({
         data: assignments.map((a) => ({
+          tenantId: task.tenantId,
           taskId,
           userId: a.userId,
           role: a.role,
           note: a.note || null,
         })),
       }),
-      // Nếu task đang ở trạng thái NHAP, chuyển sang DA_GIAO
       ...(task.status === TaskStatus.NHAP
         ? [
             prisma.task.update({
@@ -406,6 +683,7 @@ export class TaskService {
         : []),
       prisma.taskLog.create({
         data: {
+          tenantId: task.tenantId,
           taskId,
           userId: currentUserId,
           action: 'CAP_NHAT_PHAN_CONG_RACI',
@@ -419,7 +697,7 @@ export class TaskService {
   }
 
   /**
-   * Chuyển trạng thái theo Workflow quy chuẩn và kiểm tra quyền hạn chặt chẽ
+   * Chuyển trạng thái theo Workflow quy chuẩn
    */
   async updateStatus(
     taskId: string,
@@ -466,7 +744,6 @@ export class TaskService {
         throw new AppError('Chỉ người được phân công hoặc phụ trách công việc mới có quyền gửi yêu cầu kiểm tra.', 403);
       }
 
-      // RÀNG BUỘC MINH CHỨNG: Nếu yêu cầu minh chứng mà chưa đính kèm tệp nào -> Chặn
       if (task.requireAttachment && task.attachments.length === 0) {
         throw new AppError(
           'Công việc này bắt buộc phải có tệp/ảnh minh chứng kết quả trước khi gửi kiểm tra.',
@@ -514,7 +791,6 @@ export class TaskService {
       }
     }
 
-    // Cập nhật trạng thái và ngày hoàn thành
     const completedAt =
       targetStatus === TaskStatus.HOAN_THANH || targetStatus === TaskStatus.XAC_NHAN || targetStatus === TaskStatus.DONG
         ? task.completedAt || new Date()
@@ -531,9 +807,9 @@ export class TaskService {
       },
     });
 
-    // Ghi nhật ký TaskLog
     await prisma.taskLog.create({
       data: {
+        tenantId: task.tenantId,
         taskId,
         userId,
         action: `CHUYEN_TRANG_THAI_${targetStatus}`,
@@ -545,7 +821,6 @@ export class TaskService {
       },
     });
 
-    // Cập nhật lại tiến độ Kế hoạch cha nếu có
     if (task.planId) {
       await planService.recalculatePlanProgress(task.planId);
     }
@@ -573,6 +848,7 @@ export class TaskService {
 
     await prisma.taskLog.create({
       data: {
+        tenantId: task.tenantId,
         taskId,
         userId,
         action: 'CAP_NHAT_TIEN_DO',
@@ -602,13 +878,19 @@ export class TaskService {
       description?: string;
       locationId?: string | null;
       orgUnitId?: string | null;
+      assignedOrgUnitId?: string | null;
+      isOrgAssignment?: boolean;
       priority?: TaskPriority;
       startDate?: Date | string | null;
       dueDate?: Date | string | null;
       requireAttachment?: boolean;
-    }
+    },
+    tenantId?: string
   ) {
-    const existing = await prisma.task.findUnique({ where: { id } });
+    const where: any = { id };
+    if (tenantId) where.tenantId = tenantId;
+
+    const existing = await prisma.task.findFirst({ where });
     if (!existing) {
       throw new AppError('Không tìm thấy công việc.', 404);
     }
@@ -620,6 +902,8 @@ export class TaskService {
         ...(data.description !== undefined && { description: data.description }),
         ...(data.locationId !== undefined && { locationId: data.locationId }),
         ...(data.orgUnitId !== undefined && { orgUnitId: data.orgUnitId }),
+        ...(data.assignedOrgUnitId !== undefined && { assignedOrgUnitId: data.assignedOrgUnitId }),
+        ...(data.isOrgAssignment !== undefined && { isOrgAssignment: data.isOrgAssignment }),
         ...(data.priority && { priority: data.priority }),
         ...(data.startDate !== undefined && { startDate: data.startDate ? new Date(data.startDate) : null }),
         ...(data.dueDate !== undefined && { dueDate: data.dueDate ? new Date(data.dueDate) : null }),
@@ -632,10 +916,19 @@ export class TaskService {
   }
 
   /**
-   * Thêm bình luận / trao đổi nội bộ trong công việc
+   * Thêm bình luận / trao đổi nội bộ trong công việc kèm @mention (TT 13–14, 102, 114)
    */
-  async addComment(taskId: string, userId: string, content: string) {
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
+  async addComment(
+    taskId: string,
+    userId: string,
+    content: string,
+    mentions?: string[],
+    attachments?: any
+  ) {
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: { createdBy: true },
+    });
     if (!task) {
       throw new AppError('Không tìm thấy công việc.', 404);
     }
@@ -645,9 +938,12 @@ export class TaskService {
 
     const comment = await prisma.comment.create({
       data: {
+        tenantId: task.tenantId,
         taskId,
         userId,
         content: content.trim(),
+        mentions: mentions || [],
+        attachments: attachments || null,
       },
       include: {
         user: {
@@ -662,15 +958,55 @@ export class TaskService {
       },
     });
 
+    // Gửi thông báo đến những người được @mention
+    if (mentions && mentions.length > 0) {
+      for (const mentionedUserId of mentions) {
+        if (mentionedUserId !== userId) {
+          await QueueService.pushNotification({
+            tenantId: task.tenantId,
+            userId: mentionedUserId,
+            type: NotificationType.HE_THONG,
+            title: `${comment.user.fullName} đã nhắc đến bạn trong công việc [${task.title}]`,
+            content: content.slice(0, 120),
+            link: `/tasks/${taskId}`,
+          });
+        }
+      }
+    }
+
     appCache.invalidateTags(['tasks']);
     return comment;
   }
 
   /**
+   * Lấy lịch sử nhật ký công việc (Task Logs timeline TT 20–21)
+   */
+  async getTaskLogs(taskId: string) {
+    return prisma.taskLog.findMany({
+      where: { taskId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            title: true,
+            avatarUrl: true,
+          },
+        },
+        attachments: true,
+      },
+    });
+  }
+
+  /**
    * Xóa công việc
    */
-  async delete(id: string) {
-    const existing = await prisma.task.findUnique({ where: { id } });
+  async delete(id: string, tenantId?: string) {
+    const where: any = { id };
+    if (tenantId) where.tenantId = tenantId;
+
+    const existing = await prisma.task.findFirst({ where });
     if (!existing) {
       throw new AppError('Không tìm thấy công việc.', 404);
     }

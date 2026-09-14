@@ -98,3 +98,81 @@ export interface LocationSummaryItem {
   completedTaskCount: number;
   totalTaskCount: number;
 }
+
+export interface PermissionItem {
+  id: string;
+  key: string;
+  name: string;
+  category: string;
+  description?: string | null;
+}
+
+export interface RoleModelItem {
+  id: string;
+  tenantId?: string | null;
+  code: string;
+  name: string;
+  description?: string | null;
+  isSystem: boolean;
+  permissionKeys: string[];
+  permissionsCount?: number;
+  userCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SharedCategoryItem {
+  id: string;
+  tenantId: string;
+  type: string;
+  code: string;
+  name: string;
+  orderIndex: number;
+  isDefault: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface KPIDefinitionItem {
+  id: string;
+  tenantId: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  unit: string;
+  targetValue?: number | null;
+  weight: number;
+  applicableRoles?: string[] | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TenantQuotaInfo {
+  tenantId: string;
+  package: {
+    id: string;
+    name: string;
+    code: string;
+    price: number;
+    enabledModules: string[];
+  } | null;
+  subscription: {
+    id: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+  } | null;
+  quota: {
+    maxAccounts: number;
+    activeAccounts: number;
+    totalAccounts: number;
+    remainingAccounts: number;
+    accountUsagePercent: number;
+    storageQuotaGB: number;
+    usedStorageMB: number;
+    usedStorageGB: number;
+    storageUsagePercent: number;
+  };
+}

@@ -4,12 +4,14 @@ import { AppError } from '../../middlewares/error.middleware';
 import { removeVietnameseAccents, calculateMatchScore } from '../../utils/vietnamese.utils';
 import { Role, TaskAssignmentRole, TaskStatus } from '@prisma/client';
 import appCache from '../../utils/cache';
+import { resolveTenantId } from '../../utils/tenant.util';
 
 export interface UserSearchParams {
   search?: string;
   orgUnitId?: string;
   locationId?: string;
   schoolId?: string;
+  tenantId?: string;
   role?: Role;
   page?: number;
   pageSize?: number;
@@ -28,14 +30,15 @@ export class UserService {
     const searchQuery = (params.search || '').trim();
 
     // Cache toàn bộ user directory cho People Picker trong 30s
-    const dirCacheKey = `users:directory:${params.schoolId || 'all'}`;
+    const tenantScope = params.tenantId || params.schoolId || 'all';
+    const dirCacheKey = `users:directory:${tenantScope}`;
     let allUsers = appCache.get<any[]>(dirCacheKey);
 
     if (!allUsers) {
       allUsers = await prisma.user.findMany({
         where: {
           isActive: true,
-          ...(params.schoolId && { schoolId: params.schoolId }),
+          ...(params.tenantId ? { tenantId: params.tenantId } : (params.schoolId ? { schoolId: params.schoolId } : {})),
         },
         include: {
           primaryLocation: { select: { id: true, name: true, code: true } },
@@ -287,6 +290,7 @@ export class UserService {
     title?: string;
     avatarUrl?: string;
     schoolId: string;
+    tenantId?: string;
     primaryLocationId?: string;
     primaryOrgUnitId?: string;
     role: Role;
@@ -295,9 +299,11 @@ export class UserService {
   }) {
     const defaultPassword = data.password || '123456';
     const passwordHash = await bcrypt.hash(defaultPassword, 10);
+    const tenantId = await resolveTenantId(data.schoolId, data.tenantId);
 
     const user = await prisma.user.create({
       data: {
+        tenantId,
         fullName: data.fullName,
         email: data.email.toLowerCase().trim(),
         phone: data.phone.trim(),

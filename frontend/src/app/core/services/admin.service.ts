@@ -10,6 +10,11 @@ import {
   AdminUserRole,
   PermissionMatrixItem,
   LocationSummaryItem,
+  PermissionItem,
+  RoleModelItem,
+  SharedCategoryItem,
+  KPIDefinitionItem,
+  TenantQuotaInfo,
 } from '../models/admin.models';
 import { LocationItem } from '../models/user.models';
 
@@ -171,5 +176,195 @@ export class AdminService {
     return this.http
       .delete<{ success: boolean; message: string }>(`/api/locations/${id}`)
       .pipe(map((res) => ({ message: res.message })));
+  }
+
+  // ==========================================
+  // PHASE 2: DYNAMIC RBAC & SYSTEM CONFIGURATION
+  // ==========================================
+
+  /**
+   * 14. GET /api/admin/permissions
+   */
+  getPermissions(): Observable<PermissionItem[]> {
+    return this.http
+      .get<{ success: boolean; data: PermissionItem[] }>('/api/admin/permissions')
+      .pipe(map((res) => res.data || []));
+  }
+
+  /**
+   * 15. GET /api/admin/roles
+   */
+  getRoles(): Observable<RoleModelItem[]> {
+    return this.http
+      .get<{ success: boolean; data: RoleModelItem[] }>('/api/admin/roles')
+      .pipe(map((res) => res.data || []));
+  }
+
+  /**
+   * 16. POST /api/admin/roles
+   */
+  createRole(payload: {
+    code: string;
+    name: string;
+    description?: string;
+    permissionKeys?: string[];
+  }): Observable<RoleModelItem> {
+    return this.http
+      .post<{ success: boolean; message: string; data: RoleModelItem }>('/api/admin/roles', payload)
+      .pipe(map((res) => res.data));
+  }
+
+  /**
+   * 17. PATCH /api/admin/roles/:id
+   */
+  updateRole(
+    id: string,
+    payload: {
+      name?: string;
+      description?: string;
+    }
+  ): Observable<RoleModelItem> {
+    return this.http
+      .patch<{ success: boolean; message: string; data: RoleModelItem }>(`/api/admin/roles/${id}`, payload)
+      .pipe(map((res) => res.data));
+  }
+
+  /**
+   * 18. PUT /api/admin/roles/:id/permissions
+   */
+  updateRolePermissions(
+    id: string,
+    permissionKeys: string[]
+  ): Observable<{ success: boolean; message: string; permissionCount?: number }> {
+    return this.http
+      .put<{ success: boolean; message: string; permissionCount?: number }>(
+        `/api/admin/roles/${id}/permissions`,
+        { permissionKeys }
+      );
+  }
+
+  /**
+   * 19. DELETE /api/admin/roles/:id
+   */
+  deleteRole(id: string): Observable<{ success: boolean; message: string }> {
+    return this.http
+      .delete<{ success: boolean; message: string }>(`/api/admin/roles/${id}`)
+      .pipe(map((res) => ({ success: res.success, message: res.message })));
+  }
+
+  /**
+   * 20. GET /api/admin/categories
+   */
+  getCategories(type?: string): Observable<SharedCategoryItem[]> {
+    let params = new HttpParams();
+    if (type) params = params.set('type', type);
+    return this.http
+      .get<{ success: boolean; data: SharedCategoryItem[] }>('/api/admin/categories', { params })
+      .pipe(map((res) => res.data || []));
+  }
+
+  /**
+   * 21. POST /api/admin/categories
+   */
+  createCategory(payload: {
+    type: string;
+    code: string;
+    name: string;
+    orderIndex?: number;
+    isDefault?: boolean;
+  }): Observable<SharedCategoryItem> {
+    return this.http
+      .post<{ success: boolean; message: string; data: SharedCategoryItem }>('/api/admin/categories', payload)
+      .pipe(map((res) => res.data));
+  }
+
+  /**
+   * 22. PATCH /api/admin/categories/:id
+   */
+  updateCategory(
+    id: string,
+    payload: {
+      name?: string;
+      orderIndex?: number;
+      isDefault?: boolean;
+      isActive?: boolean;
+    }
+  ): Observable<SharedCategoryItem> {
+    return this.http
+      .patch<{ success: boolean; message: string; data: SharedCategoryItem }>(`/api/admin/categories/${id}`, payload)
+      .pipe(map((res) => res.data));
+  }
+
+  /**
+   * 23. DELETE /api/admin/categories/:id
+   */
+  deleteCategory(id: string): Observable<{ success: boolean; message: string }> {
+    return this.http
+      .delete<{ success: boolean; message: string }>(`/api/admin/categories/${id}`)
+      .pipe(map((res) => ({ success: res.success, message: res.message })));
+  }
+
+  /**
+   * 24. GET /api/admin/kpi-definitions
+   */
+  getKPIDefinitions(): Observable<KPIDefinitionItem[]> {
+    return this.http
+      .get<{ success: boolean; data: KPIDefinitionItem[] }>('/api/admin/kpi-definitions')
+      .pipe(map((res) => res.data || []));
+  }
+
+  /**
+   * 25. POST /api/admin/kpi-definitions
+   */
+  createKPIDefinition(payload: {
+    code: string;
+    name: string;
+    description?: string;
+    unit?: string;
+    targetValue?: number | null;
+    weight?: number;
+    applicableRoles?: string[];
+  }): Observable<KPIDefinitionItem> {
+    return this.http
+      .post<{ success: boolean; message: string; data: KPIDefinitionItem }>('/api/admin/kpi-definitions', payload)
+      .pipe(map((res) => res.data));
+  }
+
+  /**
+   * 26. PATCH /api/admin/kpi-definitions/:id
+   */
+  updateKPIDefinition(
+    id: string,
+    payload: {
+      name?: string;
+      description?: string;
+      unit?: string;
+      targetValue?: number | null;
+      weight?: number;
+      applicableRoles?: string[];
+      isActive?: boolean;
+    }
+  ): Observable<KPIDefinitionItem> {
+    return this.http
+      .patch<{ success: boolean; message: string; data: KPIDefinitionItem }>(`/api/admin/kpi-definitions/${id}`, payload)
+      .pipe(map((res) => res.data));
+  }
+
+  /**
+   * 27. DELETE /api/admin/kpi-definitions/:id
+   */
+  deleteKPIDefinition(id: string): Observable<{ success: boolean; message: string }> {
+    return this.http
+      .delete<{ success: boolean; message: string }>(`/api/admin/kpi-definitions/${id}`)
+      .pipe(map((res) => ({ success: res.success, message: res.message })));
+  }
+
+  /**
+   * 28. GET /api/admin/quota
+   */
+  getQuota(): Observable<TenantQuotaInfo> {
+    return this.http
+      .get<{ success: boolean; data: TenantQuotaInfo }>('/api/admin/quota')
+      .pipe(map((res) => res.data));
   }
 }

@@ -19,9 +19,13 @@ export interface UpdateSchoolInfoDto {
 }
 
 export class SchoolService {
-  async getSchoolInfo(schoolId?: string) {
+  async getSchoolInfo(schoolId?: string, tenantId?: string) {
+    const where: any = {};
+    if (tenantId) where.tenantId = tenantId;
+    else if (schoolId) where.id = schoolId;
+
     let school = await prisma.school.findFirst({
-      where: schoolId ? { id: schoolId } : undefined,
+      where: Object.keys(where).length > 0 ? where : undefined,
       include: {
         locations: {
           include: {

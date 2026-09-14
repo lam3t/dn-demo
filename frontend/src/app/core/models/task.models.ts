@@ -20,6 +20,8 @@ export type TaskAssignmentRole =
   | 'PHE_DUYET'
   | 'THEO_DOI';
 
+export type TaskEvaluationRating = 'XUAT_SAC' | 'TOT' | 'HOAN_THANH' | 'CHUA_DAT';
+
 export interface TaskAssignmentItem {
   id: string;
   taskId: string;
@@ -48,6 +50,8 @@ export interface TaskLogItem {
   newStatus?: TaskStatus | null;
   oldProgress?: number | null;
   newProgress?: number | null;
+  oldValues?: any;
+  newValues?: any;
   note?: string | null;
   createdAt: string;
   user?: {
@@ -83,6 +87,8 @@ export interface TaskCommentItem {
   taskId: string;
   userId: string;
   content: string;
+  mentions?: string[] | null;
+  attachments?: any;
   createdAt: string;
   user: {
     id: string;
@@ -96,12 +102,15 @@ export interface TaskCommentItem {
 export interface TaskItem {
   id: string;
   schoolId: string;
+  tenantId?: string;
   code?: string | null;
   title: string;
   description?: string | null;
   planId?: string | null;
   locationId?: string | null;
   orgUnitId?: string | null;
+  assignedOrgUnitId?: string | null;
+  isOrgAssignment?: boolean;
   priority: TaskPriority;
   status: TaskStatus;
   progressPercent: number;
@@ -113,9 +122,23 @@ export interface TaskItem {
   createdAt: string;
   updatedAt?: string;
   isOverdue?: boolean;
+
+  // Đánh giá kết quả (TT 70, 89)
+  evaluationRating?: TaskEvaluationRating | null;
+  evaluationComment?: string | null;
+  evaluatedAt?: string | null;
+  evaluatedBy?: { id: string; fullName: string; title?: string | null } | null;
+
+  // Đề xuất công việc (TT 77, 113)
+  isProposal?: boolean;
+  proposalStatus?: 'CHO_DUYET' | 'DA_DUYET' | 'TU_CHOI' | null;
+  proposalNote?: string | null;
+  proposedBy?: { id: string; fullName: string; title?: string | null } | null;
+
   plan?: { id: string; title: string; level: string } | null;
   location?: { id: string; name: string; code: string; phone?: string } | null;
   orgUnit?: { id: string; name: string; code: string } | null;
+  assignedOrgUnit?: { id: string; name: string; code: string } | null;
   createdBy?: {
     id: string;
     fullName: string;

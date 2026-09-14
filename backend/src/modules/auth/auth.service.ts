@@ -2,8 +2,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../../prisma';
 import { AppError } from '../../middlewares/error.middleware';
-import { LoginResponse, TokenPayload, AuthUser } from './auth.types';
+import { LoginResponse, TokenPayload } from './auth.types';
 import { Role } from '@prisma/client';
+import { getTenantUserPermissions } from '../../utils/permission.util';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'tn_edu_super_secret_jwt_access_key_2026';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'tn_edu_super_secret_jwt_refresh_key_2026';
@@ -12,7 +13,7 @@ const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '30d';
 
 export class AuthService {
   /**
-   * Đăng nhập bằng Email hoặc Số điện thoại + Mật khẩu
+   * Đăng nhập bằng Email hoặc Số điện thoại + Mật khẩu (1 link duy nhất, tự động tra cứu tenant)
    */
   async login(identifier: string, password: string): Promise<LoginResponse> {
     if (!identifier || !password) {
@@ -21,7 +22,7 @@ export class AuthService {
 
     const trimmed = identifier.trim();
 
-    // Tìm kiếm user theo email hoặc số điện thoại
+    // Tìm kiếm user theo email hoặc số điện thoại trên phạm vi toàn hệ thống
     const user = await prisma.user.findFirst({
       where: {
         OR: [
@@ -30,6 +31,7 @@ export class AuthService {
         ],
       },
       include: {
+        tenant: true,
         school: true,
         primaryLocation: true,
         primaryOrgUnit: true,
@@ -50,6 +52,16 @@ export class AuthService {
       throw new AppError('Tài khoản đã bị tạm khóa. Vui lòng liên hệ quản trị viên.', 403);
     }
 
+    // Kiểm tra trạng thái Tenant (nếu không phải System Admin)
+    if (!user.isSystemAdmin && user.tenant) {
+      if (user.tenant.status === 'SUSPENDED') {
+        throw new AppError(
+          'Trường của bạn hiện đang bị tạm khóa hoặc hết hạn dịch vụ. Vui lòng liên hệ Quản trị viên hệ thống.',
+          403
+        );
+      }
+    }
+
     // So khớp mật khẩu
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
@@ -58,15 +70,25 @@ export class AuthService {
 
     // Tạo JWT Tokens
     const roleList = user.roles.map((r) => r.role);
+    if (user.isSystemAdmin && !roleList.includes(Role.SYSTEM_ADMIN)) {
+      roleList.push(Role.SYSTEM_ADMIN);
+    }
+
+    const tenantId = user.tenantId || user.school?.tenantId || null;
+
     const tokenPayload: TokenPayload = {
       userId: user.id,
       email: user.email,
       roles: roleList,
-      schoolId: user.schoolId,
+      schoolId: user.schoolId || undefined,
+      tenantId: tenantId || undefined,
+      isSystemAdmin: user.isSystemAdmin,
     };
 
     const accessToken = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_ACCESS_EXPIRES_IN as any });
     const refreshToken = jwt.sign({ userId: user.id }, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN as any });
+
+    const permissions = await getTenantUserPermissions(user.id, tenantId, user.isSystemAdmin);
 
     return {
       accessToken,
@@ -79,18 +101,24 @@ export class AuthService {
         title: user.title,
         avatarUrl: user.avatarUrl,
         schoolId: user.schoolId,
-        schoolName: user.school.name,
+        schoolName: user.school?.name || (user.isSystemAdmin ? 'Hệ thống Quản trị Nền tảng TN EDU' : undefined),
+        tenantId: tenantId,
+        tenantName: user.tenant?.name,
+        tenantCode: user.tenant?.code,
+        isSystemAdmin: user.isSystemAdmin,
         primaryLocationId: user.primaryLocationId,
         primaryLocationName: user.primaryLocation?.name,
         primaryOrgUnitId: user.primaryOrgUnitId,
         primaryOrgUnitName: user.primaryOrgUnit?.name,
         roles: user.roles.map((r) => ({
           role: r.role,
+          roleId: r.roleId,
           scopeLocationId: r.scopeLocationId,
           scopeLocationName: r.scopeLocation?.name,
           scopeOrgUnitId: r.scopeOrgUnitId,
           scopeOrgUnitName: r.scopeOrgUnit?.name,
         })),
+        permissions,
       },
     };
   }
@@ -112,18 +140,38 @@ export class AuthService {
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      include: { roles: true },
+      include: {
+        tenant: true,
+        school: true,
+        roles: true,
+      },
     });
 
     if (!user || !user.isActive) {
       throw new AppError('Người dùng không tồn tại hoặc đã bị khóa.', 401);
     }
 
+    if (!user.isSystemAdmin && user.tenant && user.tenant.status === 'SUSPENDED') {
+      throw new AppError(
+        'Trường của bạn hiện đang bị tạm khóa hoặc hết hạn dịch vụ. Vui lòng liên hệ Quản trị viên hệ thống.',
+        403
+      );
+    }
+
+    const roleList = user.roles.map((r) => r.role);
+    if (user.isSystemAdmin && !roleList.includes(Role.SYSTEM_ADMIN)) {
+      roleList.push(Role.SYSTEM_ADMIN);
+    }
+
+    const tenantId = user.tenantId || user.school?.tenantId || null;
+
     const tokenPayload: TokenPayload = {
       userId: user.id,
       email: user.email,
-      roles: user.roles.map((r) => r.role),
-      schoolId: user.schoolId,
+      roles: roleList,
+      schoolId: user.schoolId || undefined,
+      tenantId: tenantId || undefined,
+      isSystemAdmin: user.isSystemAdmin,
     };
 
     const newAccessToken = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_ACCESS_EXPIRES_IN as any });
@@ -142,6 +190,7 @@ export class AuthService {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
+        tenant: true,
         school: true,
         primaryLocation: true,
         primaryOrgUnit: true,
@@ -158,6 +207,9 @@ export class AuthService {
       throw new AppError('Không tìm thấy thông tin tài khoản người dùng.', 404);
     }
 
+    const tenantId = user.tenantId || user.school?.tenantId || null;
+    const permissions = await getTenantUserPermissions(user.id, tenantId, user.isSystemAdmin);
+
     return {
       id: user.id,
       email: user.email,
@@ -166,18 +218,24 @@ export class AuthService {
       title: user.title,
       avatarUrl: user.avatarUrl,
       schoolId: user.schoolId,
-      schoolName: user.school.name,
+      schoolName: user.school?.name || (user.isSystemAdmin ? 'Hệ thống Quản trị Nền tảng TN EDU' : undefined),
+      tenantId: tenantId,
+      tenantName: user.tenant?.name,
+      tenantCode: user.tenant?.code,
+      isSystemAdmin: user.isSystemAdmin,
       primaryLocationId: user.primaryLocationId,
       primaryLocationName: user.primaryLocation?.name,
       primaryOrgUnitId: user.primaryOrgUnitId,
       primaryOrgUnitName: user.primaryOrgUnit?.name,
       roles: user.roles.map((r) => ({
         role: r.role,
+        roleId: r.roleId,
         scopeLocationId: r.scopeLocationId,
         scopeLocationName: r.scopeLocation?.name,
         scopeOrgUnitId: r.scopeOrgUnitId,
         scopeOrgUnitName: r.scopeOrgUnit?.name,
       })),
+      permissions,
     };
   }
 }

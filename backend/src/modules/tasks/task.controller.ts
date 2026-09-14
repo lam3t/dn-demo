@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { taskService } from './task.service';
-import { TaskStatus, TaskPriority, TaskAssignmentRole } from '@prisma/client';
+import { TaskStatus, TaskPriority, TaskAssignmentRole, TaskEvaluationRating } from '@prisma/client';
 
 export class TaskController {
   async getAll(req: Request, res: Response, next: NextFunction) {
@@ -11,29 +11,37 @@ export class TaskController {
         role,
         locationId,
         orgUnitId,
+        assignedOrgUnitId,
         planId,
         overdue,
         isOverdue,
         myTasks,
+        isProposal,
+        proposalStatus,
         search,
         page,
         pageSize,
       } = req.query;
 
+      const tenantId = req.user?.tenantId;
       const schoolId = req.user?.schoolId;
       const currentUserId = req.user?.id;
 
       const result = await taskService.getAll({
+        tenantId,
         schoolId,
         status: status as TaskStatus,
         assigneeId: assigneeId as string,
         role: role as TaskAssignmentRole,
         locationId: locationId as string,
         orgUnitId: orgUnitId as string,
+        assignedOrgUnitId: assignedOrgUnitId as string,
         planId: planId as string,
         overdue: overdue as any,
         isOverdue: isOverdue as any,
         myTasks: myTasks as any,
+        isProposal: isProposal as any,
+        proposalStatus: proposalStatus as string,
         currentUserId,
         search: search as string,
         page: page ? Number(page) : 1,
@@ -49,7 +57,8 @@ export class TaskController {
   async getByIdFull(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const task = await taskService.getByIdFull(id);
+      const tenantId = req.user?.tenantId;
+      const task = await taskService.getByIdFull(id, tenantId);
       res.status(200).json({ success: true, data: task });
     } catch (error) {
       next(error);
@@ -59,10 +68,12 @@ export class TaskController {
   async create(req: Request, res: Response, next: NextFunction) {
     try {
       const schoolId = req.body.schoolId || req.user!.schoolId;
+      const tenantId = req.user?.tenantId;
       const createdById = req.user!.id;
 
       const task = await taskService.create({
         ...req.body,
+        tenantId,
         schoolId,
         createdById,
       });
@@ -70,6 +81,87 @@ export class TaskController {
       res.status(201).json({
         success: true,
         message: 'Tạo mới công việc thành công.',
+        data: task,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async evaluate(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { rating, comment } = req.body;
+      const userId = req.user!.id;
+      const userRoles = req.user!.roles.map((r) => r.role);
+
+      const task = await taskService.evaluateTask(id, userId, userRoles, {
+        rating: rating as TaskEvaluationRating,
+        comment,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Đánh giá kết quả công việc thành công.',
+        data: task,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async propose(req: Request, res: Response, next: NextFunction) {
+    try {
+      const schoolId = req.body.schoolId || req.user!.schoolId;
+      const tenantId = req.user?.tenantId;
+      const createdById = req.user!.id;
+
+      const task = await taskService.proposeTask({
+        ...req.body,
+        tenantId,
+        schoolId,
+        createdById,
+      });
+
+      res.status(201).json({
+        success: true,
+        message: 'Gửi đề xuất công việc thành công.',
+        data: task,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async approveProposal(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { note } = req.body;
+      const currentUserId = req.user!.id;
+
+      const task = await taskService.approveProposal(id, currentUserId, note);
+
+      res.status(200).json({
+        success: true,
+        message: 'Phê duyệt đề xuất công việc thành công.',
+        data: task,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async rejectProposal(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      const currentUserId = req.user!.id;
+
+      const task = await taskService.rejectProposal(id, currentUserId, reason);
+
+      res.status(200).json({
+        success: true,
+        message: 'Từ chối đề xuất công việc thành công.',
         data: task,
       });
     } catch (error) {
@@ -135,7 +227,8 @@ export class TaskController {
   async update(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const task = await taskService.update(id, req.body);
+      const tenantId = req.user?.tenantId;
+      const task = await taskService.update(id, req.body, tenantId);
 
       res.status(200).json({
         success: true,
@@ -150,10 +243,10 @@ export class TaskController {
   async addComment(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const { content } = req.body;
+      const { content, mentions, attachments } = req.body;
       const userId = req.user!.id;
 
-      const comment = await taskService.addComment(id, userId, content);
+      const comment = await taskService.addComment(id, userId, content, mentions, attachments);
 
       res.status(201).json({
         success: true,
@@ -165,10 +258,25 @@ export class TaskController {
     }
   }
 
+  async getLogs(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const logs = await taskService.getTaskLogs(id);
+
+      res.status(200).json({
+        success: true,
+        data: logs,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async delete(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      await taskService.delete(id);
+      const tenantId = req.user?.tenantId;
+      await taskService.delete(id, tenantId);
 
       res.status(200).json({
         success: true,

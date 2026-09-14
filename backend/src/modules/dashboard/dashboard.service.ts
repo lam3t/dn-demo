@@ -5,19 +5,26 @@ import appCache from '../../utils/cache';
 export class DashboardService {
   async getOverview(params: {
     schoolId?: string;
+    tenantId?: string;
     locationId?: string;
     orgUnitId?: string;
   }) {
-    const cacheKey = `dashboard:${params.schoolId || 'all'}:${params.locationId || 'all'}:${params.orgUnitId || 'all'}`;
+    const scopeKey = params.tenantId || params.schoolId || 'all';
+    const cacheKey = `dashboard:${scopeKey}:${params.locationId || 'all'}:${params.orgUnitId || 'all'}`;
     const cached = appCache.get(cacheKey);
     if (cached) {
       return cached;
     }
 
     const where: any = {};
-    if (params.schoolId) where.schoolId = params.schoolId;
+    if (params.tenantId) where.tenantId = params.tenantId;
+    else if (params.schoolId) where.schoolId = params.schoolId;
     if (params.locationId) where.locationId = params.locationId;
     if (params.orgUnitId) where.orgUnitId = params.orgUnitId;
+
+    const tenantOrSchoolWhere: any = {};
+    if (params.tenantId) tenantOrSchoolWhere.tenantId = params.tenantId;
+    else if (params.schoolId) tenantOrSchoolWhere.schoolId = params.schoolId;
 
     const now = new Date();
     const threeDaysLater = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
@@ -64,7 +71,7 @@ export class DashboardService {
         orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
       }),
       prisma.task.findMany({
-        where: params.schoolId ? { schoolId: params.schoolId } : {},
+        where: tenantOrSchoolWhere,
         select: {
           id: true,
           status: true,
@@ -74,11 +81,11 @@ export class DashboardService {
         },
       }),
       prisma.location.findMany({
-        where: params.schoolId ? { schoolId: params.schoolId } : {},
+        where: tenantOrSchoolWhere,
         orderBy: [{ isMain: 'desc' }, { name: 'asc' }],
       }),
       prisma.orgUnit.findMany({
-        where: params.schoolId ? { schoolId: params.schoolId } : {},
+        where: tenantOrSchoolWhere,
         orderBy: [{ orderIndex: 'asc' }, { name: 'asc' }],
       }),
     ]);

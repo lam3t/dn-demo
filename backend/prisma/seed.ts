@@ -1,5 +1,6 @@
-import { PrismaClient, Role, PlanLevel, TaskStatus, TaskPriority, TaskAssignmentRole, NotificationType } from '@prisma/client';
+import { PrismaClient, TenantStatus, SubscriptionStatus, Role, PlanLevel, TaskStatus, TaskPriority, TaskAssignmentRole, NotificationType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { SYSTEM_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS } from '../src/constants/permissions.constant';
 
 const prisma = new PrismaClient();
 
@@ -7,6 +8,11 @@ async function main() {
   console.log('🌱 Bắt đầu tạo dữ liệu mẫu TN EDU (Seed Data)...');
 
   // Xóa dữ liệu cũ theo thứ tự quan hệ
+  await prisma.rolePermission.deleteMany({});
+  await prisma.sharedCategory.deleteMany({});
+  await prisma.kPIDefinition.deleteMany({});
+  await prisma.systemAuditLog.deleteMany({});
+  await prisma.adminAuditLog.deleteMany({});
   await prisma.comment.deleteMany({});
   await prisma.attachment.deleteMany({});
   await prisma.taskLog.deleteMany({});
@@ -15,16 +21,201 @@ async function main() {
   await prisma.task.deleteMany({});
   await prisma.plan.deleteMany({});
   await prisma.userRole.deleteMany({});
+  await prisma.roleModel.deleteMany({});
+  await prisma.permission.deleteMany({});
   await prisma.user.deleteMany({});
   await prisma.orgUnit.deleteMany({});
   await prisma.location.deleteMany({});
   await prisma.school.deleteMany({});
+  await prisma.tenantSubscription.deleteMany({});
+  await prisma.package.deleteMany({});
+  await prisma.tenant.deleteMany({});
 
   const defaultPasswordHash = await bcrypt.hash('123456', 10);
 
-  // 1. TẠO TRƯỜNG HỌC
+  // 0. SEED PERMISSION CATALOG (CỐ ĐỊNH, KHÔNG TENANT_ID)
+  console.log('🌱 Seeding fixed permission catalog (~70 permissions)...');
+  await prisma.permission.createMany({
+    data: SYSTEM_PERMISSIONS.map(p => ({
+      key: p.key,
+      name: p.name,
+      category: p.category,
+      description: p.description,
+    }))
+  });
+  const allPerms = await prisma.permission.findMany();
+  const permMap: Record<string, string> = {};
+  for (const p of allPerms) {
+    permMap[p.key] = p.id;
+  }
+  console.log(`✓ Đã seed ${allPerms.length} Permission keys cố định`);
+
+  // Helper hàm khởi tạo Roles & Config cho 1 Tenant
+  async function seedTenantRolesAndConfig(tenantId: string) {
+    const rolesDef = [
+      { code: 'ADMIN', name: 'Quản trị viên trường', description: 'Toàn quyền quản trị trường học và phân quyền hệ thống' },
+      { code: 'HIEU_TRUONG', name: 'Hiệu trưởng', description: 'Lãnh đạo toàn diện nhà trường, phê duyệt kế hoạch và phân công' },
+      { code: 'PHO_HIEU_TRUONG', name: 'Phó Hiệu trưởng', description: 'Phụ trách chuyên môn, kiểm tra đánh giá và quản lý phân hiệu' },
+      { code: 'TO_TRUONG', name: 'Tổ trưởng chuyên môn', description: 'Quản lý kế hoạch tổ, phân công nhiệm vụ và duyệt minh chứng tổ' },
+      { code: 'GIAO_VIEN', name: 'Giáo viên', description: 'Thực hiện nhiệm vụ giảng dạy, nộp minh chứng và cập nhật tiến độ' },
+      { code: 'NHAN_VIEN', name: 'Nhân viên', description: 'Thực hiện nhiệm vụ hành chính, phục vụ, kế toán, y tế' },
+    ];
+
+    const roleMap: Record<string, any> = {};
+    const rolePermData: { roleId: string; permissionId: string }[] = [];
+
+    for (const r of rolesDef) {
+      const createdRole = await prisma.roleModel.create({
+        data: {
+          tenantId,
+          code: r.code,
+          name: r.name,
+          description: r.description,
+          isSystem: true,
+        },
+      });
+      roleMap[r.code] = createdRole;
+
+      // Prepare role permissions
+      const permKeys = DEFAULT_ROLE_PERMISSIONS[r.code] || [];
+      for (const key of permKeys) {
+        const permId = permMap[key];
+        if (permId) {
+          rolePermData.push({
+            roleId: createdRole.id,
+            permissionId: permId,
+          });
+        }
+      }
+    }
+
+    if (rolePermData.length > 0) {
+      await prisma.rolePermission.createMany({ data: rolePermData });
+    }
+
+    // Seed SharedCategories
+    const defaultCategories = [
+      { type: 'NAM_HOC', code: '2026-2027', name: 'Năm học 2026 - 2027', orderIndex: 1, isDefault: true },
+      { type: 'NAM_HOC', code: '2025-2026', name: 'Năm học 2025 - 2026', orderIndex: 2, isDefault: false },
+      { type: 'HOC_KY', code: 'HK1', name: 'Học kỳ I', orderIndex: 1, isDefault: true },
+      { type: 'HOC_KY', code: 'HK2', name: 'Học kỳ II', orderIndex: 2, isDefault: false },
+      { type: 'LOAI_DANH_GIA', code: 'XUAT_SAC', name: 'Xuất sắc', orderIndex: 1, isDefault: false },
+      { type: 'LOAI_DANH_GIA', code: 'TOT', name: 'Tốt', orderIndex: 2, isDefault: true },
+      { type: 'LOAI_DANH_GIA', code: 'DAT', name: 'Đạt', orderIndex: 3, isDefault: false },
+      { type: 'LOAI_DANH_GIA', code: 'CHUA_DAT', name: 'Chưa đạt', orderIndex: 4, isDefault: false },
+      { type: 'CHUC_VU', code: 'HIEU_TRUONG', name: 'Hiệu trưởng', orderIndex: 1, isDefault: false },
+      { type: 'CHUC_VU', code: 'PHO_HIEU_TRUONG', name: 'Phó Hiệu trưởng', orderIndex: 2, isDefault: false },
+      { type: 'CHUC_VU', code: 'TO_TRUONG', name: 'Tổ trưởng chuyên môn', orderIndex: 3, isDefault: false },
+      { type: 'CHUC_VU', code: 'GIAO_VIEN', name: 'Giáo viên', orderIndex: 4, isDefault: false },
+      { type: 'CHUC_VU', code: 'NHAN_VIEN', name: 'Nhân viên', orderIndex: 5, isDefault: false },
+    ];
+
+    await prisma.sharedCategory.createMany({
+      data: defaultCategories.map(cat => ({
+        tenantId,
+        type: cat.type,
+        code: cat.code,
+        name: cat.name,
+        orderIndex: cat.orderIndex,
+        isDefault: cat.isDefault,
+      }))
+    });
+
+    // Seed KPIDefinitions
+    const defaultKPIs = [
+      { code: 'KPI_DUNG_HAN', name: 'Tỷ lệ hoàn thành công việc đúng hạn', unit: '%', targetValue: 95, weight: 1.5, description: 'Tỷ lệ % các công việc hoàn thành trước hoặc đúng ngày hết hạn (dueDate)' },
+      { code: 'KPI_TRUOC_HAN', name: 'Tỷ lệ hoàn thành công việc trước hạn', unit: '%', targetValue: 30, weight: 1.0, description: 'Tỷ lệ % các công việc hoàn thành trước ngày dueDate ít nhất 1 ngày' },
+      { code: 'KPI_MINH_CHUNG', name: 'Tỷ lệ đính kèm minh chứng hợp lệ', unit: '%', targetValue: 100, weight: 1.2, description: 'Tỷ lệ % công việc có đầy đủ tệp tin/hình ảnh minh chứng khi đề nghị nghiệm thu' },
+      { code: 'KPI_DANH_GIA_TOT', name: 'Tỷ lệ xếp loại Tốt & Xuất sắc', unit: '%', targetValue: 85, weight: 1.0, description: 'Tỷ lệ % công việc được người phê duyệt đánh giá mức Tốt hoặc Xuất sắc' },
+    ];
+
+    await prisma.kPIDefinition.createMany({
+      data: defaultKPIs.map(kpi => ({
+        tenantId,
+        code: kpi.code,
+        name: kpi.name,
+        unit: kpi.unit,
+        targetValue: kpi.targetValue,
+        weight: kpi.weight,
+        description: kpi.description,
+      }))
+    });
+
+    return roleMap;
+  }
+
+  // 0. TẠO GÓI DỊCH VỤ & SYSTEM ADMIN
+  const pkgStandard = await prisma.package.create({
+    data: {
+      name: 'Gói Cơ bản (Standard)',
+      code: 'STD',
+      maxAccounts: 100,
+      storageQuotaGB: 20,
+      enabledModules: JSON.stringify(['PLANS', 'TASKS', 'REPORTS', 'ORG']),
+      price: 15000000,
+      description: 'Dành cho các trường quy mô vừa và nhỏ (dưới 100 cán bộ giáo viên).',
+    },
+  });
+
+  const pkgEnterprise = await prisma.package.create({
+    data: {
+      name: 'Gói Nâng cao (Enterprise)',
+      code: 'ENT',
+      maxAccounts: 500,
+      storageQuotaGB: 100,
+      enabledModules: JSON.stringify(['PLANS', 'TASKS', 'KPI', 'REPORTS', 'ORG', 'ATTACHMENTS_S3']),
+      price: 35000000,
+      description: 'Dành cho trường liên cấp, nhiều điểm trường hoặc trên 100 cán bộ giáo viên.',
+    },
+  });
+  console.log('✓ Đã tạo 2 gói thuê: Standard (100 user) & Enterprise (500 user)');
+
+  const sysAdmin = await prisma.user.create({
+    data: {
+      fullName: 'Quản trị Nền tảng (System Admin)',
+      email: 'sysadmin@tnedu.vn',
+      phone: '0900000001',
+      passwordHash: defaultPasswordHash,
+      title: 'Platform System Administrator',
+      isSystemAdmin: true,
+      isActive: true,
+      avatarUrl: 'https://ui-avatars.com/api/?name=System+Admin&background=0F172A&color=fff',
+      roles: {
+        create: {
+          role: Role.SYSTEM_ADMIN,
+        },
+      },
+    },
+  });
+  console.log('✓ Đã tạo tài khoản System Admin: sysadmin@tnedu.vn (0900000001)');
+
+  // 1. TẠO TENANT 1: TH & THCS PHƯỚC TÂN
+  const tenant1 = await prisma.tenant.create({
+    data: {
+      name: 'Trường TH và THCS Phước Tân',
+      code: 'PHUOC_TAN',
+      status: 'ACTIVE',
+    },
+  });
+
+  await prisma.tenantSubscription.create({
+    data: {
+      tenantId: tenant1.id,
+      packageId: pkgEnterprise.id,
+      startDate: new Date('2026-08-01'),
+      endDate: new Date('2027-07-31'),
+      status: 'ACTIVE',
+    },
+  });
+  console.log('✓ Đã tạo Tenant 1: TH & THCS Phước Tân (Gói Enterprise)');
+
+  const roleMapT1 = await seedTenantRolesAndConfig(tenant1.id);
+  console.log('✓ Đã cấu hình Roles, Permissions, Categories, KPIs cho Tenant 1');
+
+  // 1.1 TẠO TRƯỜNG HỌC 1
   const school = await prisma.school.create({
     data: {
+      tenantId: tenant1.id,
       name: 'Trường TH và THCS Phước Tân',
       code: 'TH_THCS_PHUOC_TAN',
       address: 'Phường Phước Tân, TP. Biên Hòa, Tỉnh Đồng Nai',
@@ -85,6 +276,7 @@ async function main() {
   // 2. TẠO 3 ĐIỂM TRƯỜNG
   const locMain = await prisma.location.create({
     data: {
+      tenantId: tenant1.id,
       schoolId: school.id,
       name: 'Điểm chính (Trung tâm)',
       code: 'DIEM_CHINH',
@@ -99,6 +291,7 @@ async function main() {
 
   const locPh1 = await prisma.location.create({
     data: {
+      tenantId: tenant1.id,
       schoolId: school.id,
       name: 'Phân hiệu 1 (Tân Lập)',
       code: 'PHAN_HIEU_1',
@@ -113,6 +306,7 @@ async function main() {
 
   const locPh2 = await prisma.location.create({
     data: {
+      tenantId: tenant1.id,
       schoolId: school.id,
       name: 'Phân hiệu 2 (Vườn Dừa)',
       code: 'PHAN_HIEU_2',
@@ -128,28 +322,36 @@ async function main() {
 
   // 3. TẠO 8 TỔ CHỨC / PHÒNG BAN
   const orgBGH = await prisma.orgUnit.create({
-    data: { schoolId: school.id, name: 'Ban Giám hiệu', code: 'BGH', orderIndex: 1 },
+    data: { tenantId: tenant1.id,
+      schoolId: school.id, name: 'Ban Giám hiệu', code: 'BGH', orderIndex: 1 },
   });
   const orgToanTin = await prisma.orgUnit.create({
-    data: { schoolId: school.id, name: 'Tổ Toán - Tin học', code: 'TOAN_TIN', orderIndex: 2 },
+    data: { tenantId: tenant1.id,
+      schoolId: school.id, name: 'Tổ Toán - Tin học', code: 'TOAN_TIN', orderIndex: 2 },
   });
   const orgVanSuDia = await prisma.orgUnit.create({
-    data: { schoolId: school.id, name: 'Tổ Ngữ văn - Lịch sử - Địa lý', code: 'VAN_SU_DIA', orderIndex: 3 },
+    data: { tenantId: tenant1.id,
+      schoolId: school.id, name: 'Tổ Ngữ văn - Lịch sử - Địa lý', code: 'VAN_SU_DIA', orderIndex: 3 },
   });
   const orgTiengAnh = await prisma.orgUnit.create({
-    data: { schoolId: school.id, name: 'Tổ Tiếng Anh', code: 'TIENG_ANH', orderIndex: 4 },
+    data: { tenantId: tenant1.id,
+      schoolId: school.id, name: 'Tổ Tiếng Anh', code: 'TIENG_ANH', orderIndex: 4 },
   });
   const orgKHTN = await prisma.orgUnit.create({
-    data: { schoolId: school.id, name: 'Tổ Khoa học Tự nhiên (Lý - Hóa - Sinh)', code: 'KHTN', orderIndex: 5 },
+    data: { tenantId: tenant1.id,
+      schoolId: school.id, name: 'Tổ Khoa học Tự nhiên (Lý - Hóa - Sinh)', code: 'KHTN', orderIndex: 5 },
   });
   const orgTheNhacHoa = await prisma.orgUnit.create({
-    data: { schoolId: school.id, name: 'Tổ Thể dục - Âm nhạc - Mỹ thuật', code: 'THE_NHAC_HOA', orderIndex: 6 },
+    data: { tenantId: tenant1.id,
+      schoolId: school.id, name: 'Tổ Thể dục - Âm nhạc - Mỹ thuật', code: 'THE_NHAC_HOA', orderIndex: 6 },
   });
   const orgGDCD = await prisma.orgUnit.create({
-    data: { schoolId: school.id, name: 'Tổ GDCD - Hoạt động trải nghiệm', code: 'GDCD_HDTN', orderIndex: 7 },
+    data: { tenantId: tenant1.id,
+      schoolId: school.id, name: 'Tổ GDCD - Hoạt động trải nghiệm', code: 'GDCD_HDTN', orderIndex: 7 },
   });
   const orgVanPhong = await prisma.orgUnit.create({
-    data: { schoolId: school.id, name: 'Tổ Văn phòng (Hành chính - Kế toán - Y tế)', code: 'VAN_PHONG', orderIndex: 8 },
+    data: { tenantId: tenant1.id,
+      schoolId: school.id, name: 'Tổ Văn phòng (Hành chính - Kế toán - Y tế)', code: 'VAN_PHONG', orderIndex: 8 },
   });
   console.log('✓ Đã tạo 8 tổ chuyên môn & văn phòng');
 
@@ -174,6 +376,7 @@ async function main() {
         phone,
         passwordHash: defaultPasswordHash,
         title,
+        tenantId: tenant1.id,
         schoolId: school.id,
         primaryLocationId: primaryLocId,
         primaryOrgUnitId: primaryOrgId,
@@ -181,6 +384,7 @@ async function main() {
         roles: {
           create: {
             role,
+            roleId: roleMapT1[role]?.id || null,
             scopeLocationId: scopeLocId || null,
             scopeOrgUnitId: scopeOrgId || null,
           },
@@ -386,6 +590,7 @@ async function main() {
   // 5. TẠO KẾ HOẠCH NHIỀU CẤP (Năm -> Học kỳ -> Tháng)
   const planYear = await prisma.plan.create({
     data: {
+      tenantId: tenant1.id,
       schoolId: school.id,
       title: 'Kế hoạch Chiến lược & Hoạt động Năm học 2026 - 2027',
       description: 'Kế hoạch tổng thể vận hành trường TH và THCS Phước Tân sau sáp nhập 3 điểm trường',
@@ -399,6 +604,7 @@ async function main() {
 
   const planTerm1 = await prisma.plan.create({
     data: {
+      tenantId: tenant1.id,
       schoolId: school.id,
       title: 'Kế hoạch Học kỳ I (Năm học 2026 - 2027)',
       description: 'Trọng tâm ổn định bộ máy, chuẩn hóa cơ sở vật chất và đổi mới phương pháp giảng dạy',
@@ -413,6 +619,7 @@ async function main() {
 
   const p1 = await prisma.plan.create({
     data: {
+      tenantId: tenant1.id,
       schoolId: school.id,
       title: '1. Ổn định tổ chức bộ máy và nhân sự sau sáp nhập 3 điểm trường',
       level: PlanLevel.THANG,
@@ -426,6 +633,7 @@ async function main() {
 
   const p2 = await prisma.plan.create({
     data: {
+      tenantId: tenant1.id,
       schoolId: school.id,
       title: '2. Hoàn thiện và công khai Kế hoạch giáo dục nhà trường',
       level: PlanLevel.THANG,
@@ -439,6 +647,7 @@ async function main() {
 
   const p3 = await prisma.plan.create({
     data: {
+      tenantId: tenant1.id,
       schoolId: school.id,
       title: '3. Trình UBND & Phòng GD&ĐT phê duyệt Đề án vị trí việc làm',
       level: PlanLevel.THANG,
@@ -452,6 +661,7 @@ async function main() {
 
   const p4 = await prisma.plan.create({
     data: {
+      tenantId: tenant1.id,
       schoolId: school.id,
       title: '4. Rà soát, phân loại học sinh khó khăn cần hỗ trợ tại 3 điểm trường',
       level: PlanLevel.THANG,
@@ -465,6 +675,7 @@ async function main() {
 
   const p5 = await prisma.plan.create({
     data: {
+      tenantId: tenant1.id,
       schoolId: school.id,
       title: '5. Tổ chức Hội nghị Cán bộ, Viên chức, Người lao động đầu năm',
       level: PlanLevel.THANG,
@@ -503,7 +714,8 @@ async function main() {
   }) => {
     const task = await prisma.task.create({
       data: {
-        schoolId: school.id,
+        tenantId: tenant1.id,
+      schoolId: school.id,
         code: data.code,
         title: data.title,
         description: data.description,
@@ -519,15 +731,17 @@ async function main() {
         createdById: data.createdById,
         assignments: {
           create: [
-            { userId: data.chuTriId, role: TaskAssignmentRole.CHU_TRI, note: 'Chịu trách nhiệm chính' },
+            { tenantId: tenant1.id, userId: data.chuTriId, role: TaskAssignmentRole.CHU_TRI, note: 'Chịu trách nhiệm chính' },
             ...(data.phoiHopIds || []).map((uid) => ({
+              tenantId: tenant1.id,
               userId: uid,
               role: TaskAssignmentRole.PHOI_HOP,
               note: 'Đầu mối phối hợp',
             })),
-            ...(data.kiemTraId ? [{ userId: data.kiemTraId, role: TaskAssignmentRole.KIEM_TRA, note: 'Kiểm tra chất lượng' }] : []),
-            ...(data.pheDuyetId ? [{ userId: data.pheDuyetId, role: TaskAssignmentRole.PHE_DUYET, note: 'Ban Giám hiệu phê duyệt' }] : []),
+            ...(data.kiemTraId ? [{ tenantId: tenant1.id, userId: data.kiemTraId, role: TaskAssignmentRole.KIEM_TRA, note: 'Kiểm tra chất lượng' }] : []),
+            ...(data.pheDuyetId ? [{ tenantId: tenant1.id, userId: data.pheDuyetId, role: TaskAssignmentRole.PHE_DUYET, note: 'Ban Giám hiệu phê duyệt' }] : []),
             ...(data.theoDoiIds || []).map((uid) => ({
+              tenantId: tenant1.id,
               userId: uid,
               role: TaskAssignmentRole.THEO_DOI,
               note: 'Theo dõi tiến độ',
@@ -537,6 +751,7 @@ async function main() {
         logs: {
           create: [
             {
+              tenantId: tenant1.id,
               userId: data.createdById,
               action: 'TAO_MOI',
               newStatus: data.status,
@@ -1141,6 +1356,7 @@ async function main() {
   await prisma.notification.createMany({
     data: [
       {
+        tenantId: tenant1.id,
         userId: uTTGDCD.id,
         type: NotificationType.CAN_BO_SUNG,
         title: 'Yêu cầu bổ sung nội dung công việc CV-008',
@@ -1148,6 +1364,7 @@ async function main() {
         link: '/tasks/CV-008',
       },
       {
+        tenantId: tenant1.id,
         userId: uPHTChuyenMon.id,
         type: NotificationType.NHAC_VIEC,
         title: 'Công việc CV-007 đang chờ kiểm tra',
@@ -1155,6 +1372,7 @@ async function main() {
         link: '/tasks/CV-007',
       },
       {
+        tenantId: tenant1.id,
         userId: createdTeachers[18].id,
         type: NotificationType.HET_HAN,
         title: 'Cảnh báo quá hạn: Công việc CV-014',
@@ -1163,6 +1381,221 @@ async function main() {
       },
     ],
   });
+
+  
+  // =========================================================================
+  // 8. TẠO TENANT 2 (TRƯỜNG THCS NGUYỄN HUỆ) - ĐỘC LẬP HOÀN TOÀN
+  // =========================================================================
+  const tenant2 = await prisma.tenant.create({
+    data: {
+      name: 'Trường THCS Nguyễn Huệ',
+      code: 'NGUYEN_HUE',
+      status: 'ACTIVE',
+    },
+  });
+
+  await prisma.tenantSubscription.create({
+    data: {
+      tenantId: tenant2.id,
+      packageId: pkgStandard.id,
+      startDate: new Date('2026-09-01'),
+      endDate: new Date('2027-08-31'),
+      status: 'ACTIVE',
+    },
+  });
+
+  const school2 = await prisma.school.create({
+    data: {
+      tenantId: tenant2.id,
+      name: 'Trường THCS Nguyễn Huệ',
+      code: 'THCS_NGUYEN_HUE',
+      address: 'Số 45 đường Hùng Vương, TP. Biên Hòa, Tỉnh Đồng Nai',
+      phone: '02513999888',
+      email: 'thcs_nguyenhue@dongnai.edu.vn',
+      principalName: 'Nguyễn Văn Hùng',
+      totalStudents: 1850,
+      totalClasses: 42,
+      totalStaff: 75,
+      schoolYear: '2026 - 2027',
+    },
+  });
+
+  const locNHMain = await prisma.location.create({
+    data: {
+      tenantId: tenant2.id,
+      schoolId: school2.id,
+      name: 'Điểm chính (Hùng Vương)',
+      code: 'NH_MAIN',
+      isMain: true,
+      studentCount: 1200,
+      classCount: 28,
+    },
+  });
+
+  const locNHPh1 = await prisma.location.create({
+    data: {
+      tenantId: tenant2.id,
+      schoolId: school2.id,
+      name: 'Phân hiệu Bến Cá',
+      code: 'NH_PH1',
+      isMain: false,
+      studentCount: 650,
+      classCount: 14,
+    },
+  });
+
+  const orgNHBGH = await prisma.orgUnit.create({
+    data: { tenantId: tenant2.id, schoolId: school2.id, name: 'Ban Giám hiệu & Văn phòng', code: 'NH_BGH', orderIndex: 1 },
+  });
+  const orgNHTuNhien = await prisma.orgUnit.create({
+    data: { tenantId: tenant2.id, schoolId: school2.id, name: 'Tổ Tự nhiên (Toán - KHTN - Tin)', code: 'NH_TUNHIEN', orderIndex: 2 },
+  });
+  const orgNHXaHoi = await prisma.orgUnit.create({
+    data: { tenantId: tenant2.id, schoolId: school2.id, name: 'Tổ Xã hội (Văn - Sử - Địa - Ngoại ngữ)', code: 'NH_XAHOI', orderIndex: 3 },
+  });
+
+  const roleMapT2 = await seedTenantRolesAndConfig(tenant2.id);
+  console.log('✓ Đã cấu hình Roles, Permissions, Categories, KPIs cho Tenant 2');
+
+  // Admin Tenant 2
+  const uAdminTenant2 = await prisma.user.create({
+    data: {
+      tenantId: tenant2.id,
+      schoolId: school2.id,
+      fullName: 'Đặng Thị Thu Hà',
+      email: 'admin.nguyenhue@dongnai.edu.vn',
+      phone: '0905555666',
+      passwordHash: defaultPasswordHash,
+      title: 'Quản trị hệ thống (THCS Nguyễn Huệ)',
+      primaryLocationId: locNHMain.id,
+      primaryOrgUnitId: orgNHBGH.id,
+      roles: { create: [{ role: Role.ADMIN, roleId: roleMapT2[Role.ADMIN]?.id }] },
+    },
+  });
+
+  // Hiệu trưởng Tenant 2
+  const uHieuTruongTenant2 = await prisma.user.create({
+    data: {
+      tenantId: tenant2.id,
+      schoolId: school2.id,
+      fullName: 'Nguyễn Văn Hùng',
+      email: 'hieutruong.nguyenhue@dongnai.edu.vn',
+      phone: '0905555777',
+      passwordHash: defaultPasswordHash,
+      title: 'Hiệu trưởng THCS Nguyễn Huệ',
+      primaryLocationId: locNHMain.id,
+      primaryOrgUnitId: orgNHBGH.id,
+      roles: { create: [{ role: Role.HIEU_TRUONG, roleId: roleMapT2[Role.HIEU_TRUONG]?.id }] },
+    },
+  });
+
+  // Giáo viên 1 Tenant 2
+  const uGV1Tenant2 = await prisma.user.create({
+    data: {
+      tenantId: tenant2.id,
+      schoolId: school2.id,
+      fullName: 'Trần Minh Quang',
+      email: 'quang.tm@nguyenhue.edu.vn',
+      phone: '0905555888',
+      passwordHash: defaultPasswordHash,
+      title: 'Tổ trưởng Tự nhiên (Toán)',
+      primaryLocationId: locNHMain.id,
+      primaryOrgUnitId: orgNHTuNhien.id,
+      roles: { create: [{ role: Role.TO_TRUONG, roleId: roleMapT2[Role.TO_TRUONG]?.id, scopeOrgUnitId: orgNHTuNhien.id }] },
+    },
+  });
+
+  // Giáo viên 2 Tenant 2
+  const uGV2Tenant2 = await prisma.user.create({
+    data: {
+      tenantId: tenant2.id,
+      schoolId: school2.id,
+      fullName: 'Phan Thị Lan',
+      email: 'lan.pt@nguyenhue.edu.vn',
+      phone: '0905555999',
+      passwordHash: defaultPasswordHash,
+      title: 'Giáo viên Ngữ văn',
+      primaryLocationId: locNHPh1.id,
+      primaryOrgUnitId: orgNHXaHoi.id,
+      roles: { create: [{ role: Role.GIAO_VIEN, roleId: roleMapT2[Role.GIAO_VIEN]?.id }] },
+    },
+  });
+
+  // Plan Tenant 2
+  const planNH = await prisma.plan.create({
+    data: {
+      tenantId: tenant2.id,
+      schoolId: school2.id,
+      title: 'Kế hoạch Giáo dục & Chuyên môn Năm học 2026-2027 (THCS Nguyễn Huệ)',
+      level: PlanLevel.NAM,
+      startDate: new Date('2026-09-01'),
+      endDate: new Date('2027-05-31'),
+      progressPercent: 40,
+      createdById: uHieuTruongTenant2.id,
+    },
+  });
+
+  // Tasks Tenant 2
+  await prisma.task.create({
+    data: {
+      tenantId: tenant2.id,
+      schoolId: school2.id,
+      code: 'CV-NH-01',
+      title: 'Khai mạc tuần lễ hưởng ứng học tập suốt đời năm 2026 (THCS Nguyễn Huệ)',
+      description: 'Tổ chức lễ phát động và giao lưu đọc sách tại Điểm chính',
+      planId: planNH.id,
+      locationId: locNHMain.id,
+      orgUnitId: orgNHXaHoi.id,
+      priority: TaskPriority.CAO,
+      status: TaskStatus.DANG_THUC_HIEN,
+      progressPercent: 60,
+      startDate: new Date('2026-09-10'),
+      dueDate: new Date('2026-09-25'),
+      createdById: uHieuTruongTenant2.id,
+      assignments: {
+        create: [
+          { tenantId: tenant2.id, userId: uGV2Tenant2.id, role: TaskAssignmentRole.CHU_TRI },
+          { tenantId: tenant2.id, userId: uHieuTruongTenant2.id, role: TaskAssignmentRole.PHE_DUYET },
+        ],
+      },
+      logs: {
+        create: [
+          { tenantId: tenant2.id, userId: uHieuTruongTenant2.id, action: 'TAO_MOI', newStatus: TaskStatus.DANG_THUC_HIEN, newProgress: 60, note: 'Khởi tạo công việc' },
+        ],
+      },
+    },
+  });
+
+  await prisma.task.create({
+    data: {
+      tenantId: tenant2.id,
+      schoolId: school2.id,
+      code: 'CV-NH-02',
+      title: 'Khảo sát cơ sở vật chất phòng Tin học Phân hiệu Bến Cá',
+      description: 'Kiểm tra đường truyền Internet và số lượng máy tính phục vụ học tập',
+      planId: planNH.id,
+      locationId: locNHPh1.id,
+      orgUnitId: orgNHTuNhien.id,
+      priority: TaskPriority.TRUNG_BINH,
+      status: TaskStatus.DA_GIAO,
+      progressPercent: 0,
+      startDate: new Date('2026-09-12'),
+      dueDate: new Date('2026-09-28'),
+      createdById: uHieuTruongTenant2.id,
+      assignments: {
+        create: [
+          { tenantId: tenant2.id, userId: uGV1Tenant2.id, role: TaskAssignmentRole.CHU_TRI },
+        ],
+      },
+      logs: {
+        create: [
+          { tenantId: tenant2.id, userId: uHieuTruongTenant2.id, action: 'TAO_MOI', newStatus: TaskStatus.DA_GIAO, newProgress: 0, note: 'Giao việc rà soát' },
+        ],
+      },
+    },
+  });
+
+  console.log('✓ Đã tạo Tenant 2: THCS Nguyễn Huệ (Gói Standard, 4 Nhân sự, 2 Điểm trường, 3 Tổ, 2 Task)');
 
   console.log('🎉 Seed dữ liệu mẫu hoàn tất thành công 100%!');
 }

@@ -96,6 +96,7 @@ async function runTests() {
   // Tạo 1 attachment giả lập vào CSDL để test tiếp
   await prisma.attachment.create({
     data: {
+      tenantId: dungUser.tenantId || 'PHUOC_TAN',
       taskId: createdTask.id,
       uploadedById: dungUser.id,
       fileName: 'bien_ban_kiem_tra_pccc.pdf',

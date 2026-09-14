@@ -103,4 +103,10 @@ export class PlanService {
       .post<{ success: boolean; data: PlanItem }>(`/api/plans/${planId}/duplicate`, options)
       .pipe(map((res) => res.data));
   }
+
+  getPlanLogs(id: string): Observable<any[]> {
+    return this.http
+      .get<{ success: boolean; data: any[] }>(`/api/plans/${id}/logs`)
+      .pipe(map((res) => res.data || []));
+  }
 }

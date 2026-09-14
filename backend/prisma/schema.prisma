@@ -1,6 +1,7 @@
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -13,12 +14,24 @@ generator client {
 // --------------------------------------------------------
 
 enum Role {
+  SYSTEM_ADMIN
+  ADMIN
   HIEU_TRUONG
   PHO_HIEU_TRUONG
   TO_TRUONG
   GIAO_VIEN
   NHAN_VIEN
-  ADMIN
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
 }
 
 enum PlanLevel {
@@ -67,12 +80,109 @@ enum NotificationType {
   HE_THONG
 }
 
+enum TaskEvaluationRating {
+  XUAT_SAC
+  TOT
+  HOAN_THANH
+  CHUA_DAT
+}
+
 // --------------------------------------------------------
-// MODELS
+// MULTI-TENANCY CORE MODELS (PLATFORM LAYER)
+// --------------------------------------------------------
+
+model Tenant {
+  id            String       @id @default(uuid())
+  code          String       @unique
+  name          String
+  status        TenantStatus @default(ACTIVE)
+  logoUrl       String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  school          School?
+  subscriptions   TenantSubscription[]
+  systemAuditLogs SystemAuditLog[] @relation("TargetTenant")
+  locations       Location[]
+  orgUnits        OrgUnit[]
+  users           User[]
+  plans           Plan[]
+  tasks           Task[]
+  taskAssignments TaskAssignment[]
+  taskLogs        TaskLog[]
+  attachments     Attachment[]
+  notifications   Notification[]
+  comments        Comment[]
+  adminAuditLogs  AdminAuditLog[]
+  roles           RoleModel[]
+  categories      SharedCategory[]
+  kpiDefinitions  KPIDefinition[]
+  kpiRecords      KPIRecord[]
+  planLogs        PlanLog[]
+
+  @@index([status])
+  @@index([code])
+}
+
+model Package {
+  id             String   @id @default(uuid())
+  name           String
+  code           String   @unique
+  maxAccounts    Int      @default(100)
+  storageQuotaGB Float    @default(20)
+  enabledModules String?  // JSON string ví dụ: ["KPI", "REPORTS", "PLANS", "TASKS"]
+  price          Float?   @default(0)
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  subscriptions  TenantSubscription[]
+
+  @@index([code])
+}
+
+model TenantSubscription {
+  id         String             @id @default(uuid())
+  tenantId   String
+  packageId  String
+  startDate  DateTime           @default(now())
+  endDate    DateTime
+  status     SubscriptionStatus @default(ACTIVE)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  package    Package            @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([packageId])
+  @@index([status])
+}
+
+model SystemAuditLog {
+  id             String   @id @default(uuid())
+  actorUserId    String
+  action         String   // CREATE_TENANT, UPDATE_TENANT, SUSPEND_TENANT, ACTIVATE_TENANT, CREATE_PACKAGE, UPDATE_PACKAGE, CREATE_SUBSCRIPTION
+  targetTenantId String?
+  detail         String?
+  ipAddress      String?
+  createdAt      DateTime @default(now())
+
+  actorUser      User     @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+  targetTenant   Tenant?  @relation("TargetTenant", fields: [targetTenantId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId])
+  @@index([targetTenantId])
+  @@index([createdAt])
+}
+
+// --------------------------------------------------------
+// BUSINESS MODELS (TENANT-SCOPED)
 // --------------------------------------------------------
 
 model School {
   id                  String   @id @default(uuid())
+  tenantId            String   @unique
   name                String
   code                String   @unique
   address             String?
@@ -90,6 +200,7 @@ model School {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   locations Location[]
   orgUnits  OrgUnit[]
   users     User[]
@@ -99,6 +210,7 @@ model School {
 
 model Location {
   id                 String   @id @default(uuid())
+  tenantId           String
   schoolId           String
   name               String
   code               String
@@ -112,6 +224,7 @@ model Location {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   school        School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   manager       User?          @relation("LocationManager", fields: [managerId], references: [id], onDelete: SetNull)
   users         User[]         @relation("PrimaryLocation")
@@ -119,12 +232,14 @@ model Location {
   tasks         Task[]
 
   @@unique([schoolId, code])
+  @@index([tenantId])
+  @@index([tenantId, isMain])
   @@index([schoolId])
-  @@index([isMain])
 }
 
 model OrgUnit {
   id          String    @id @default(uuid())
+  tenantId    String
   schoolId    String
   name        String
   code        String
@@ -133,34 +248,40 @@ model OrgUnit {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   school      School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   parent      OrgUnit?   @relation("OrgHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children    OrgUnit[]  @relation("OrgHierarchy")
   users       User[]     @relation("PrimaryOrgUnit")
   userRoles   UserRole[] @relation("ScopedOrgUnit")
   tasks       Task[]
+  assignedTasks Task[]   @relation("TaskAssignedOrgUnit")
 
   @@unique([schoolId, code])
+  @@index([tenantId])
+  @@index([tenantId, parentId])
   @@index([schoolId])
-  @@index([parentId])
 }
 
 model User {
   id                String    @id @default(uuid())
+  tenantId          String?
   email             String    @unique
   phone             String    @unique
   passwordHash      String
   fullName          String
   title             String?   // Chức vụ / môn giảng dạy chính
   avatarUrl         String?
-  schoolId          String
+  schoolId          String?
   primaryLocationId String?
   primaryOrgUnitId  String?
   isActive          Boolean   @default(true)
+  isSystemAdmin     Boolean   @default(false)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  school            School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  tenant            Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  school            School?         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   primaryLocation   Location?       @relation("PrimaryLocation", fields: [primaryLocationId], references: [id], onDelete: SetNull)
   primaryOrgUnit    OrgUnit?        @relation("PrimaryOrgUnit", fields: [primaryOrgUnitId], references: [id], onDelete: SetNull)
   
@@ -169,39 +290,50 @@ model User {
   createdTasks      Task[]          @relation("TaskCreatedBy")
   taskAssignments   TaskAssignment[]
   taskLogs          TaskLog[]
+  planLogs          PlanLog[]
+  proposedTasks     Task[]          @relation("TaskProposedBy")
+  evaluatedTasks    Task[]          @relation("TaskEvaluatedBy")
   comments          Comment[]
   attachments       Attachment[]
   notifications     Notification[]
   managedLocations  Location[]      @relation("LocationManager")
   adminAuditLogs    AdminAuditLog[]
+  systemAuditLogs   SystemAuditLog[]
+  kpiRecords        KPIRecord[]
 
+  @@index([tenantId])
+  @@index([tenantId, isActive])
+  @@index([tenantId, primaryLocationId])
+  @@index([tenantId, primaryOrgUnitId])
   @@index([schoolId])
-  @@index([primaryLocationId])
-  @@index([primaryOrgUnitId])
-  @@index([isActive])
 }
 
 model UserRole {
-  id              String    @id @default(uuid())
+  id              String     @id @default(uuid())
+  tenantId        String?
   userId          String
   role            Role
+  roleId          String?
   scopeLocationId String?
   scopeOrgUnitId  String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  scopeLocation   Location? @relation("ScopedLocation", fields: [scopeLocationId], references: [id], onDelete: SetNull)
-  scopeOrgUnit    OrgUnit?  @relation("ScopedOrgUnit", fields: [scopeOrgUnitId], references: [id], onDelete: SetNull)
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleModel       RoleModel? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  scopeLocation   Location?  @relation("ScopedLocation", fields: [scopeLocationId], references: [id], onDelete: SetNull)
+  scopeOrgUnit    OrgUnit?   @relation("ScopedOrgUnit", fields: [scopeOrgUnitId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([role])
+  @@index([roleId])
   @@index([scopeLocationId])
   @@index([scopeOrgUnitId])
 }
 
 model Plan {
   id              String      @id @default(uuid())
+  tenantId        String
   schoolId        String
   title           String
   description     String?
@@ -214,81 +346,133 @@ model Plan {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   school          School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   parentPlan      Plan?       @relation("PlanHierarchy", fields: [parentPlanId], references: [id], onDelete: SetNull)
   childrenPlans   Plan[]      @relation("PlanHierarchy")
   createdBy       User        @relation("PlanCreatedBy", fields: [createdById], references: [id])
   tasks           Task[]
+  logs            PlanLog[]
 
+  @@index([tenantId])
+  @@index([tenantId, level])
+  @@index([tenantId, startDate, endDate])
   @@index([schoolId])
   @@index([parentPlanId])
-  @@index([level])
-  @@index([startDate, endDate])
+}
+
+model PlanLog {
+  id        String   @id @default(uuid())
+  tenantId  String
+  planId    String
+  userId    String
+  action    String   // TAO_MOI, CAP_NHAT, DIEU_CHINH_TIEN_DO, SAO_CHEP, XOA
+  oldValues Json?
+  newValues Json?
+  note      String?
+  createdAt DateTime @default(now())
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, planId])
+  @@index([planId])
+  @@index([createdAt])
 }
 
 model Task {
-  id              String        @id @default(uuid())
-  schoolId        String
-  code            String?
-  title           String
-  description     String?
-  planId          String?
-  locationId      String?
-  orgUnitId       String?
-  priority        TaskPriority  @default(TRUNG_BINH)
-  status          TaskStatus    @default(DA_GIAO)
-  progressPercent Int           @default(0)
-  requireAttachment Boolean     @default(false)
-  startDate       DateTime?
-  dueDate         DateTime?
-  completedAt     DateTime?
-  createdById     String
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                String                @id @default(uuid())
+  tenantId          String
+  schoolId          String
+  code              String?
+  title             String
+  description       String?
+  planId            String?
+  locationId        String?
+  orgUnitId         String?
+  assignedOrgUnitId String?
+  isOrgAssignment   Boolean               @default(false)
+  priority          TaskPriority          @default(TRUNG_BINH)
+  status            TaskStatus            @default(DA_GIAO)
+  progressPercent   Int                   @default(0)
+  requireAttachment Boolean               @default(false)
+  startDate         DateTime?
+  dueDate           DateTime?
+  completedAt       DateTime?
+  createdById       String
 
+  // Đánh giá kết quả (TT 70, 89)
+  evaluationRating  TaskEvaluationRating?
+  evaluationComment String?
+  evaluatedAt       DateTime?
+  evaluatedById     String?
+
+  // Đề xuất công việc (TT 77, 113)
+  isProposal        Boolean               @default(false)
+  proposalStatus    String?               // CHO_DUYET, DA_DUYET, TU_CHOI
+  proposalNote      String?
+  proposedById      String?
+
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   school          School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   plan            Plan?         @relation(fields: [planId], references: [id], onDelete: SetNull)
   location        Location?     @relation(fields: [locationId], references: [id], onDelete: SetNull)
   orgUnit         OrgUnit?      @relation(fields: [orgUnitId], references: [id], onDelete: SetNull)
+  assignedOrgUnit OrgUnit?      @relation("TaskAssignedOrgUnit", fields: [assignedOrgUnitId], references: [id], onDelete: SetNull)
   createdBy       User          @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  evaluatedBy     User?         @relation("TaskEvaluatedBy", fields: [evaluatedById], references: [id], onDelete: SetNull)
+  proposedBy      User?         @relation("TaskProposedBy", fields: [proposedById], references: [id], onDelete: SetNull)
 
   assignments     TaskAssignment[]
   logs            TaskLog[]
   attachments     Attachment[]
   comments        Comment[]
 
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, dueDate])
+  @@index([tenantId, planId])
+  @@index([tenantId, locationId])
+  @@index([tenantId, orgUnitId])
+  @@index([tenantId, assignedOrgUnitId])
+  @@index([tenantId, isProposal])
+  @@index([tenantId, status, dueDate])
   @@index([schoolId])
-  @@index([planId])
-  @@index([locationId])
-  @@index([orgUnitId])
   @@index([status])
   @@index([dueDate])
   @@index([createdById])
   @@index([createdAt])
-  @@index([schoolId, status])
-  @@index([planId, status])
-  @@index([dueDate, status])
 }
 
 model TaskAssignment {
   id          String              @id @default(uuid())
+  tenantId    String
   taskId      String
   userId      String
   role        TaskAssignmentRole
   note        String?
   assignedAt  DateTime            @default(now())
 
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   task        Task                @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, userId, role])
+  @@index([tenantId])
+  @@index([tenantId, taskId])
+  @@index([tenantId, userId])
   @@index([taskId])
   @@index([userId])
-  @@index([userId, role])
 }
 
 model TaskLog {
   id          String      @id @default(uuid())
+  tenantId    String
   taskId      String
   userId      String
   action      String      // TAO_MOI, CAP_NHAT_TIEN_DO, NOP_MINH_CHUNG, YEU_CAU_BO_SUNG, KIEM_TRA_DAT, PHE_DUYET, DONG, ...
@@ -296,19 +480,25 @@ model TaskLog {
   newStatus   TaskStatus?
   oldProgress Int?
   newProgress Int?
+  oldValues   Json?
+  newValues   Json?
   note        String?
   createdAt   DateTime    @default(now())
 
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   task        Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   attachments Attachment[]
 
+  @@index([tenantId])
+  @@index([tenantId, taskId])
   @@index([taskId])
   @@index([createdAt])
 }
 
 model Attachment {
   id           String    @id @default(uuid())
+  tenantId     String
   taskId       String?
   taskLogId    String?
   uploadedById String
@@ -319,10 +509,13 @@ model Attachment {
   mimeType     String
   createdAt    DateTime  @default(now())
 
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   task         Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   taskLog      TaskLog?  @relation(fields: [taskLogId], references: [id], onDelete: SetNull)
   uploadedBy   User      @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
+  @@index([tenantId, taskId])
   @@index([taskId])
   @@index([taskLogId])
   @@index([uploadedById])
@@ -330,6 +523,7 @@ model Attachment {
 
 model Notification {
   id        String           @id @default(uuid())
+  tenantId  String
   userId    String
   type      NotificationType @default(HE_THONG)
   title     String
@@ -338,29 +532,39 @@ model Notification {
   isRead    Boolean          @default(false)
   createdAt DateTime         @default(now())
 
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
+  @@index([tenantId, userId, isRead])
   @@index([userId, isRead])
   @@index([userId, createdAt])
 }
 
 model Comment {
-  id        String   @id @default(uuid())
-  taskId    String
-  userId    String
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(uuid())
+  tenantId    String
+  taskId      String
+  userId      String
+  content     String
+  mentions    Json?
+  attachments Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
+  @@index([tenantId, taskId])
   @@index([taskId])
   @@index([createdAt])
 }
 
 model AdminAuditLog {
   id          String   @id @default(uuid())
+  tenantId    String
   actorUserId String
   action      String   // CREATE_USER, UPDATE_USER, LOCK_USER, UNLOCK_USER, RESET_PASSWORD, DELETE_USER, ADD_USER_ROLE, REMOVE_USER_ROLE, UPDATE_LOCATION, DELETE_LOCATION
   targetType  String   // USER, ROLE, LOCATION
@@ -368,8 +572,138 @@ model AdminAuditLog {
   detail      String?
   createdAt   DateTime @default(now())
 
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   actorUser   User     @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
+  @@index([tenantId, actorUserId])
   @@index([actorUserId])
   @@index([createdAt])
 }
+
+// --------------------------------------------------------
+// DYNAMIC RBAC & SHARED CATEGORY MODELS (PHASE 2)
+// --------------------------------------------------------
+
+model Permission {
+  id              String           @id @default(uuid())
+  key             String           @unique
+  name            String
+  category        String           // KE_HOACH, CONG_VIEC, KPI, BAO_CAO, DANH_MUC_TO_CHUC, QUAN_TRI_HE_THONG
+  description     String?
+  createdAt       DateTime         @default(now())
+
+  rolePermissions RolePermission[]
+
+  @@index([category])
+  @@index([key])
+}
+
+model RoleModel {
+  id              String           @id @default(uuid())
+  tenantId        String?
+  code            String
+  name            String
+  description     String?
+  isSystem        Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  tenant          Tenant?          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@index([tenantId, code])
+  @@index([tenantId])
+  @@index([code])
+}
+
+model RolePermission {
+  id           String     @id @default(uuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime   @default(now())
+
+  role         RoleModel  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+model SharedCategory {
+  id          String    @id @default(uuid())
+  tenantId    String
+  type        String    // NAM_HOC, HOC_KY, LOAI_DANH_GIA, CHUC_VU
+  code        String
+  name        String
+  orderIndex  Int       @default(0)
+  isDefault   Boolean   @default(false)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, type, code])
+  @@index([tenantId])
+  @@index([tenantId, type])
+}
+
+model KPIDefinition {
+  id               String    @id @default(uuid())
+  tenantId         String
+  code             String
+  name             String
+  description      String?
+  unit             String    @default("Điểm")
+  targetValue      Float?
+  weight           Float?    @default(1.0)
+  applicableRoles  String?   // JSON string: ["GIAO_VIEN", "TO_TRUONG"]
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model KPIRecord {
+  id                      String    @id @default(uuid())
+  tenantId                String
+  userId                  String
+  periodType              String    // TUAN, THANG, QUY, HOC_KY, NAM_HOC
+  periodKey               String    // e.g. "2026-09", "QUY_3", "HOC_KY_1"
+  schoolYear              String    @default("2026-2027")
+  totalTasks              Int       @default(0)
+  completedBeforeDeadline Int       @default(0)
+  completedOnTime         Int       @default(0)
+  completedLate           Int       @default(0)
+  uncompletedTasks        Int       @default(0)
+  scoreA_Quantity         Float     @default(0)
+  scoreB_Quality          Float     @default(0)
+  scoreC_Timeline         Float     @default(0)
+  scoreD_Leadership       Float     @default(0)
+  finalScore              Float     @default(0)
+  rating                  String    @default("HOAN_THANH") // XUAT_SAC, TOT, HOAN_THANH, CHUA_DAT
+  taskDetails             Json?
+  manualScores            Json?
+  calculatedBy            String?   @default("SYSTEM")
+  calculatedAt            DateTime  @default(now())
+  isFinalized             Boolean   @default(false)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  tenant                  Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, periodKey])
+  @@index([tenantId])
+  @@index([tenantId, userId])
+  @@index([tenantId, periodKey])
+}
+
+

@@ -1,8 +1,7 @@
 import prisma from '../../prisma';
-import fs from 'fs';
-import path from 'path';
 import { AppError } from '../../middlewares/error.middleware';
 import { Role } from '@prisma/client';
+import { StorageService } from '../../services/storage.service';
 
 export class AttachmentService {
   async uploadFiles(
@@ -23,18 +22,20 @@ export class AttachmentService {
     const createdAttachments = [];
 
     for (const f of files) {
-      const fileUrl = `/uploads/tasks/${taskId}/${f.filename}`;
+      // Lưu qua StorageService theo phân tầng tenant
+      const storageResult = await StorageService.saveTaskEvidence(task.tenantId, taskId, f);
 
       const attachment = await prisma.attachment.create({
         data: {
+          tenantId: task.tenantId,
           taskId,
           taskLogId: taskLogId || null,
           uploadedById,
-          fileName: f.filename,
-          originalName: f.originalname,
-          fileUrl,
-          fileSize: f.size,
-          mimeType: f.mimetype,
+          fileName: storageResult.fileName,
+          originalName: storageResult.fileName,
+          fileUrl: storageResult.fileUrl,
+          fileSize: storageResult.fileSize,
+          mimeType: storageResult.mimeType,
         },
         include: {
           uploadedBy: {
@@ -49,6 +50,7 @@ export class AttachmentService {
     // Ghi nhật ký vào TaskLog
     await prisma.taskLog.create({
       data: {
+        tenantId: task.tenantId,
         taskId,
         userId: uploadedById,
         action: 'DINH_KEM_MINH_CHUNG',
@@ -84,16 +86,10 @@ export class AttachmentService {
       throw new AppError('Bạn không có quyền xóa tệp đính kèm này.', 403);
     }
 
-    // Xóa file vật lý trên ổ đĩa
-    if (attachment.taskId) {
-      const filePath = path.join(__dirname, '../../../uploads/tasks', attachment.taskId, attachment.fileName);
-      if (fs.existsSync(filePath)) {
-        try {
-          fs.unlinkSync(filePath);
-        } catch (err) {
-          console.error('Không thể xóa file vật lý:', err);
-        }
-      }
+    // Xóa file vật lý qua StorageService nếu có fileUrl
+    if (attachment.fileUrl.startsWith('/uploads/')) {
+      const relativeKey = attachment.fileUrl.replace('/uploads/', '');
+      await StorageService.deleteFile(attachment.tenantId, relativeKey);
     }
 
     await prisma.attachment.delete({ where: { id } });

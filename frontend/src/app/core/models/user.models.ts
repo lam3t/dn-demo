@@ -25,6 +25,7 @@ export interface LocationItem {
   code: string;
   address?: string | null;
   phone?: string | null;
+  isMain?: boolean | null;
 }
 
 export interface OrgUnitItem {
