@@ -6,7 +6,8 @@ export class LocationController {
   async getAll(req: Request, res: Response, next: NextFunction) {
     try {
       const schoolId = req.user?.schoolId;
-      const locations = await locationService.getAll(schoolId);
+      const tenantId = req.user?.tenantId;
+      const locations = await locationService.getAll(schoolId, tenantId);
       res.status(200).json({ success: true, data: locations });
     } catch (error) {
       next(error);
@@ -36,8 +37,9 @@ export class LocationController {
   async create(req: Request, res: Response, next: NextFunction) {
     try {
       const schoolId = req.body.schoolId || req.user?.schoolId;
+      const tenantId = req.body.tenantId || req.user?.tenantId;
       const actorUserId = req.user?.id;
-      const result = await locationService.create({ ...req.body, schoolId });
+      const result = await locationService.create({ ...req.body, schoolId, tenantId });
 
       if (actorUserId) {
         await adminService.logAudit(

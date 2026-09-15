@@ -5,7 +5,8 @@ export class OrgUnitController {
   async getTree(req: Request, res: Response, next: NextFunction) {
     try {
       const schoolId = req.user?.schoolId;
-      const tree = await orgUnitService.getTree(schoolId);
+      const tenantId = req.user?.tenantId;
+      const tree = await orgUnitService.getTree(schoolId, tenantId);
       res.status(200).json({ success: true, data: tree });
     } catch (error) {
       next(error);
@@ -15,7 +16,8 @@ export class OrgUnitController {
   async getAll(req: Request, res: Response, next: NextFunction) {
     try {
       const schoolId = req.user?.schoolId;
-      const list = await orgUnitService.getAll(schoolId);
+      const tenantId = req.user?.tenantId;
+      const list = await orgUnitService.getAll(schoolId, tenantId);
       res.status(200).json({ success: true, data: list });
     } catch (error) {
       next(error);
@@ -35,7 +37,8 @@ export class OrgUnitController {
   async create(req: Request, res: Response, next: NextFunction) {
     try {
       const schoolId = req.body.schoolId || req.user?.schoolId;
-      const result = await orgUnitService.create({ ...req.body, schoolId });
+      const tenantId = req.body.tenantId || req.user?.tenantId;
+      const result = await orgUnitService.create({ ...req.body, schoolId, tenantId });
       res.status(201).json({
         success: true,
         message: 'Tạo mới tổ/phòng ban thành công.',

@@ -5,15 +5,28 @@ import appCache from '../../utils/cache';
 import { resolveTenantId } from '../../utils/tenant.util';
 
 export class LocationService {
-  async getAll(schoolId?: string) {
-    const cacheKey = `locations:all:${schoolId || 'all'}`;
+  async getAll(schoolId?: string, tenantId?: string) {
+    let effectiveTenantId = tenantId;
+    if (!effectiveTenantId && schoolId) {
+      const school = await prisma.school.findUnique({
+        where: { id: schoolId },
+        select: { tenantId: true },
+      });
+      if (school) effectiveTenantId = school.tenantId;
+    }
+
+    const where: any = {};
+    if (effectiveTenantId) {
+      where.tenantId = effectiveTenantId;
+    } else if (schoolId) {
+      where.schoolId = schoolId;
+    }
+
+    const cacheKey = `locations:all:${effectiveTenantId || schoolId || 'all'}`;
     const cached = appCache.get(cacheKey);
     if (cached) {
       return cached;
     }
-
-    const where: any = {};
-    if (schoolId) where.schoolId = schoolId;
 
     const locations = await prisma.location.findMany({
       where,
