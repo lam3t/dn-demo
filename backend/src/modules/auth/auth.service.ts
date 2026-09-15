@@ -52,11 +52,16 @@ export class AuthService {
       throw new AppError('Tài khoản đã bị tạm khóa. Vui lòng liên hệ quản trị viên.', 403);
     }
 
-    // Kiểm tra trạng thái Tenant (nếu không phải System Admin)
-    if (!user.isSystemAdmin && user.tenant) {
-      if (user.tenant.status === 'SUSPENDED') {
+    // Kiểm tra trạng thái Tenant bắt buộc phải ACTIVE (nếu không phải System Admin)
+    const effectiveTenantId = user.tenantId || user.school?.tenantId || null;
+    if (!user.isSystemAdmin && effectiveTenantId) {
+      let tenantObj = user.tenant;
+      if (!tenantObj) {
+        tenantObj = await prisma.tenant.findUnique({ where: { id: effectiveTenantId } });
+      }
+      if (!tenantObj || tenantObj.status !== 'ACTIVE') {
         throw new AppError(
-          'Trường của bạn hiện đang bị tạm khóa hoặc hết hạn dịch vụ. Vui lòng liên hệ Quản trị viên hệ thống.',
+          'Trường học/Đơn vị của bạn hiện đang bị tạm khóa hoặc ngừng hoạt động. Vui lòng liên hệ Quản trị viên hệ thống.',
           403
         );
       }
@@ -151,11 +156,18 @@ export class AuthService {
       throw new AppError('Người dùng không tồn tại hoặc đã bị khóa.', 401);
     }
 
-    if (!user.isSystemAdmin && user.tenant && user.tenant.status === 'SUSPENDED') {
-      throw new AppError(
-        'Trường của bạn hiện đang bị tạm khóa hoặc hết hạn dịch vụ. Vui lòng liên hệ Quản trị viên hệ thống.',
-        403
-      );
+    const effectiveTenantId = user.tenantId || user.school?.tenantId || null;
+    if (!user.isSystemAdmin && effectiveTenantId) {
+      let tenantObj = user.tenant;
+      if (!tenantObj) {
+        tenantObj = await prisma.tenant.findUnique({ where: { id: effectiveTenantId } });
+      }
+      if (!tenantObj || tenantObj.status !== 'ACTIVE') {
+        throw new AppError(
+          'Trường học/Đơn vị của bạn hiện đang bị tạm khóa hoặc ngừng hoạt động. Vui lòng liên hệ Quản trị viên hệ thống.',
+          403
+        );
+      }
     }
 
     const roleList = user.roles.map((r) => r.role);
@@ -208,6 +220,19 @@ export class AuthService {
     }
 
     const tenantId = user.tenantId || user.school?.tenantId || null;
+    if (!user.isSystemAdmin && tenantId) {
+      let tenantObj = user.tenant;
+      if (!tenantObj) {
+        tenantObj = await prisma.tenant.findUnique({ where: { id: tenantId } });
+      }
+      if (!tenantObj || tenantObj.status !== 'ACTIVE') {
+        throw new AppError(
+          'Trường học/Đơn vị của bạn hiện đang bị tạm khóa hoặc ngừng hoạt động. Vui lòng liên hệ Quản trị viên hệ thống.',
+          403
+        );
+      }
+    }
+
     const permissions = await getTenantUserPermissions(user.id, tenantId, user.isSystemAdmin);
 
     return {

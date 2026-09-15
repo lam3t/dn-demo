@@ -47,9 +47,9 @@ export const resolveTenantContext = async (req: Request, _res: Response, next: N
         throw new AppError('Không tìm thấy thông tin đơn vị trường học (Tenant).', 404);
       }
 
-      if (tenant.status === 'SUSPENDED') {
+      if (tenant.status !== 'ACTIVE') {
         throw new AppError(
-          'Trường của bạn hiện đang bị tạm khóa hoặc hết hạn dịch vụ. Vui lòng liên hệ Quản trị viên hệ thống.',
+          'Trường học/Đơn vị của bạn hiện đang bị tạm khóa hoặc ngừng hoạt động. Vui lòng liên hệ Quản trị viên hệ thống.',
           403
         );
       }

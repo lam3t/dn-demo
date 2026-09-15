@@ -43,15 +43,21 @@ export const requireAuth = async (req: Request, _res: Response, next: NextFuncti
       throw new AppError('Tài khoản người dùng không tồn tại hoặc đã bị vô hiệu hóa.', 401);
     }
 
-    // Kiểm tra trạng thái Tenant (nếu không phải System Admin)
-    if (!user.isSystemAdmin && user.tenant && user.tenant.status === 'SUSPENDED') {
-      throw new AppError(
-        'Trường của bạn hiện đang bị tạm khóa hoặc hết hạn dịch vụ. Vui lòng liên hệ Quản trị viên hệ thống.',
-        403
-      );
-    }
-
     const tenantId = user.tenantId || user.school?.tenantId || null;
+
+    // Kiểm tra trạng thái Tenant bắt buộc phải ACTIVE (nếu không phải System Admin)
+    if (!user.isSystemAdmin && tenantId) {
+      let tenantObj = user.tenant;
+      if (!tenantObj) {
+        tenantObj = await prisma.tenant.findUnique({ where: { id: tenantId } });
+      }
+      if (!tenantObj || tenantObj.status !== 'ACTIVE') {
+        throw new AppError(
+          'Trường học/Đơn vị của bạn hiện đang bị tạm khóa hoặc ngừng hoạt động. Vui lòng liên hệ Quản trị viên hệ thống.',
+          403
+        );
+      }
+    }
 
     // Lấy tập quyền động theo Tenant RBAC
     const permissions = await getTenantUserPermissions(user.id, tenantId, user.isSystemAdmin);

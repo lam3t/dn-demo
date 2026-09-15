@@ -82,6 +82,83 @@ export class SystemAdminController {
     }
   }
 
+  async getTenantAdmins(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const admins = await systemAdminService.getTenantAdmins(id);
+      res.status(200).json({ success: true, data: admins });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateTenantAdmin(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id, userId } = req.params;
+      const actorUserId = req.user!.id;
+      const updated = await systemAdminService.updateTenantAdmin(id, userId, req.body, actorUserId);
+      res.status(200).json({
+        success: true,
+        message: 'Cập nhật thông tin Quản trị viên trường thành công.',
+        data: updated,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async resetTenantAdminPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id, userId } = req.params;
+      const { newPassword } = req.body;
+      const actorUserId = req.user!.id;
+      const result = await systemAdminService.resetTenantAdminPassword(
+        id,
+        userId,
+        newPassword,
+        actorUserId
+      );
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async replaceTenantAdmin(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const actorUserId = req.user!.id;
+      const result = await systemAdminService.replaceTenantAdmin(id, req.body, actorUserId);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async initializeTenantAdmin(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const actorUserId = req.user!.id;
+      const result = await systemAdminService.initializeTenantAdmin(id, req.body, actorUserId);
+      res.status(201).json({
+        success: true,
+        message: 'Khởi tạo tài khoản Quản trị viên trường thành công.',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getReports(req: Request, res: Response, next: NextFunction) {
+    try {
+      const reports = await systemAdminService.getTenantReports();
+      res.status(200).json({ success: true, data: reports });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getPackages(req: Request, res: Response, next: NextFunction) {
     try {
       const packages = await systemAdminService.getPackages();

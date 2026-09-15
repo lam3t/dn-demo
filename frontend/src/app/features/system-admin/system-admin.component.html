@@ -7,7 +7,9 @@
         <span>SaaS Multi-Tenant Management Platform</span>
       </div>
       <h1 class="page-title">Quản trị Nền tảng Đa Trường (System Admin)</h1>
-      <p class="page-subtitle">Quản lý các cơ sở giáo dục thuê bao, phân bổ tài nguyên, cấu hình gói cước và kiểm soát phiên truy cập.</p>
+      <p class="page-subtitle">
+        Quản lý các cơ sở giáo dục thuê bao, điều chỉnh thông số trường học, phân bổ tài khoản quản trị viên và kiểm soát bảo mật truy cập.
+      </p>
     </div>
 
     @if (authService.isSystemAdmin()) {
@@ -25,7 +27,9 @@
     <div class="role-warning-banner">
       <span class="material-symbols-outlined warn-icon">admin_panel_settings</span>
       <div class="warn-content">
-        <span class="warn-title">Tài khoản hiện tại: <strong>{{ authService.currentUser()?.fullName || 'Người dùng' }}</strong> ({{ authService.activeRole()?.roleTitle || 'Cán bộ' }})</span>
+        <span class="warn-title">
+          Tài khoản hiện tại: <strong>{{ authService.currentUser()?.fullName || 'Người dùng' }}</strong> ({{ authService.activeRole()?.roleTitle || 'Cán bộ' }})
+        </span>
         <span class="warn-desc">Phân hệ này yêu cầu quyền <strong>System Admin (Quản trị viên Nền tảng)</strong>.</span>
       </div>
     </div>
@@ -43,61 +47,24 @@
     <div class="alert-banner alert-error">
       <span class="material-symbols-outlined">error</span>
       <span>{{ errorMessage() }}</span>
+      <button type="button" class="btn-close-alert" (click)="errorMessage.set(null)">
+        <span class="material-symbols-outlined">close</span>
+      </button>
     </div>
   }
 
-  <!-- KPI SUMMARY STATS -->
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-icon-wrapper bg-blue">
-        <span class="material-symbols-outlined">domain</span>
-      </div>
-      <div class="stat-details">
-        <span class="stat-label">Tổng số Trường học (Tenants)</span>
-        <span class="stat-value">{{ totalTenants() }}</span>
-        <span class="stat-subtext text-success">
-          <span class="material-symbols-outlined sub-icon">check</span>
-          {{ totalActiveTenants() }} trường đang hoạt động
-        </span>
-      </div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-icon-wrapper bg-emerald">
-        <span class="material-symbols-outlined">group</span>
-      </div>
-      <div class="stat-details">
-        <span class="stat-label">Tổng Tài khoản Cán bộ / GV</span>
-        <span class="stat-value">{{ totalRegisteredAccounts() }}</span>
-        <span class="stat-subtext">Đã phân quyền theo từng trường</span>
-      </div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-icon-wrapper bg-amber">
-        <span class="material-symbols-outlined">inventory_2</span>
-      </div>
-      <div class="stat-details">
-        <span class="stat-label">Gói Cước Dịch vụ (Packages)</span>
-        <span class="stat-value">{{ packages().length }}</span>
-        <span class="stat-subtext">Standard & Enterprise SaaS</span>
-      </div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-icon-wrapper bg-purple">
-        <span class="material-symbols-outlined">security</span>
-      </div>
-      <div class="stat-details">
-        <span class="stat-label">Bảo mật Cách ly (RLS)</span>
-        <span class="stat-value">100%</span>
-        <span class="stat-subtext text-success">Row-Level Security Active</span>
-      </div>
-    </div>
-  </div>
-
   <!-- TABS NAVIGATION -->
   <div class="tabs-header">
+    <button
+      type="button"
+      class="tab-btn"
+      [class.active]="activeTab() === 'dashboard'"
+      (click)="switchTab('dashboard')"
+    >
+      <span class="material-symbols-outlined">analytics</span>
+      <span>Dashboard Tổng quan</span>
+    </button>
+
     <button
       type="button"
       class="tab-btn"
@@ -105,7 +72,7 @@
       (click)="switchTab('tenants')"
     >
       <span class="material-symbols-outlined">domain</span>
-      <span>Danh sách Trường học (Tenants)</span>
+      <span>Quản lý Trường học (Tenants)</span>
       <span class="tab-count">{{ totalTenants() }}</span>
     </button>
 
@@ -116,8 +83,18 @@
       (click)="switchTab('packages')"
     >
       <span class="material-symbols-outlined">loyalty</span>
-      <span>Gói Dịch vụ & Thuê bao (Packages)</span>
+      <span>Gói Dịch vụ (Packages)</span>
       <span class="tab-count">{{ packages().length }}</span>
+    </button>
+
+    <button
+      type="button"
+      class="tab-btn"
+      [class.active]="activeTab() === 'reports'"
+      (click)="switchTab('reports')"
+    >
+      <span class="material-symbols-outlined">assessment</span>
+      <span>Báo cáo Khai thác Tài nguyên</span>
     </button>
 
     <button
@@ -127,14 +104,181 @@
       (click)="switchTab('audit-logs')"
     >
       <span class="material-symbols-outlined">history</span>
-      <span>Nhật ký Nền tảng (Audit Logs)</span>
+      <span>Nhật ký Nền tảng</span>
     </button>
   </div>
 
-  <!-- TAB CONTENT 1: TENANTS -->
+  <!-- ========================================== -->
+  <!-- TAB 1: EXECUTIVE SAAS DASHBOARD            -->
+  <!-- ========================================== -->
+  @if (activeTab() === 'dashboard') {
+    <div class="tab-pane">
+      <!-- KPI STATS CARDS -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon-wrapper bg-blue">
+            <span class="material-symbols-outlined">domain</span>
+          </div>
+          <div class="stat-details">
+            <span class="stat-label">Tổng số Trường học</span>
+            <span class="stat-value">{{ dashboardStats()?.totalTenants || totalTenants() }}</span>
+            <div class="stat-badge-row">
+              <span class="badge-active text-xs">
+                <span class="material-symbols-outlined mini-icon">check</span>
+                {{ totalActiveTenants() }} Đang hoạt động
+              </span>
+              @if (totalSuspendedTenants() > 0) {
+                <span class="badge-suspended text-xs ml-2">
+                  <span class="material-symbols-outlined mini-icon">block</span>
+                  {{ totalSuspendedTenants() }} Đã khóa
+                </span>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon-wrapper bg-emerald">
+            <span class="material-symbols-outlined">group</span>
+          </div>
+          <div class="stat-details">
+            <span class="stat-label">Tổng Tài khoản Cán bộ & GV</span>
+            <span class="stat-value">{{ totalRegisteredAccounts() }}</span>
+            <span class="stat-subtext">
+              Hạn mức phân bổ: <strong>{{ dashboardStats()?.totalAllocatedAccounts || 0 }}</strong> TK
+            </span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon-wrapper bg-amber">
+            <span class="material-symbols-outlined">cloud</span>
+          </div>
+          <div class="stat-details">
+            <span class="stat-label">Dung lượng Lưu trữ Phân bổ</span>
+            <span class="stat-value">{{ dashboardStats()?.totalAllocatedStorageGB || 0 }} GB</span>
+            <span class="stat-subtext">Đám mây lưu trữ hồ sơ minh chứng</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon-wrapper bg-purple">
+            <span class="material-symbols-outlined">task_alt</span>
+          </div>
+          <div class="stat-details">
+            <span class="stat-label">Khối lượng Công việc & Kế hoạch</span>
+            <span class="stat-value">{{ dashboardStats()?.totalTasks || 0 }}</span>
+            <span class="stat-subtext">Thuộc {{ dashboardStats()?.totalPlans || 0 }} kế hoạch toàn hệ thống</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXPIRING SUBSCRIPTIONS & QUICK ACTIONS -->
+      <div class="dashboard-grid-2 mt-6">
+        <!-- Expiring Subscriptions Alert Card -->
+        <div class="content-card">
+          <div class="card-header-row">
+            <div class="card-header-title">
+              <span class="material-symbols-outlined text-warning">warning</span>
+              <h3>Thuê bao Sắp hết hạn (Dưới 30 ngày)</h3>
+            </div>
+            <span class="badge-pill bg-amber-soft">
+              {{ dashboardStats()?.expiringSubscriptions?.length || 0 }} trường
+            </span>
+          </div>
+
+          <div class="card-body-scroll">
+            @if (!dashboardStats()?.expiringSubscriptions?.length) {
+              <div class="empty-state-mini">
+                <span class="material-symbols-outlined text-success">verified</span>
+                <p>Tất cả các trường học hiện đều còn hạn thuê bao trên 30 ngày.</p>
+              </div>
+            } @else {
+              <table class="simple-table">
+                <thead>
+                  <tr>
+                    <th>Trường học</th>
+                    <th>Gói dịch vụ</th>
+                    <th>Ngày hết hạn</th>
+                    <th>Còn lại</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (exp of dashboardStats()?.expiringSubscriptions; track exp.id) {
+                    <tr>
+                      <td>
+                        <strong>{{ exp.tenantName }}</strong>
+                        <span class="code-badge text-xs ml-1">{{ exp.tenantCode }}</span>
+                      </td>
+                      <td>
+                        <span class="package-pill">{{ exp.packageName }}</span>
+                      </td>
+                      <td>{{ exp.endDate | date:'dd/MM/yyyy' }}</td>
+                      <td>
+                        <span class="text-danger font-semibold">{{ exp.daysRemaining }} ngày</span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          class="btn-sm btn-outline"
+                          (click)="openAssignSubscriptionForExpiring(exp)"
+                        >
+                          Gia hạn
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          </div>
+        </div>
+
+        <!-- Recent Audit Activities -->
+        <div class="content-card">
+          <div class="card-header-row">
+            <div class="card-header-title">
+              <span class="material-symbols-outlined text-primary">history</span>
+              <h3>Nhật ký Tác vụ Gần đây</h3>
+            </div>
+            <button type="button" class="btn-link" (click)="switchTab('audit-logs')">Xem tất cả</button>
+          </div>
+
+          <div class="card-body-scroll">
+            @if (!dashboardStats()?.recentAuditLogs?.length) {
+              <div class="empty-state-mini">
+                <p>Chưa có nhật ký tác vụ.</p>
+              </div>
+            } @else {
+              <div class="activity-timeline">
+                @for (log of dashboardStats()?.recentAuditLogs; track log.id) {
+                  <div class="timeline-item">
+                    <div class="timeline-bullet"></div>
+                    <div class="timeline-content">
+                      <div class="timeline-header">
+                        <strong class="actor-name">{{ log.actorUser?.fullName || 'Hệ thống' }}</strong>
+                        <span class="action-tag">{{ log.action }}</span>
+                        <span class="timeline-time">{{ log.createdAt | date:'dd/MM HH:mm' }}</span>
+                      </div>
+                      <p class="timeline-detail">{{ log.detail || '-' }}</p>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ========================================== -->
+  <!-- TAB 2: TENANTS MANAGEMENT GRID             -->
+  <!-- ========================================== -->
   @if (activeTab() === 'tenants') {
     <div class="tab-pane">
-      <!-- FILTERS -->
+      <!-- FILTERS BAR -->
       <div class="filter-bar">
         <div class="search-input-box">
           <span class="material-symbols-outlined search-icon">search</span>
@@ -150,13 +294,11 @@
           <select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event); onStatusFilterChange()">
             <option value="">Tất cả trạng thái</option>
             <option value="ACTIVE">Đang hoạt động</option>
-            <option value="SUSPENDED">Tạm dừng dịch vụ</option>
-            <option value="TRIAL">Dùng thử</option>
-            <option value="EXPIRED">Hết hạn</option>
+            <option value="SUSPENDED">Đã khóa / Tạm dừng</option>
           </select>
         </div>
 
-        <button type="button" class="btn-outline" (click)="loadTenants()">
+        <button type="button" class="btn-outline" (click)="loadTenants(); loadDashboardStats()">
           <span class="material-symbols-outlined">refresh</span>
           <span>Làm mới</span>
         </button>
@@ -169,16 +311,17 @@
             <tr>
               <th>Trường học / Mã định danh</th>
               <th>Đại diện & Liên hệ</th>
+              <th>Quản trị viên Trường</th>
               <th>Gói Dịch vụ & Hạn dùng</th>
               <th>Quy mô Hiện tại</th>
               <th>Trạng thái</th>
-              <th class="text-right">Thao tác</th>
+              <th class="text-right">Thao tác Quản trị</th>
             </tr>
           </thead>
           <tbody>
             @if (isLoading()) {
               <tr>
-                <td colspan="6" class="text-center py-6">
+                <td colspan="7" class="text-center py-6">
                   <div class="loading-state">
                     <span class="material-symbols-outlined spin-icon">progress_activity</span>
                     <span>Đang tải danh sách trường học...</span>
@@ -187,7 +330,7 @@
               </tr>
             } @else if (tenants().length === 0) {
               <tr>
-                <td colspan="6" class="text-center py-8">
+                <td colspan="7" class="text-center py-8">
                   <div class="empty-state">
                     <span class="material-symbols-outlined empty-icon">domain_disabled</span>
                     <p class="empty-title">Không tìm thấy trường học nào</p>
@@ -197,11 +340,11 @@
               </tr>
             } @else {
               @for (tenant of tenants(); track tenant.id) {
-                <tr>
-                  <!-- School info -->
+                <tr [class.row-suspended]="tenant.status === 'SUSPENDED'">
+                  <!-- School Info -->
                   <td>
                     <div class="school-info-cell">
-                      <div class="school-avatar">
+                      <div class="school-avatar" [class.suspended-avatar]="tenant.status === 'SUSPENDED'">
                         <span class="material-symbols-outlined">school</span>
                       </div>
                       <div class="school-meta">
@@ -240,6 +383,27 @@
                     </div>
                   </td>
 
+                  <!-- Tenant Admin -->
+                  <td>
+                    <div class="admin-user-cell">
+                      @if (tenant.adminUser) {
+                        <div class="admin-name">
+                          <span class="material-symbols-outlined inline-icon text-primary">manage_accounts</span>
+                          <strong>{{ tenant.adminUser.fullName }}</strong>
+                        </div>
+                        <div class="admin-sub">
+                          <span>{{ tenant.adminUser.email }}</span>
+                          <span class="text-xs text-muted">• {{ tenant.adminUser.phone }}</span>
+                        </div>
+                      } @else {
+                        <button type="button" class="btn-xs btn-outline text-warning" (click)="openTenantAdminModal(tenant)">
+                          <span class="material-symbols-outlined mini-icon">person_add</span>
+                          <span>Khởi tạo Admin</span>
+                        </button>
+                      }
+                    </div>
+                  </td>
+
                   <!-- Subscription -->
                   <td>
                     @if (tenant.activeSubscription) {
@@ -253,9 +417,17 @@
                         <span class="sub-dates">
                           Hạn: {{ tenant.activeSubscription.endDate | date:'dd/MM/yyyy' }}
                         </span>
-                        <span class="sub-limit">
-                          Giới hạn: {{ tenant.activeSubscription.maxAccounts }} tài khoản • {{ tenant.activeSubscription.storageQuotaGB }}GB
-                        </span>
+                        <div class="sub-limit-progress">
+                          <div class="quota-bar-bg">
+                            <div
+                              class="quota-bar-fill"
+                              [style.width.%]="Math.min(100, Math.round(((tenant.stats?.userCount || 0) / tenant.activeSubscription.maxAccounts) * 100))"
+                            ></div>
+                          </div>
+                          <span class="sub-limit-text">
+                            {{ tenant.stats?.userCount || 0 }} / {{ tenant.activeSubscription.maxAccounts }} tài khoản
+                          </span>
+                        </div>
                       </div>
                     } @else {
                       <span class="text-muted">Chưa đăng ký gói</span>
@@ -265,15 +437,15 @@
                   <!-- Stats -->
                   <td>
                     <div class="stats-cell">
-                      <span class="stat-chip">
+                      <span class="stat-chip" title="Số tài khoản">
                         <span class="material-symbols-outlined chip-icon">group</span>
                         <strong>{{ tenant.stats?.userCount || 0 }}</strong> TK
                       </span>
-                      <span class="stat-chip">
+                      <span class="stat-chip" title="Số điểm trường">
                         <span class="material-symbols-outlined chip-icon">location_on</span>
                         <strong>{{ tenant.stats?.locationCount || 0 }}</strong> điểm
                       </span>
-                      <span class="stat-chip">
+                      <span class="stat-chip" title="Số công việc">
                         <span class="material-symbols-outlined chip-icon">task_alt</span>
                         <strong>{{ tenant.stats?.taskCount || 0 }}</strong> việc
                       </span>
@@ -290,6 +462,37 @@
                   <!-- Actions -->
                   <td class="text-right">
                     <div class="action-btn-group">
+                      <!-- 1. Detail Drawer -->
+                      <button
+                        type="button"
+                        class="btn-icon"
+                        title="Xem chi tiết 360°"
+                        (click)="openTenantDetailDrawer(tenant)"
+                      >
+                        <span class="material-symbols-outlined">visibility</span>
+                      </button>
+
+                      <!-- 2. Edit Tenant -->
+                      <button
+                        type="button"
+                        class="btn-icon btn-icon-edit"
+                        title="Điều chỉnh thông tin trường học"
+                        (click)="openEditTenantModal(tenant)"
+                      >
+                        <span class="material-symbols-outlined">edit_note</span>
+                      </button>
+
+                      <!-- 3. Tenant Admin Suite -->
+                      <button
+                        type="button"
+                        class="btn-icon btn-icon-admin"
+                        title="Quản lý Quản trị viên trường (Đổi pass / Thay admin)"
+                        (click)="openTenantAdminModal(tenant)"
+                      >
+                        <span class="material-symbols-outlined">admin_panel_settings</span>
+                      </button>
+
+                      <!-- 4. Assign Subscription -->
                       <button
                         type="button"
                         class="btn-icon"
@@ -299,16 +502,17 @@
                         <span class="material-symbols-outlined">upgrade</span>
                       </button>
 
+                      <!-- 5. Lock / Unlock Toggle -->
                       <button
                         type="button"
                         class="btn-icon"
-                        [title]="tenant.status === 'ACTIVE' ? 'Tạm dừng trường học' : 'Kích hoạt lại trường học'"
+                        [title]="tenant.status === 'ACTIVE' ? 'Khóa trường (Chặn đăng nhập ngay lập tức)' : 'Mở khóa / Kích hoạt lại trường'"
                         [class.text-danger]="tenant.status === 'ACTIVE'"
                         [class.text-success]="tenant.status !== 'ACTIVE'"
                         (click)="toggleTenantStatus(tenant)"
                       >
                         <span class="material-symbols-outlined">
-                          {{ tenant.status === 'ACTIVE' ? 'pause_circle' : 'play_circle' }}
+                          {{ tenant.status === 'ACTIVE' ? 'lock' : 'lock_open' }}
                         </span>
                       </button>
                     </div>
@@ -334,13 +538,17 @@
     </div>
   }
 
-  <!-- TAB CONTENT 2: PACKAGES -->
+  <!-- ========================================== -->
+  <!-- TAB 3: PACKAGES MANAGEMENT                 -->
+  <!-- ========================================== -->
   @if (activeTab() === 'packages') {
     <div class="tab-pane">
       <div class="package-header-bar">
         <div>
-          <h2 class="section-title">Danh sách Gói Dịch vụ SaaS</h2>
-          <p class="section-sub">Thiết lập định mức tài khoản, dung lượng lưu trữ đám mây và module tính năng theo từng gói thuê bao.</p>
+          <h2 class="section-title">Danh sách Gói Dịch vụ SaaS Thương mại</h2>
+          <p class="section-sub">
+            Thiết lập định mức tài khoản người dùng, dung lượng lưu trữ đám mây và danh mục tính năng cho từng gói thuê bao.
+          </p>
         </div>
         <button type="button" class="btn-primary" (click)="openPackageModal()">
           <span class="material-symbols-outlined">add</span>
@@ -357,7 +565,7 @@
             <div class="pkg-header">
               <span class="pkg-code">{{ pkg.code }}</span>
               <h3 class="pkg-name">{{ pkg.name }}</h3>
-              <p class="pkg-desc">{{ pkg.description || 'Gói cước dành cho các trường phổ thông' }}</p>
+              <p class="pkg-desc">{{ pkg.description || 'Gói cước tiêu chuẩn dành cho trường phổ thông' }}</p>
             </div>
 
             <div class="pkg-price-row">
@@ -372,7 +580,7 @@
               </div>
               <div class="spec-row">
                 <span class="material-symbols-outlined spec-icon">cloud</span>
-                <span>Dung lượng lưu trữ: <strong>{{ pkg.storageQuotaGB }} GB</strong></span>
+                <span>Dung lượng Cloud: <strong>{{ pkg.storageQuotaGB }} GB</strong></span>
               </div>
               <div class="spec-row">
                 <span class="material-symbols-outlined spec-icon">domain</span>
@@ -383,7 +591,7 @@
             <div class="pkg-footer">
               <button type="button" class="btn-outline full-width" (click)="openPackageModal(pkg)">
                 <span class="material-symbols-outlined">edit</span>
-                <span>Chỉnh sửa thông số</span>
+                <span>Chỉnh sửa thông số gói</span>
               </button>
             </div>
           </div>
@@ -392,7 +600,125 @@
     </div>
   }
 
-  <!-- TAB CONTENT 3: AUDIT LOGS -->
+  <!-- ========================================== -->
+  <!-- TAB 4: PLATFORM REPORTS                    -->
+  <!-- ========================================== -->
+  @if (activeTab() === 'reports') {
+    <div class="tab-pane">
+      <div class="report-header-bar">
+        <div>
+          <h2 class="section-title">Báo cáo Khai thác Tài nguyên Nền tảng</h2>
+          <p class="section-sub">Thống kê quy mô, tỷ lệ lấp đầy tài khoản và mức độ hoạt động của toàn bộ các trường học trong hệ thống.</p>
+        </div>
+        <div class="report-actions">
+          <button type="button" class="btn-primary" (click)="exportReportsToCSV()">
+            <span class="material-symbols-outlined">download</span>
+            <span>Xuất Báo cáo CSV (Excel)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Search in Reports -->
+      <div class="filter-bar mb-4">
+        <div class="search-input-box">
+          <span class="material-symbols-outlined search-icon">search</span>
+          <input
+            type="text"
+            placeholder="Tìm trong báo cáo theo tên trường, mã trường, gói cước..."
+            [ngModel]="reportSearchQuery()"
+            (ngModelChange)="reportSearchQuery.set($event)"
+          />
+        </div>
+        <button type="button" class="btn-outline" (click)="loadReports()">
+          <span class="material-symbols-outlined">refresh</span>
+          <span>Làm mới</span>
+        </button>
+      </div>
+
+      <!-- Reports Table -->
+      <div class="table-card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Trường học</th>
+              <th>Hiệu trưởng</th>
+              <th>Gói cước</th>
+              <th>Số TK sử dụng / Hạn mức</th>
+              <th>Tỷ lệ Lấp đầy</th>
+              <th>Dung lượng</th>
+              <th>Kế hoạch & Việc</th>
+              <th>Admin trường</th>
+              <th>Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (isLoading()) {
+              <tr>
+                <td colspan="9" class="text-center py-6">
+                  <div class="loading-state">
+                    <span class="material-symbols-outlined spin-icon">progress_activity</span>
+                    <span>Đang tải dữ liệu báo cáo...</span>
+                  </div>
+                </td>
+              </tr>
+            } @else if (filteredReports().length === 0) {
+              <tr>
+                <td colspan="9" class="text-center py-8">
+                  <p class="text-muted">Không có dữ liệu báo cáo phù hợp.</p>
+                </td>
+              </tr>
+            } @else {
+              @for (rep of filteredReports(); track rep.id) {
+                <tr>
+                  <td>
+                    <strong>{{ rep.name }}</strong>
+                    <div class="text-xs text-muted">{{ rep.code }} • {{ rep.phone }}</div>
+                  </td>
+                  <td>{{ rep.principalName }}</td>
+                  <td>
+                    <span class="package-pill">{{ rep.packageName }}</span>
+                  </td>
+                  <td>
+                    <strong>{{ rep.userCount }}</strong> / {{ rep.maxAccounts }} TK
+                  </td>
+                  <td>
+                    <div class="utilization-cell">
+                      <div class="quota-bar-bg">
+                        <div
+                          class="quota-bar-fill"
+                          [class.fill-warning]="rep.utilizationRate >= 80 && rep.utilizationRate < 100"
+                          [class.fill-danger]="rep.utilizationRate >= 100"
+                          [style.width.%]="Math.min(100, rep.utilizationRate)"
+                        ></div>
+                      </div>
+                      <span class="text-xs font-semibold">{{ rep.utilizationRate }}%</span>
+                    </div>
+                  </td>
+                  <td>{{ rep.storageQuotaGB }} GB</td>
+                  <td>
+                    <span class="text-xs">{{ rep.plansCount }} KH • {{ rep.tasksCount }} việc</span>
+                  </td>
+                  <td>
+                    <div class="text-sm"><strong>{{ rep.adminFullName }}</strong></div>
+                    <div class="text-xs text-muted">{{ rep.adminEmail }}</div>
+                  </td>
+                  <td>
+                    <span class="status-pill" [ngClass]="getStatusBadgeClass(rep.status)">
+                      {{ getStatusLabel(rep.status) }}
+                    </span>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- ========================================== -->
+  <!-- TAB 5: PLATFORM AUDIT LOGS                 -->
+  <!-- ========================================== -->
   @if (activeTab() === 'audit-logs') {
     <div class="tab-pane">
       <div class="table-card">
@@ -403,7 +729,7 @@
               <th>Người thực hiện</th>
               <th>Hành động</th>
               <th>Trường tác động</th>
-              <th>Chi tiết</th>
+              <th>Chi tiết tác vụ</th>
             </tr>
           </thead>
           <tbody>
@@ -436,7 +762,7 @@
                   <td>
                     <strong>{{ log.targetTenant?.name || '-' }}</strong>
                     @if (log.targetTenant?.code) {
-                      <span class="code-badge text-xs">{{ log.targetTenant?.code }}</span>
+                      <span class="code-badge text-xs ml-1">{{ log.targetTenant?.code }}</span>
                     }
                   </td>
                   <td>{{ log.detail || '-' }}</td>
@@ -449,10 +775,12 @@
     </div>
   }
 
-  <!-- MODAL 1: CREATE TENANT -->
+  <!-- ========================================================================================= -->
+  <!-- MODAL 1: CREATE TENANT (ONBOARDING)                                                       -->
+  <!-- ========================================================================================= -->
   @if (showCreateTenantModal()) {
     <div class="modal-backdrop">
-      <div class="modal-card">
+      <div class="modal-card modal-lg">
         <div class="modal-header">
           <div class="modal-title-box">
             <span class="material-symbols-outlined modal-icon">domain_add</span>
@@ -464,7 +792,7 @@
         </div>
 
         <div class="modal-body">
-          <div class="form-section-title">1. Thông tin Trường học</div>
+          <div class="form-section-title">1. Thông tin Hồ sơ Trường học</div>
           <div class="form-grid-2">
             <div class="form-group">
               <label>Tên trường học <span class="required">*</span></label>
@@ -492,7 +820,17 @@
             </div>
 
             <div class="form-group">
-              <label>Gói Dịch vụ khởi tạo</label>
+              <label>Địa chỉ trường học</label>
+              <input type="text" [(ngModel)]="newTenant.address" placeholder="Phường Tân Phong, TP. Biên Hòa, Đồng Nai" />
+            </div>
+
+            <div class="form-group">
+              <label>Năm học áp dụng</label>
+              <input type="text" [(ngModel)]="newTenant.schoolYear" placeholder="2026-2027" />
+            </div>
+
+            <div class="form-group">
+              <label>Gói Dịch vụ khởi tạo <span class="required">*</span></label>
               <select [(ngModel)]="newTenant.packageId">
                 @for (pkg of packages(); track pkg.id) {
                   <option [value]="pkg.id">{{ pkg.name }} ({{ pkg.maxAccounts }} TK • {{ pkg.storageQuotaGB }}GB)</option>
@@ -501,11 +839,16 @@
             </div>
           </div>
 
-          <div class="form-section-title mt-4">2. Tài khoản Quản trị viên Trường (Tenant Admin)</div>
+          <div class="form-section-title mt-4">2. Tài khoản Quản trị viên Trường (Tenant Admin đầu tiên)</div>
           <div class="form-grid-2">
             <div class="form-group">
               <label>Họ tên Quản trị viên <span class="required">*</span></label>
               <input type="text" [(ngModel)]="newTenant.adminFullName" placeholder="Ví dụ: Quản trị viên Nguyễn Du" />
+            </div>
+
+            <div class="form-group">
+              <label>Chức danh / Vị trí công tác</label>
+              <input type="text" [(ngModel)]="newTenant.adminTitle" placeholder="Quản trị hệ thống (Admin trường)" />
             </div>
 
             <div class="form-group">
@@ -527,18 +870,536 @@
 
         <div class="modal-footer">
           <button type="button" class="btn-outline" (click)="closeCreateTenantModal()">Hủy bỏ</button>
-          <button type="button" class="btn-primary" [disabled]="isLoading()" (click)="submitCreateTenant()">
-            @if (isLoading()) {
+          <button type="button" class="btn-primary" [disabled]="isSubmitting()" (click)="submitCreateTenant()">
+            @if (isSubmitting()) {
               <span class="material-symbols-outlined spin-icon">progress_activity</span>
             }
-            <span>Khởi tạo Trường & Kích hoạt SaaS</span>
+            <span>Khởi tạo Trường & Kích hoạt Toàn diện</span>
           </button>
         </div>
       </div>
     </div>
   }
 
-  <!-- MODAL 2: ASSIGN SUBSCRIPTION -->
+  <!-- ========================================================================================= -->
+  <!-- MODAL 2: EDIT TENANT & SCHOOL PROFILE                                                     -->
+  <!-- ========================================================================================= -->
+  @if (showEditTenantModal()) {
+    <div class="modal-backdrop">
+      <div class="modal-card modal-lg">
+        <div class="modal-header">
+          <div class="modal-title-box">
+            <span class="material-symbols-outlined modal-icon">edit_note</span>
+            <h3>Điều chỉnh Thông tin Trường học: {{ selectedTenant()?.name }}</h3>
+          </div>
+          <button type="button" class="btn-close" (click)="closeEditTenantModal()">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-section-title">1. Thông tin Chung & Nhận diện</div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label>Tên trường học <span class="required">*</span></label>
+              <input type="text" [(ngModel)]="editTenantForm.name" />
+            </div>
+
+            <div class="form-group">
+              <label>Mã trường (Tenant Code - Cố định)</label>
+              <input type="text" [value]="selectedTenant()?.code" disabled class="bg-readonly" />
+            </div>
+
+            <div class="form-group">
+              <label>Trạng thái hoạt động</label>
+              <select [(ngModel)]="editTenantForm.status">
+                <option value="ACTIVE">Đang hoạt động (ACTIVE)</option>
+                <option value="SUSPENDED">Tạm khóa / Tạm dừng (SUSPENDED)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Niên khóa hiện tại</label>
+              <input type="text" [(ngModel)]="editTenantForm.schoolYear" placeholder="2026-2027" />
+            </div>
+          </div>
+
+          <div class="form-section-title mt-4">2. Thông tin Liên hệ & Đại diện Nhà trường</div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label>Họ tên Hiệu trưởng</label>
+              <input type="text" [(ngModel)]="editTenantForm.principalName" />
+            </div>
+
+            <div class="form-group">
+              <label>Số điện thoại liên hệ</label>
+              <input type="text" [(ngModel)]="editTenantForm.phone" />
+            </div>
+
+            <div class="form-group">
+              <label>Email chính thức</label>
+              <input type="email" [(ngModel)]="editTenantForm.email" />
+            </div>
+
+            <div class="form-group">
+              <label>Địa chỉ trường học</label>
+              <input type="text" [(ngModel)]="editTenantForm.address" />
+            </div>
+          </div>
+
+          <div class="form-section-title mt-4">3. Quy mô Học sinh & Đội ngũ Cán bộ</div>
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label>Tổng số học sinh</label>
+              <input type="number" [(ngModel)]="editTenantForm.totalStudents" />
+            </div>
+
+            <div class="form-group">
+              <label>Tổng số lớp học</label>
+              <input type="number" [(ngModel)]="editTenantForm.totalClasses" />
+            </div>
+
+            <div class="form-group">
+              <label>Tổng số CB-GV-NV</label>
+              <input type="number" [(ngModel)]="editTenantForm.totalStaff" />
+            </div>
+          </div>
+
+          <div class="form-group mt-3">
+            <label>Ghi chú / Giới thiệu trường</label>
+            <textarea rows="2" [(ngModel)]="editTenantForm.description" placeholder="Mô tả tóm tắt về trường học..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-outline" (click)="closeEditTenantModal()">Hủy bỏ</button>
+          <button type="button" class="btn-primary" [disabled]="isSubmitting()" (click)="submitEditTenant()">
+            @if (isSubmitting()) {
+              <span class="material-symbols-outlined spin-icon">progress_activity</span>
+            }
+            <span>Lưu Thông tin Trường học</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ========================================================================================= -->
+  <!-- MODAL 3: TENANT ADMIN SUITE MANAGEMENT                                                    -->
+  <!-- ========================================================================================= -->
+  @if (showTenantAdminModal()) {
+    <div class="modal-backdrop">
+      <div class="modal-card modal-lg">
+        <div class="modal-header">
+          <div class="modal-title-box">
+            <span class="material-symbols-outlined modal-icon">admin_panel_settings</span>
+            <div>
+              <h3>Quản trị viên Trường: {{ selectedTenant()?.name }}</h3>
+              <span class="text-xs text-muted">Quản lý, chỉnh sửa, đặt lại mật khẩu hoặc chuyển giao quyền Admin</span>
+            </div>
+          </div>
+          <button type="button" class="btn-close" (click)="closeTenantAdminModal()">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <!-- Subtabs in Admin Modal -->
+        <div class="subtabs-bar">
+          <button
+            type="button"
+            class="subtab-btn"
+            [class.active]="adminModalTab() === 'list'"
+            (click)="adminModalTab.set('list')"
+          >
+            <span class="material-symbols-outlined">list</span>
+            <span>Danh sách Quản trị viên</span>
+          </button>
+
+          <button
+            type="button"
+            class="subtab-btn"
+            [class.active]="adminModalTab() === 'replace'"
+            (click)="openReplaceAdminForm()"
+          >
+            <span class="material-symbols-outlined">swap_horiz</span>
+            <span>Chuyển giao / Thay thế Admin</span>
+          </button>
+
+          <button
+            type="button"
+            class="subtab-btn"
+            [class.active]="adminModalTab() === 'init'"
+            (click)="openInitAdminForm()"
+          >
+            <span class="material-symbols-outlined">person_add</span>
+            <span>Thêm Admin mới</span>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <!-- VIEW 1: ADMINS LIST -->
+          @if (adminModalTab() === 'list') {
+            @if (tenantAdmins().length === 0) {
+              <div class="empty-state-mini py-6">
+                <span class="material-symbols-outlined text-warning">warning</span>
+                <p>Trường này hiện chưa có tài khoản Quản trị viên (Admin).</p>
+                <button type="button" class="btn-primary mt-2" (click)="openInitAdminForm()">
+                  <span class="material-symbols-outlined">person_add</span>
+                  <span>Khởi tạo Quản trị viên ngay</span>
+                </button>
+              </div>
+            } @else {
+              <div class="admin-cards-list">
+                @for (admin of tenantAdmins(); track admin.id) {
+                  <div class="admin-profile-card">
+                    <div class="admin-avatar-box">
+                      <span class="material-symbols-outlined">account_circle</span>
+                    </div>
+                    <div class="admin-info-main">
+                      <div class="admin-name-row">
+                        <strong class="text-base">{{ admin.fullName }}</strong>
+                        <span class="status-pill" [class.badge-active]="admin.isActive" [class.badge-suspended]="!admin.isActive">
+                          {{ admin.isActive ? 'Đang hoạt động' : 'Tạm khóa' }}
+                        </span>
+                      </div>
+                      <div class="admin-details-grid">
+                        <div class="detail-item">
+                          <span class="material-symbols-outlined mini-icon">mail</span>
+                          <span>{{ admin.email }}</span>
+                        </div>
+                        <div class="detail-item">
+                          <span class="material-symbols-outlined mini-icon">phone</span>
+                          <span>{{ admin.phone }}</span>
+                        </div>
+                        <div class="detail-item">
+                          <span class="material-symbols-outlined mini-icon">badge</span>
+                          <span>{{ admin.title || 'Quản trị viên' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="admin-actions-col">
+                      <button type="button" class="btn-sm btn-outline" (click)="openEditAdminForm(admin)">
+                        <span class="material-symbols-outlined mini-icon">edit</span>
+                        <span>Sửa thông tin</span>
+                      </button>
+                      <button type="button" class="btn-sm btn-outline" (click)="openResetPasswordForm(admin)">
+                        <span class="material-symbols-outlined mini-icon">key</span>
+                        <span>Đổi mật khẩu</span>
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          }
+
+          <!-- VIEW 2: EDIT ADMIN -->
+          @if (adminModalTab() === 'edit') {
+            <div class="form-section-title">Chỉnh sửa thông tin Quản trị viên: {{ selectedAdmin()?.fullName }}</div>
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label>Họ và tên <span class="required">*</span></label>
+                <input type="text" [(ngModel)]="adminForm.fullName" />
+              </div>
+
+              <div class="form-group">
+                <label>Chức danh / Vị trí</label>
+                <input type="text" [(ngModel)]="adminForm.title" />
+              </div>
+
+              <div class="form-group">
+                <label>Email đăng nhập <span class="required">*</span></label>
+                <input type="email" [(ngModel)]="adminForm.email" />
+              </div>
+
+              <div class="form-group">
+                <label>Số điện thoại đăng nhập <span class="required">*</span></label>
+                <input type="text" [(ngModel)]="adminForm.phone" />
+              </div>
+
+              <div class="form-group">
+                <label>Trạng thái tài khoản</label>
+                <select [(ngModel)]="adminForm.isActive">
+                  <option [ngValue]="true">Đang kích hoạt (Hoạt động)</option>
+                  <option [ngValue]="false">Tạm khóa tài khoản</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Mật khẩu mới (Để trống nếu không đổi)</label>
+                <input type="password" [(ngModel)]="adminForm.newPassword" placeholder="Nhập mật khẩu mới nếu muốn đổi..." />
+              </div>
+            </div>
+
+            <div class="modal-sub-actions mt-4">
+              <button type="button" class="btn-outline" (click)="adminModalTab.set('list')">Quay lại danh sách</button>
+              <button type="button" class="btn-primary" [disabled]="isSubmitting()" (click)="submitUpdateAdmin()">
+                @if (isSubmitting()) {
+                  <span class="material-symbols-outlined spin-icon">progress_activity</span>
+                }
+                <span>Lưu thông tin Admin</span>
+              </button>
+            </div>
+          }
+
+          <!-- VIEW 3: RESET PASSWORD -->
+          @if (adminModalTab() === 'reset-pass') {
+            <div class="form-section-title">Đặt lại mật khẩu cho Admin: {{ selectedAdmin()?.fullName }} ({{ selectedAdmin()?.email }})</div>
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label>Mật khẩu mới <span class="required">*</span></label>
+                <input type="password" [(ngModel)]="resetPassForm.newPassword" placeholder="Tối thiểu 6 ký tự..." />
+              </div>
+
+              <div class="form-group">
+                <label>Xác nhận mật khẩu mới <span class="required">*</span></label>
+                <input type="password" [(ngModel)]="resetPassForm.confirmPassword" placeholder="Nhập lại mật khẩu..." />
+              </div>
+            </div>
+
+            <div class="modal-sub-actions mt-4">
+              <button type="button" class="btn-outline" (click)="adminModalTab.set('list')">Quay lại</button>
+              <button type="button" class="btn-primary" [disabled]="isSubmitting()" (click)="submitResetAdminPassword()">
+                @if (isSubmitting()) {
+                  <span class="material-symbols-outlined spin-icon">progress_activity</span>
+                }
+                <span>Cập nhật Mật khẩu</span>
+              </button>
+            </div>
+          }
+
+          <!-- VIEW 4: REPLACE / TRANSFER ADMIN -->
+          @if (adminModalTab() === 'replace') {
+            <div class="form-section-title">Chuyển giao / Thay thế Quản trị viên Trường</div>
+            <p class="text-sm text-muted mb-4">
+              Bạn có thể bổ nhiệm một cán bộ hiện có trong trường làm Admin hoặc tạo mới tài khoản Quản trị viên thay thế.
+            </p>
+
+            <div class="mode-selector-row mb-4">
+              <label class="radio-label">
+                <input type="radio" name="replaceMode" value="EXISTING_USER" [(ngModel)]="replaceAdminForm.mode" />
+                <span>Bổ nhiệm từ cán bộ hiện có trong trường</span>
+              </label>
+
+              <label class="radio-label ml-4">
+                <input type="radio" name="replaceMode" value="NEW_USER" [(ngModel)]="replaceAdminForm.mode" />
+                <span>Tạo mới tài khoản Quản trị viên hoàn toàn</span>
+              </label>
+            </div>
+
+            @if (replaceAdminForm.mode === 'EXISTING_USER') {
+              <div class="form-group mb-3">
+                <label>Chọn cán bộ bổ nhiệm làm Admin <span class="required">*</span></label>
+                <select [(ngModel)]="replaceAdminForm.existingUserId">
+                  @for (u of tenantUsers(); track u.id) {
+                    <option [value]="u.id">{{ u.fullName }} ({{ u.email }} - {{ u.phone }})</option>
+                  }
+                </select>
+              </div>
+            } @else {
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label>Họ tên Admin mới <span class="required">*</span></label>
+                  <input type="text" [(ngModel)]="replaceAdminForm.newAdminName" placeholder="Nguyễn Văn B" />
+                </div>
+                <div class="form-group">
+                  <label>Email đăng nhập <span class="required">*</span></label>
+                  <input type="email" [(ngModel)]="replaceAdminForm.newAdminEmail" placeholder="admin.moi@nguyendu.edu.vn" />
+                </div>
+                <div class="form-group">
+                  <label>Số điện thoại <span class="required">*</span></label>
+                  <input type="text" [(ngModel)]="replaceAdminForm.newAdminPhone" placeholder="0908889999" />
+                </div>
+                <div class="form-group">
+                  <label>Mật khẩu khởi tạo</label>
+                  <input type="password" [(ngModel)]="replaceAdminForm.newAdminPassword" placeholder="Mặc định: 123456" />
+                </div>
+              </div>
+            }
+
+            <div class="checkbox-group mt-3">
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="replaceAdminForm.archiveOldAdmin" />
+                <span>Gỡ quyền Admin của Quản trị viên cũ (để tài khoản mới là Admin duy nhất)</span>
+              </label>
+            </div>
+
+            <div class="modal-sub-actions mt-4">
+              <button type="button" class="btn-outline" (click)="adminModalTab.set('list')">Quay lại</button>
+              <button type="button" class="btn-primary" [disabled]="isSubmitting()" (click)="submitReplaceAdmin()">
+                @if (isSubmitting()) {
+                  <span class="material-symbols-outlined spin-icon">progress_activity</span>
+                }
+                <span>Xác nhận Chuyển giao Admin</span>
+              </button>
+            </div>
+          }
+
+          <!-- VIEW 5: INITIALIZE ADMIN -->
+          @if (adminModalTab() === 'init') {
+            <div class="form-section-title">Khởi tạo Tài khoản Quản trị viên mới</div>
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label>Họ và tên <span class="required">*</span></label>
+                <input type="text" [(ngModel)]="initAdminForm.fullName" placeholder="Nguyễn Văn A" />
+              </div>
+              <div class="form-group">
+                <label>Chức danh</label>
+                <input type="text" [(ngModel)]="initAdminForm.title" placeholder="Quản trị hệ thống (Admin trường)" />
+              </div>
+              <div class="form-group">
+                <label>Email đăng nhập <span class="required">*</span></label>
+                <input type="email" [(ngModel)]="initAdminForm.email" placeholder="admin@dongnai.edu.vn" />
+              </div>
+              <div class="form-group">
+                <label>Số điện thoại <span class="required">*</span></label>
+                <input type="text" [(ngModel)]="initAdminForm.phone" placeholder="0901234567" />
+              </div>
+              <div class="form-group">
+                <label>Mật khẩu</label>
+                <input type="password" [(ngModel)]="initAdminForm.password" placeholder="Mặc định: 123456" />
+              </div>
+            </div>
+
+            <div class="modal-sub-actions mt-4">
+              <button type="button" class="btn-outline" (click)="adminModalTab.set('list')">Quay lại</button>
+              <button type="button" class="btn-primary" [disabled]="isSubmitting()" (click)="submitInitAdmin()">
+                @if (isSubmitting()) {
+                  <span class="material-symbols-outlined spin-icon">progress_activity</span>
+                }
+                <span>Khởi tạo Admin trường</span>
+              </button>
+            </div>
+          }
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-outline" (click)="closeTenantAdminModal()">Đóng</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ========================================================================================= -->
+  <!-- DRAWER: TENANT 360 OVERVIEW                                                               -->
+  <!-- ========================================================================================= -->
+  @if (showTenantDetailDrawer()) {
+    <div class="drawer-backdrop" (click)="closeTenantDetailDrawer()">
+      <div class="drawer-card" (click)="$event.stopPropagation()">
+        <div class="drawer-header">
+          <div class="drawer-title-box">
+            <span class="material-symbols-outlined drawer-icon">school</span>
+            <div>
+              <h3>{{ selectedTenant()?.name }}</h3>
+              <span class="code-badge">{{ selectedTenant()?.code }}</span>
+            </div>
+          </div>
+          <button type="button" class="btn-close" (click)="closeTenantDetailDrawer()">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div class="drawer-body">
+          @if (!selectedTenantDetail()) {
+            <div class="loading-state py-8">
+              <span class="material-symbols-outlined spin-icon">progress_activity</span>
+              <span>Đang tải thông tin chi tiết...</span>
+            </div>
+          } @else {
+            <!-- 1. General & Status -->
+            <div class="drawer-section">
+              <h4 class="drawer-section-title">Tổng quan Trường học</h4>
+              <div class="info-grid-2">
+                <div class="info-item">
+                  <span class="info-label">Trạng thái:</span>
+                  <span class="status-pill" [ngClass]="getStatusBadgeClass(selectedTenantDetail()?.status)">
+                    {{ getStatusLabel(selectedTenantDetail()?.status) }}
+                  </span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Hiệu trưởng:</span>
+                  <strong>{{ selectedTenantDetail()?.school?.principalName || 'Chưa cập nhật' }}</strong>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Điện thoại:</span>
+                  <span>{{ selectedTenantDetail()?.school?.phone || '-' }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Email:</span>
+                  <span>{{ selectedTenantDetail()?.school?.email || '-' }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Địa chỉ:</span>
+                  <span>{{ selectedTenantDetail()?.school?.address || '-' }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Quy mô:</span>
+                  <span>{{ selectedTenantDetail()?.school?.totalClasses || 0 }} lớp • {{ selectedTenantDetail()?.school?.totalStudents || 0 }} HS</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Subscription Info -->
+            <div class="drawer-section">
+              <h4 class="drawer-section-title">Gói Dịch vụ & Thuê bao</h4>
+              @if (selectedTenantDetail()?.subscriptions?.length) {
+                @let sub = selectedTenantDetail().subscriptions[0];
+                <div class="sub-detail-box">
+                  <div class="sub-box-header">
+                    <strong>{{ sub.package?.name }}</strong>
+                    <span class="badge-active">{{ sub.status }}</span>
+                  </div>
+                  <div class="sub-box-meta">
+                    <span>Hạn dùng: {{ sub.startDate | date:'dd/MM/yyyy' }} - {{ sub.endDate | date:'dd/MM/yyyy' }}</span>
+                    <span>Định mức: {{ sub.package?.maxAccounts }} tài khoản • {{ sub.package?.storageQuotaGB }} GB Cloud</span>
+                  </div>
+                </div>
+              } @else {
+                <span class="text-muted">Chưa có thông tin gói dịch vụ.</span>
+              }
+            </div>
+
+            <!-- 3. Locations -->
+            <div class="drawer-section">
+              <h4 class="drawer-section-title">Danh sách Phân hiệu & Điểm trường ({{ selectedTenantDetail()?.locations?.length || 0 }})</h4>
+              <ul class="simple-list">
+                @for (loc of selectedTenantDetail()?.locations; track loc.id) {
+                  <li>
+                    <strong>{{ loc.name }}</strong>
+                    @if (loc.isMain) {
+                      <span class="badge-active text-xs ml-1">Điểm chính</span>
+                    }
+                    <span class="text-xs text-muted block">{{ loc.address }}</span>
+                  </li>
+                }
+              </ul>
+            </div>
+
+            <!-- 4. OrgUnits -->
+            <div class="drawer-section">
+              <h4 class="drawer-section-title">Tổ Chuyên môn & Bộ phận ({{ selectedTenantDetail()?.orgUnits?.length || 0 }})</h4>
+              <ul class="simple-list">
+                @for (ou of selectedTenantDetail()?.orgUnits; track ou.id) {
+                  <li>
+                    <strong>{{ ou.name }}</strong>
+                    <span class="code-badge text-xs ml-1">{{ ou.code }}</span>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+        </div>
+
+        <div class="drawer-footer">
+          <button type="button" class="btn-outline full-width" (click)="closeTenantDetailDrawer()">Đóng</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ========================================================================================= -->
+  <!-- MODAL 4: ASSIGN SUBSCRIPTION                                                              -->
+  <!-- ========================================================================================= -->
   @if (showAssignSubscriptionModal()) {
     <div class="modal-backdrop">
       <div class="modal-card modal-sm">
@@ -558,7 +1419,7 @@
           </p>
 
           <div class="form-group mb-3">
-            <label>Chọn Gói Dịch vụ</label>
+            <label>Chọn Gói Dịch vụ <span class="required">*</span></label>
             <select [(ngModel)]="subscriptionForm.packageId">
               @for (pkg of packages(); track pkg.id) {
                 <option [value]="pkg.id">{{ pkg.name }} ({{ pkg.maxAccounts }} TK • {{ pkg.storageQuotaGB }}GB)</option>
@@ -572,7 +1433,7 @@
           </div>
 
           <div class="form-group">
-            <label>Ngày hết hạn</label>
+            <label>Ngày hết hạn <span class="required">*</span></label>
             <input type="date" [(ngModel)]="subscriptionForm.endDate" />
           </div>
         </div>
@@ -590,7 +1451,9 @@
     </div>
   }
 
-  <!-- MODAL 3: PACKAGE CONFIG -->
+  <!-- ========================================================================================= -->
+  <!-- MODAL 5: PACKAGE CONFIG                                                                   -->
+  <!-- ========================================================================================= -->
   @if (showPackageModal()) {
     <div class="modal-backdrop">
       <div class="modal-card modal-sm">
