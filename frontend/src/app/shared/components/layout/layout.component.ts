@@ -361,7 +361,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
                       <div class="dropdown-divider"></div>
 
                       <div class="dropdown-menu-list">
-                        <button type="button" class="dropdown-menu-item" (click)="openProfileModal()">
+                        <button type="button" class="dropdown-menu-item" (click)="openProfileModal(); $event.stopPropagation()">
                           <span class="material-symbols-outlined item-icon text-blue">badge</span>
                           <div class="item-text-wrap">
                             <span class="item-label">Xem thông tin cá nhân</span>
@@ -370,7 +370,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
                           <span class="material-symbols-outlined item-arrow">chevron_right</span>
                         </button>
 
-                        <button type="button" class="dropdown-menu-item" (click)="openChangePasswordFromMenu()">
+                        <button type="button" class="dropdown-menu-item" (click)="openChangePasswordFromMenu(); $event.stopPropagation()">
                           <span class="material-symbols-outlined item-icon text-amber">lock_reset</span>
                           <div class="item-text-wrap">
                             <span class="item-label">Đổi mật khẩu</span>
@@ -381,7 +381,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
 
                         <div class="dropdown-divider"></div>
 
-                        <button type="button" class="dropdown-menu-item logout-item" (click)="logout()">
+                        <button type="button" class="dropdown-menu-item logout-item" (click)="logout(); $event.stopPropagation()">
                           <span class="material-symbols-outlined item-icon text-red">logout</span>
                           <div class="item-text-wrap">
                             <span class="item-label text-red">Đăng xuất</span>
@@ -649,140 +649,142 @@ import { UserPickerItem } from '../../../core/models/user.models';
       }
 
       <!-- 5. PERSONAL PROFILE MODAL -->
-      @if (isProfileModalOpen && authService.currentUser(); as user) {
-        <div class="layout-modal-backdrop" (click)="closeProfileModal()">
-          <div class="layout-modal-dialog profile-modal-dialog" (click)="$event.stopPropagation()">
-            <div class="modal-dialog-header">
-              <div class="modal-title-wrap">
-                <span class="material-symbols-outlined modal-icon">badge</span>
-                <h3>Thông Tin Tài Khoản Cá Nhân</h3>
-              </div>
-              <button type="button" class="modal-close-btn" (click)="closeProfileModal()" title="Đóng">
-                <span class="material-symbols-outlined">close</span>
-              </button>
-            </div>
-
-            <div class="modal-dialog-body profile-modal-body">
-              <!-- Hero Profile Banner -->
-              <div class="profile-hero-card">
-                <img [src]="user.avatarUrl || 'https://ui-avatars.com/api/?name=' + user.fullName + '&background=1E3A8A&color=fff'" [alt]="user.fullName" class="hero-avatar" />
-                <div class="hero-details">
-                  <h4 class="hero-name">{{ user.fullName }}</h4>
-                  <div class="hero-role-pill">
-                    <span class="material-symbols-outlined pill-icon">{{ authService.isSystemAdmin() ? 'hub' : 'verified_user' }}</span>
-                    <span>{{ authService.isSystemAdmin() ? 'Quản trị Nền tảng SaaS' : (user.title || authService.activeRole()?.roleTitle || 'Cán bộ giáo viên') }}</span>
-                  </div>
-                  <div class="hero-subtext">
-                    <span>🏢 {{ authService.isSystemAdmin() ? 'TN EDU SaaS Enterprise Platform' : (user.tenantName || user.schoolName || 'Trường TH và THCS Phước Tân') }}</span>
-                  </div>
+      @if (isProfileModalOpen) {
+        @if (authService.currentUser(); as user) {
+          <div class="layout-modal-backdrop" (click)="closeProfileModal()">
+            <div class="layout-modal-dialog profile-modal-dialog" (click)="$event.stopPropagation()">
+              <div class="modal-dialog-header">
+                <div class="modal-title-wrap">
+                  <span class="material-symbols-outlined modal-icon">badge</span>
+                  <h3>Thông Tin Tài Khoản Cá Nhân</h3>
                 </div>
+                <button type="button" class="modal-close-btn" (click)="closeProfileModal()" title="Đóng">
+                  <span class="material-symbols-outlined">close</span>
+                </button>
               </div>
 
-              <!-- Information Grid -->
-              <div class="profile-grid">
-                <!-- Section: Contact Info -->
-                <div class="profile-section-box">
-                  <div class="section-box-title">
-                    <span class="material-symbols-outlined icon">contact_page</span>
-                    <span>Thông tin liên hệ</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Họ và tên:</span>
-                    <span class="info-val font-semibold">{{ user.fullName }}</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Số điện thoại (Tên đăng nhập):</span>
-                    <span class="info-val font-semibold">{{ user.phone || 'Chưa cập nhật' }}</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Địa chỉ Email:</span>
-                    <span class="info-val">{{ user.email || 'Chưa cập nhật' }}</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Chức danh / Chức vụ:</span>
-                    <span class="info-val">{{ user.title || (authService.isSystemAdmin() ? 'System Administrator' : 'Cán bộ giáo viên') }}</span>
+              <div class="modal-dialog-body profile-modal-body">
+                <!-- Hero Profile Banner -->
+                <div class="profile-hero-card">
+                  <img [src]="user.avatarUrl || 'https://ui-avatars.com/api/?name=' + user.fullName + '&background=1E3A8A&color=fff'" [alt]="user.fullName" class="hero-avatar" />
+                  <div class="hero-details">
+                    <h4 class="hero-name">{{ user.fullName }}</h4>
+                    <div class="hero-role-pill">
+                      <span class="material-symbols-outlined pill-icon">{{ authService.isSystemAdmin() ? 'hub' : 'verified_user' }}</span>
+                      <span>{{ authService.isSystemAdmin() ? 'Quản trị Nền tảng SaaS' : (user.title || authService.activeRole()?.roleTitle || 'Cán bộ giáo viên') }}</span>
+                    </div>
+                    <div class="hero-subtext">
+                      <span>🏢 {{ authService.isSystemAdmin() ? 'TN EDU SaaS Enterprise Platform' : (user.tenantName || user.schoolName || 'Trường TH và THCS Phước Tân') }}</span>
+                    </div>
                   </div>
                 </div>
 
-                <!-- Section: Unit & Scope -->
-                <div class="profile-section-box">
-                  <div class="section-box-title">
-                    <span class="material-symbols-outlined icon">domain</span>
-                    <span>Đơn vị & Phạm vi công tác</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Trường học / Đơn vị:</span>
-                    <span class="info-val">{{ authService.isSystemAdmin() ? 'Nền tảng SaaS Toàn hệ thống' : (user.tenantName || user.schoolName || 'Trường TH & THCS Phước Tân') }}</span>
-                  </div>
-                  @if (user.tenantCode) {
+                <!-- Information Grid -->
+                <div class="profile-grid">
+                  <!-- Section: Contact Info -->
+                  <div class="profile-section-box">
+                    <div class="section-box-title">
+                      <span class="material-symbols-outlined icon">contact_page</span>
+                      <span>Thông tin liên hệ</span>
+                    </div>
                     <div class="info-row">
-                      <span class="info-label">Mã trường (Tenant Code):</span>
-                      <span class="info-val font-mono"><span class="badge-code">{{ user.tenantCode }}</span></span>
+                      <span class="info-label">Họ và tên:</span>
+                      <span class="info-val font-semibold">{{ user.fullName }}</span>
                     </div>
-                  }
-                  <div class="info-row">
-                    <span class="info-label">Điểm trường / Cơ sở:</span>
-                    <span class="info-val">{{ user.primaryLocationName || 'Toàn trường / Cơ sở chính' }}</span>
+                    <div class="info-row">
+                      <span class="info-label">Số điện thoại (Tên đăng nhập):</span>
+                      <span class="info-val font-semibold">{{ user.phone || 'Chưa cập nhật' }}</span>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">Địa chỉ Email:</span>
+                      <span class="info-val">{{ user.email || 'Chưa cập nhật' }}</span>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">Chức danh / Chức vụ:</span>
+                      <span class="info-val">{{ user.title || (authService.isSystemAdmin() ? 'System Administrator' : 'Cán bộ giáo viên') }}</span>
+                    </div>
                   </div>
-                  <div class="info-row">
-                    <span class="info-label">Tổ chuyên môn / Phòng:</span>
-                    <span class="info-val">{{ user.primaryOrgUnitName || 'Ban Giám Hiệu / Toàn trường' }}</span>
-                  </div>
-                </div>
-              </div>
 
-              <!-- Section: System Roles & Permissions -->
-              <div class="profile-section-box">
-                <div class="section-box-title">
-                  <span class="material-symbols-outlined icon">security</span>
-                  <span>Vai trò & Quyền hạn được giao</span>
-                </div>
-                <div class="roles-tags-wrap">
-                  @if (authService.isSystemAdmin()) {
-                    <div class="role-badge-chip chip-sysadmin">
-                      <span class="material-symbols-outlined">hub</span>
-                      <div class="chip-text">
-                        <span class="chip-title">SYSTEM_ADMIN • Quản trị Nền tảng SaaS</span>
-                        <span class="chip-scope">Toàn quyền quản trị đa trường học & cấu hình hệ thống</span>
-                      </div>
+                  <!-- Section: Unit & Scope -->
+                  <div class="profile-section-box">
+                    <div class="section-box-title">
+                      <span class="material-symbols-outlined icon">domain</span>
+                      <span>Đơn vị & Phạm vi công tác</span>
                     </div>
-                  } @else if (user.roles && user.roles.length > 0) {
-                    @for (r of user.roles; track $index) {
-                      <div class="role-badge-chip">
-                        <span class="material-symbols-outlined">shield</span>
+                    <div class="info-row">
+                      <span class="info-label">Trường học / Đơn vị:</span>
+                      <span class="info-val">{{ authService.isSystemAdmin() ? 'Nền tảng SaaS Toàn hệ thống' : (user.tenantName || user.schoolName || 'Trường TH & THCS Phước Tân') }}</span>
+                    </div>
+                    @if (user.tenantCode) {
+                      <div class="info-row">
+                        <span class="info-label">Mã trường (Tenant Code):</span>
+                        <span class="info-val font-mono"><span class="badge-code">{{ user.tenantCode }}</span></span>
+                      </div>
+                    }
+                    <div class="info-row">
+                      <span class="info-label">Điểm trường / Cơ sở:</span>
+                      <span class="info-val">{{ user.primaryLocationName || 'Toàn trường / Cơ sở chính' }}</span>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">Tổ chuyên môn / Phòng:</span>
+                      <span class="info-val">{{ user.primaryOrgUnitName || 'Ban Giám Hiệu / Toàn trường' }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Section: System Roles & Permissions -->
+                <div class="profile-section-box">
+                  <div class="section-box-title">
+                    <span class="material-symbols-outlined icon">security</span>
+                    <span>Vai trò & Quyền hạn được giao</span>
+                  </div>
+                  <div class="roles-tags-wrap">
+                    @if (authService.isSystemAdmin()) {
+                      <div class="role-badge-chip chip-sysadmin">
+                        <span class="material-symbols-outlined">hub</span>
                         <div class="chip-text">
-                          <span class="chip-title">{{ authService.getRoleVietnameseName(r.role) }} ({{ r.role }})</span>
-                          @if (r.scopeLocationName || r.scopeOrgUnitName) {
-                            <span class="chip-scope">Phạm vi: {{ r.scopeLocationName || r.scopeOrgUnitName }}</span>
-                          }
+                          <span class="chip-title">SYSTEM_ADMIN • Quản trị Nền tảng SaaS</span>
+                          <span class="chip-scope">Toàn quyền quản trị đa trường học & cấu hình hệ thống</span>
+                        </div>
+                      </div>
+                    } @else if (user.roles && user.roles.length > 0) {
+                      @for (r of user.roles; track $index) {
+                        <div class="role-badge-chip">
+                          <span class="material-symbols-outlined">shield</span>
+                          <div class="chip-text">
+                            <span class="chip-title">{{ authService.getRoleVietnameseName(r.role) }} ({{ r.role }})</span>
+                            @if (r.scopeLocationName || r.scopeOrgUnitName) {
+                              <span class="chip-scope">Phạm vi: {{ r.scopeLocationName || r.scopeOrgUnitName }}</span>
+                            }
+                          </div>
+                        </div>
+                      }
+                    } @else {
+                      <div class="role-badge-chip">
+                        <span class="material-symbols-outlined">person</span>
+                        <div class="chip-text">
+                          <span class="chip-title">Giáo viên / Cán bộ nhân viên</span>
+                          <span class="chip-scope">Trường TH & THCS Phước Tân</span>
                         </div>
                       </div>
                     }
-                  } @else {
-                    <div class="role-badge-chip">
-                      <span class="material-symbols-outlined">person</span>
-                      <div class="chip-text">
-                        <span class="chip-title">Giáo viên / Cán bộ nhân viên</span>
-                        <span class="chip-scope">Trường TH & THCS Phước Tân</span>
-                      </div>
-                    </div>
-                  }
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div class="modal-dialog-footer profile-modal-footer">
-              <button type="button" class="btn-dialog-secondary" (click)="openChangePasswordFromProfile()">
-                <span class="material-symbols-outlined">lock_reset</span>
-                <span>Đổi mật khẩu</span>
-              </button>
-              <button type="button" class="btn-dialog-submit" (click)="closeProfileModal()">
-                <span class="material-symbols-outlined">close</span>
-                <span>Đóng</span>
-              </button>
+              <div class="modal-dialog-footer profile-modal-footer">
+                <button type="button" class="btn-dialog-secondary" (click)="openChangePasswordFromProfile()">
+                  <span class="material-symbols-outlined">lock_reset</span>
+                  <span>Đổi mật khẩu</span>
+                </button>
+                <button type="button" class="btn-dialog-submit" (click)="closeProfileModal()">
+                  <span class="material-symbols-outlined">close</span>
+                  <span>Đóng</span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        }
       }
 
       <!-- 6. CHANGE PASSWORD MODAL (TT 003) -->
@@ -1221,9 +1223,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
         gap: 0.75rem;
         z-index: 50;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-        overflow-x: auto;
-        scrollbar-width: none;
-        &::-webkit-scrollbar { display: none; }
+        overflow: visible;
 
         .nav-bar-left {
           display: flex;
