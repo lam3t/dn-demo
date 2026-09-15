@@ -479,7 +479,8 @@ export class SystemAdminService {
           schoolYear: dto.schoolYear || '2026-2027',
           totalClasses: dto.totalClasses || 0,
           totalStudents: dto.totalStudents || 0,
-          totalStaff: dto.totalStaff || 1,
+          totalFemaleStudents: dto.totalFemaleStudents || 0,
+          totalStaff: dto.totalStaff || 0,
           description: dto.description || null,
         },
       });

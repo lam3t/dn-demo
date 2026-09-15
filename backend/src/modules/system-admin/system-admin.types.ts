@@ -9,6 +9,7 @@ export interface CreateTenantDto {
   principalName?: string;
   schoolYear?: string;
   totalStudents?: number;
+  totalFemaleStudents?: number;
   totalClasses?: number;
   totalStaff?: number;
   description?: string;

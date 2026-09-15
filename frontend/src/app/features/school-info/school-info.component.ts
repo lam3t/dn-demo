@@ -249,17 +249,21 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
               Ban Giám hiệu & Lãnh đạo Nhà trường
             </h4>
             <ul class="legal-list">
-              <li>
-                <strong>Hiệu trưởng:</strong> <span>{{ school()?.principalName || 'Chưa cập nhật' }}</span>
+              <li class="info-item">
+                <span class="info-label">Hiệu trưởng:</span>
+                <span class="info-val font-semibold">{{ school()?.principalName || 'Chưa cập nhật' }}</span>
               </li>
-              <li>
-                <strong>Điện thoại liên hệ:</strong> <span>{{ school()?.phone || 'Chưa cập nhật' }}</span>
+              <li class="info-item">
+                <span class="info-label">Điện thoại liên hệ:</span>
+                <span class="info-val">{{ school()?.phone || 'Chưa cập nhật' }}</span>
               </li>
-              <li>
-                <strong>Email chính thức:</strong> <span>{{ school()?.email || 'Chưa cập nhật' }}</span>
+              <li class="info-item">
+                <span class="info-label">Email chính thức:</span>
+                <span class="info-val">{{ school()?.email || 'Chưa cập nhật' }}</span>
               </li>
-              <li>
-                <strong>Website trường:</strong> <span>{{ school()?.website || 'Chưa cập nhật' }}</span>
+              <li class="info-item">
+                <span class="info-label">Website trường:</span>
+                <span class="info-val">{{ school()?.website || 'Chưa cập nhật' }}</span>
               </li>
             </ul>
           </div>
@@ -947,13 +951,26 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       margin: 0;
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
-      font-size: 0.85rem;
+      gap: 0.6rem;
+      font-size: 0.9rem;
       color: #475569;
     }
 
-    .legal-list li {
+    .legal-list .info-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
       line-height: 1.4;
+    }
+
+    .info-label {
+      font-weight: 600;
+      color: #334155;
+      min-width: 140px;
+    }
+
+    .info-val {
+      color: #0F172A;
     }
 
     /* Modal Styles */

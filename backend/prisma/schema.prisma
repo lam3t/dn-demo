@@ -190,10 +190,10 @@ model School {
   email               String?
   website             String?
   principalName       String?  // Cô Phạm Thị Nam
-  totalStudents       Int      @default(5669) // 5.669 học sinh
-  totalFemaleStudents Int      @default(2736) // 2.736 nữ
-  totalClasses        Int      @default(122)  // 122 lớp
-  totalStaff          Int      @default(218)  // 218 cán bộ, giáo viên, nhân viên
+  totalStudents       Int      @default(0)
+  totalFemaleStudents Int      @default(0)
+  totalClasses        Int      @default(0)
+  totalStaff          Int      @default(0)
   schoolYear          String   @default("2026-2027")
   statsJson           String?  // JSON lưu phân bố sĩ số từng khối và điểm trường
   description         String?
