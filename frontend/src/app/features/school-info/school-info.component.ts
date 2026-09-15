@@ -404,6 +404,12 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       border-bottom: 1px solid #E2E8F0;
     }
 
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
     .breadcrumb {
       display: flex;
       align-items: center;
@@ -521,6 +527,57 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
     }
     @keyframes spin {
       100% { transform: rotate(360deg); }
+    }
+
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1rem;
+      color: #64748B;
+      gap: 1rem;
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid #E2E8F0;
+      border-top-color: #1F3864;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .content-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .empty-loc-card {
+      grid-column: 1 / -1;
+      background: #FFFFFF;
+      border: 1.5px dashed #CBD5E1;
+      border-radius: 12px;
+      padding: 2.5rem;
+      text-align: center;
+      color: #64748B;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      .material-symbols-outlined { font-size: 40px; color: #94A3B8; }
+    }
+
+    .loc-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .loc-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
     }
 
     /* Stats Grid */

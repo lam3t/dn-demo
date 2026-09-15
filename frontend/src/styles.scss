@@ -260,3 +260,43 @@ a.call-btn, button.call-btn {
     display: none !important;
   }
 }
+
+/* Common Layout & Typography Utilities */
+.text-left { text-align: left !important; }
+.text-center { text-align: center !important; }
+.text-right { text-align: right !important; }
+
+.font-bold { font-weight: 700 !important; }
+.font-semibold { font-weight: 600 !important; }
+.font-medium { font-weight: 500 !important; }
+
+.text-xs { font-size: 0.75rem !important; }
+.text-sm { font-size: 0.85rem !important; }
+.text-base { font-size: 0.95rem !important; }
+.text-lg { font-size: 1.15rem !important; }
+
+.text-muted { color: #64748B !important; }
+.text-slate-700 { color: #334155 !important; }
+.text-slate-900 { color: #0F172A !important; }
+
+.flex-between {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+.flex-center {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}

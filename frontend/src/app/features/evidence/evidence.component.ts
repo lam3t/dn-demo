@@ -202,6 +202,10 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
       padding: 24px;
       border: 1px solid #e2e8f0;
     }
+    .header-titles {
+      display: flex;
+      flex-direction: column;
+    }
     .header-tag {
       display: inline-flex;
       align-items: center;
@@ -246,6 +250,27 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
     }
     @media (max-width: 640px) {
       .filter-grid { grid-template-columns: 1fr; }
+    }
+    .search-field {
+      grid-column: span 1;
+    }
+    .form-control {
+      width: 100%;
+      height: 40px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 0 12px;
+      font-size: 14px;
+      color: #0f172a;
+      background: #ffffff;
+      &:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+    }
+    .pagination-wrapper {
+      margin-top: 16px;
     }
     .filter-field {
       display: flex;

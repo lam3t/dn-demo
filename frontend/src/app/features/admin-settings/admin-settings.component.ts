@@ -2644,6 +2644,285 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
         }
       }
 
+      .tab-content-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .locations-top-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 14px;
+        background: #FFFFFF;
+        padding: 16px 20px;
+        border-radius: 12px;
+        border: 1px solid #E2E8F0;
+
+        .summary-meta-text {
+          h2 { font-size: 1.15rem; font-weight: 800; color: #1E293B; margin: 0 0 4px 0; }
+          p { font-size: 0.85rem; color: #64748B; margin: 0; }
+        }
+      }
+
+      /* CAMPUS TEACHERS TAB (TAB 4) */
+      .campus-teachers-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 14px;
+        background: #FFFFFF;
+        padding: 16px 20px;
+        border-radius: 12px;
+        border: 1px solid #E2E8F0;
+      }
+
+      .campus-selector-box {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+
+        .label {
+          font-size: 0.88rem;
+          font-weight: 700;
+          color: #334155;
+          white-space: nowrap;
+        }
+      }
+
+      .campus-chips {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .campus-chip-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #475569;
+        background: #F8FAFC;
+        border: 1px solid #CBD5E1;
+        cursor: pointer;
+        transition: all 0.15s ease;
+
+        .material-symbols-outlined {
+          font-size: 18px;
+          color: #64748B;
+        }
+
+        &:hover {
+          background: #EFF6FF;
+          color: #1D4ED8;
+          border-color: #93C5FD;
+          .material-symbols-outlined { color: #1D4ED8; }
+        }
+
+        &.active {
+          background: #1F3864 !important;
+          color: #FFFFFF !important;
+          border-color: #1F3864 !important;
+          font-weight: 700;
+          box-shadow: 0 2px 6px rgba(31, 56, 100, 0.2);
+
+          .material-symbols-outlined {
+            color: #FFFFFF !important;
+          }
+        }
+      }
+
+      .btn-transfer {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border: 1px solid #CBD5E1;
+        background: #FFFFFF;
+        color: #334155;
+        border-radius: 6px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+
+        .material-symbols-outlined { font-size: 16px; }
+
+        &:hover {
+          background: #EFF6FF;
+          color: #1D4ED8;
+          border-color: #93C5FD;
+        }
+      }
+
+      .workload-pill {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 9999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        background: #F1F5F9;
+        color: #475569;
+
+        &.workload-none { background: #F1F5F9; color: #64748B; }
+        &.workload-light { background: #ECFDF5; color: #065F46; }
+        &.workload-medium { background: #EFF6FF; color: #1D4ED8; }
+        &.workload-heavy { background: #FEF3C7; color: #92400E; }
+        &.workload-high { background: #FEE2E2; color: #991B1B; }
+      }
+
+      .empty-state-box {
+        background: #FFFFFF;
+        padding: 40px 20px;
+        border-radius: 12px;
+        border: 1px solid #E2E8F0;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+
+        .empty-icon { font-size: 48px; color: #94A3B8; }
+        h3 { font-size: 1.1rem; font-weight: 700; color: #1E293B; margin: 0; }
+        p { font-size: 0.85rem; color: #64748B; margin: 0; }
+      }
+
+      /* USER ROLES SELECTOR & DETAILS (TAB 2) */
+      .user-picker-wrapper {
+        margin-top: 4px;
+      }
+
+      .user-roles-detail-box {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        background: #F8FAFC;
+        padding: 16px 18px;
+        border-radius: 12px;
+        border: 1px solid #E2E8F0;
+
+        .user-profile-bar {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          flex-wrap: wrap;
+
+          .profile-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 2px solid #CBD5E1;
+            object-fit: cover;
+          }
+
+          .profile-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            .profile-name { font-size: 1.05rem; font-weight: 700; color: #1E293B; }
+            .profile-sub { font-size: 0.82rem; color: #64748B; }
+          }
+
+          .add-role-btn {
+            margin-left: auto;
+          }
+        }
+
+        .assigned-roles-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+
+          .roles-header-label {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #334155;
+          }
+
+          .no-roles-msg {
+            font-size: 0.85rem;
+            color: #94A3B8;
+            font-style: italic;
+            margin: 0;
+          }
+        }
+      }
+
+      .picker-placeholder-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 16px;
+        background: #F8FAFC;
+        border: 1px dashed #CBD5E1;
+        border-radius: 10px;
+        color: #64748B;
+        font-size: 0.88rem;
+
+        .material-symbols-outlined { font-size: 24px; color: #94A3B8; }
+        p { margin: 0; }
+      }
+
+      .to-truong-switch-group {
+        background: #FFFBEB;
+        border: 1px solid #FDE68A;
+        padding: 12px 14px;
+        border-radius: 8px;
+
+        .custom-checkbox-container {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          cursor: pointer;
+
+          input[type="checkbox"] {
+            margin-top: 3px;
+            width: 18px;
+            height: 18px;
+            accent-color: #D97706;
+          }
+
+          .checkbox-text-block {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            .checkbox-title { font-size: 0.88rem; color: #92400E; }
+            .checkbox-subtitle { font-size: 0.78rem; color: #B45309; }
+          }
+        }
+      }
+
+      .custom-checkbox {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #334155;
+        cursor: pointer;
+
+        input[type="checkbox"] {
+          width: 16px;
+          height: 16px;
+          accent-color: #1F3864;
+        }
+      }
+
+      .success-header {
+        background: #ECFDF5;
+        color: #065F46;
+        .success-icon { font-size: 26px; color: #059669; }
+        h3 { color: #065F46 !important; }
+      }
+
       .created-account-card {
         background: #F8FAFC;
         padding: 14px;
