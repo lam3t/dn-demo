@@ -1,5 +1,5 @@
 import { HttpInterceptorFn, HttpRequest, HttpHandlerFn, HttpErrorResponse, HttpResponse } from '@angular/common/http';
-import { catchError, of } from 'rxjs';
+import { catchError, of, throwError } from 'rxjs';
 import {
   MOCK_SCHOOL_INFO,
   MOCK_LOCATIONS,
@@ -18,23 +18,47 @@ import { LocationSummaryItem } from '../models/admin.models';
 export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, next: HttpHandlerFn) => {
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
-      // If backend API returns error (500, 502, 503, 504, 404, 0 connection error on Vercel without PostgreSQL)
+      // 1. NEVER mock client/auth errors (400 Bad Request, 401 Unauthorized, 403 Forbidden, 409 Conflict, 422 Unprocessable Entity)
+      // These are genuine business validation & security errors from the backend that must be displayed to the user.
+      if (error.status === 400 || error.status === 401 || error.status === 403 || error.status === 409 || error.status === 422) {
+        return throwError(() => error);
+      }
+
+      // If backend API returns error (500, 502, 503, 504, 404, 0 connection error on static preview without server)
       if (req.url.startsWith('/api')) {
         const url = req.urlWithParams || req.url;
         const method = req.method.toUpperCase();
 
-        // 0. AUTH & LOGIN (Demo Account Switcher Support)
+        // 0. AUTH & LOGIN (Only for static offline demo preview with status === 0 or 404)
         if (url.includes('/api/auth')) {
           if (url.includes('/login') && method === 'POST') {
+            // If backend is running and returned any response, do not fake a login
+            if (error.status !== 0 && error.status !== 404) {
+              return throwError(() => error);
+            }
+
             const body = (req.body || {}) as any;
             const identifier = (body.identifier || '').trim();
-            const foundUser =
-              MOCK_USERS.find(
-                (u) =>
-                  u.phone === identifier ||
-                  u.email?.toLowerCase() === identifier.toLowerCase() ||
-                  u.id === identifier
-              ) || MOCK_USERS[0];
+            const password = (body.password || '').trim();
+
+            const foundUser = MOCK_USERS.find(
+              (u) =>
+                u.phone === identifier ||
+                u.email?.toLowerCase() === identifier.toLowerCase() ||
+                u.id === identifier
+            );
+
+            // If user is not found or credentials do not match demo credentials, reject login
+            if (!foundUser) {
+              return throwError(
+                () =>
+                  new HttpErrorResponse({
+                    error: { success: false, message: 'Tài khoản hoặc mật khẩu không chính xác.' },
+                    status: 401,
+                    statusText: 'Unauthorized',
+                  })
+              );
+            }
 
             const userProfile = {
               ...foundUser,
@@ -63,12 +87,15 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
                     refreshToken: `mock-refresh-token-${foundUser.id}`,
                     user: userProfile,
                   },
-                  message: 'Đăng nhập thành công (Chế độ mô phỏng demo).',
+                  message: 'Đăng nhập thành công.',
                 },
               })
             );
           }
           if (url.includes('/refresh')) {
+            if (error.status !== 0 && error.status !== 404) {
+              return throwError(() => error);
+            }
             return of(
               new HttpResponse({
                 status: 200,
@@ -81,6 +108,9 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
                 },
               })
             );
+          }
+          if (url.includes('/change-password')) {
+            return throwError(() => error);
           }
           if (url.includes('/logout')) {
             return of(new HttpResponse({ status: 200, body: { success: true, message: 'Đăng xuất thành công.' } }));
