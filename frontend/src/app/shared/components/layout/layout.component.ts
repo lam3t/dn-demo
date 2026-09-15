@@ -140,25 +140,6 @@ import { UserPickerItem } from '../../../core/models/user.models';
           <span class="material-symbols-outlined icon-mini">verified</span>
           <span>{{ authService.isSystemAdmin() ? 'TN EDU SaaS Enterprise' : 'Phiên bản Năm học 2026-2027' }}</span>
         </div>
-
-        <!-- User Profile & Logout in Sidebar Footer -->
-        <div class="sidebar-footer">
-          @if (authService.currentUser(); as user) {
-            <div class="user-card">
-              <img [src]="user.avatarUrl" [alt]="user.fullName" class="user-avatar" />
-              <div class="user-details">
-                <span class="user-name" [title]="user.fullName">{{ user.fullName }}</span>
-                <span class="user-title" [title]="user.title || ''">{{ authService.isSystemAdmin() ? 'Quản trị Nền tảng SaaS' : (user.title || 'Cán bộ giáo viên') }}</span>
-              </div>
-              <button type="button" class="pwd-action-btn" (click)="openChangePassword()" title="Đổi mật khẩu">
-                <span class="material-symbols-outlined">lock_reset</span>
-              </button>
-              <button type="button" class="logout-btn" (click)="logout()" title="Đăng xuất">
-                <span class="material-symbols-outlined">logout</span>
-              </button>
-            </div>
-          }
-        </div>
       </aside>
 
       <!-- 2. MAIN CONTENT AREA -->
@@ -342,14 +323,74 @@ import { UserPickerItem } from '../../../core/models/user.models';
               </a>
 
               @if (authService.currentUser(); as u) {
-                <div class="header-profile-pill" (click)="logout()" title="Bấm để đăng xuất">
-                  <div class="avatar-ring">
-                    <img [src]="u.avatarUrl" [alt]="u.fullName" class="header-avatar" />
-                  </div>
-                  <div class="header-user-text hide-on-mobile">
-                    <span class="header-user-name">{{ u.fullName }}</span>
-                    <span class="header-user-role">{{ authService.isSystemAdmin() ? 'System Admin (SaaS)' : (u.title || authService.activeRole()?.roleTitle) }}</span>
-                  </div>
+                <div class="user-menu-wrapper" (click)="$event.stopPropagation()">
+                  <button
+                    type="button"
+                    class="header-profile-pill"
+                    (click)="toggleUserMenu($event)"
+                    [class.active]="isUserMenuOpen"
+                    title="Menu tài khoản cá nhân"
+                  >
+                    <div class="avatar-ring">
+                      <img [src]="u.avatarUrl || 'https://ui-avatars.com/api/?name=' + u.fullName + '&background=1E3A8A&color=fff'" [alt]="u.fullName" class="header-avatar" />
+                    </div>
+                    <div class="header-user-text hide-on-mobile">
+                      <span class="header-user-name">{{ u.fullName }}</span>
+                      <span class="header-user-role">{{ authService.isSystemAdmin() ? 'System Admin (SaaS)' : (u.title || authService.activeRole()?.roleTitle || 'Cán bộ giáo viên') }}</span>
+                    </div>
+                    <span class="material-symbols-outlined dropdown-chevron" [class.rotated]="isUserMenuOpen">expand_more</span>
+                  </button>
+
+                  <!-- USER DROPDOWN POPUP MENU -->
+                  @if (isUserMenuOpen) {
+                    <div class="user-dropdown-menu">
+                      <div class="dropdown-user-header">
+                        <div class="dropdown-avatar-wrap">
+                          <img [src]="u.avatarUrl || 'https://ui-avatars.com/api/?name=' + u.fullName + '&background=1E3A8A&color=fff'" [alt]="u.fullName" class="dropdown-avatar" />
+                        </div>
+                        <div class="dropdown-user-meta">
+                          <div class="dropdown-user-name" [title]="u.fullName">{{ u.fullName }}</div>
+                          <div class="dropdown-user-email" [title]="u.email || u.phone">{{ u.email || u.phone }}</div>
+                          <div class="dropdown-user-badge">
+                            <span class="material-symbols-outlined badge-icon">{{ authService.isSystemAdmin() ? 'hub' : 'verified_user' }}</span>
+                            <span>{{ authService.isSystemAdmin() ? 'Quản trị Nền tảng SaaS' : (u.title || authService.activeRole()?.roleTitle || 'Cán bộ giáo viên') }}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="dropdown-divider"></div>
+
+                      <div class="dropdown-menu-list">
+                        <button type="button" class="dropdown-menu-item" (click)="openProfileModal()">
+                          <span class="material-symbols-outlined item-icon text-blue">badge</span>
+                          <div class="item-text-wrap">
+                            <span class="item-label">Xem thông tin cá nhân</span>
+                            <span class="item-desc">Hồ sơ, chức danh & phân quyền</span>
+                          </div>
+                          <span class="material-symbols-outlined item-arrow">chevron_right</span>
+                        </button>
+
+                        <button type="button" class="dropdown-menu-item" (click)="openChangePasswordFromMenu()">
+                          <span class="material-symbols-outlined item-icon text-amber">lock_reset</span>
+                          <div class="item-text-wrap">
+                            <span class="item-label">Đổi mật khẩu</span>
+                            <span class="item-desc">Cập nhật mật khẩu bảo mật</span>
+                          </div>
+                          <span class="material-symbols-outlined item-arrow">chevron_right</span>
+                        </button>
+
+                        <div class="dropdown-divider"></div>
+
+                        <button type="button" class="dropdown-menu-item logout-item" (click)="logout()">
+                          <span class="material-symbols-outlined item-icon text-red">logout</span>
+                          <div class="item-text-wrap">
+                            <span class="item-label text-red">Đăng xuất</span>
+                            <span class="item-desc">Thoát khỏi phiên làm việc</span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  }
                 </div>
               }
             </div>
@@ -577,8 +618,12 @@ import { UserPickerItem } from '../../../core/models/user.models';
               </div>
             }
 
-            <!-- Drawer Footer: Change Password, Logout & Version info -->
+            <!-- Drawer Footer: Profile, Change Password, Logout & Version info -->
             <div class="drawer-footer">
+              <button type="button" class="drawer-pwd-btn tap-target" (click)="openProfileModal(); closeMobileDrawer()">
+                <span class="material-symbols-outlined">badge</span>
+                <span>Thông tin cá nhân</span>
+              </button>
               <button type="button" class="drawer-pwd-btn tap-target" (click)="openChangePassword()">
                 <span class="material-symbols-outlined">lock_reset</span>
                 <span>Đổi mật khẩu</span>
@@ -603,7 +648,144 @@ import { UserPickerItem } from '../../../core/models/user.models';
         ></app-contact-mini-card>
       }
 
-      <!-- 5. CHANGE PASSWORD MODAL (TT 003) -->
+      <!-- 5. PERSONAL PROFILE MODAL -->
+      @if (isProfileModalOpen && authService.currentUser(); as user) {
+        <div class="layout-modal-backdrop" (click)="closeProfileModal()">
+          <div class="layout-modal-dialog profile-modal-dialog" (click)="$event.stopPropagation()">
+            <div class="modal-dialog-header">
+              <div class="modal-title-wrap">
+                <span class="material-symbols-outlined modal-icon">badge</span>
+                <h3>Thông Tin Tài Khoản Cá Nhân</h3>
+              </div>
+              <button type="button" class="modal-close-btn" (click)="closeProfileModal()" title="Đóng">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div class="modal-dialog-body profile-modal-body">
+              <!-- Hero Profile Banner -->
+              <div class="profile-hero-card">
+                <img [src]="user.avatarUrl || 'https://ui-avatars.com/api/?name=' + user.fullName + '&background=1E3A8A&color=fff'" [alt]="user.fullName" class="hero-avatar" />
+                <div class="hero-details">
+                  <h4 class="hero-name">{{ user.fullName }}</h4>
+                  <div class="hero-role-pill">
+                    <span class="material-symbols-outlined pill-icon">{{ authService.isSystemAdmin() ? 'hub' : 'verified_user' }}</span>
+                    <span>{{ authService.isSystemAdmin() ? 'Quản trị Nền tảng SaaS' : (user.title || authService.activeRole()?.roleTitle || 'Cán bộ giáo viên') }}</span>
+                  </div>
+                  <div class="hero-subtext">
+                    <span>🏢 {{ authService.isSystemAdmin() ? 'TN EDU SaaS Enterprise Platform' : (user.tenantName || user.schoolName || 'Trường TH và THCS Phước Tân') }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Information Grid -->
+              <div class="profile-grid">
+                <!-- Section: Contact Info -->
+                <div class="profile-section-box">
+                  <div class="section-box-title">
+                    <span class="material-symbols-outlined icon">contact_page</span>
+                    <span>Thông tin liên hệ</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Họ và tên:</span>
+                    <span class="info-val font-semibold">{{ user.fullName }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Số điện thoại (Tên đăng nhập):</span>
+                    <span class="info-val font-semibold">{{ user.phone || 'Chưa cập nhật' }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Địa chỉ Email:</span>
+                    <span class="info-val">{{ user.email || 'Chưa cập nhật' }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Chức danh / Chức vụ:</span>
+                    <span class="info-val">{{ user.title || (authService.isSystemAdmin() ? 'System Administrator' : 'Cán bộ giáo viên') }}</span>
+                  </div>
+                </div>
+
+                <!-- Section: Unit & Scope -->
+                <div class="profile-section-box">
+                  <div class="section-box-title">
+                    <span class="material-symbols-outlined icon">domain</span>
+                    <span>Đơn vị & Phạm vi công tác</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Trường học / Đơn vị:</span>
+                    <span class="info-val">{{ authService.isSystemAdmin() ? 'Nền tảng SaaS Toàn hệ thống' : (user.tenantName || user.schoolName || 'Trường TH & THCS Phước Tân') }}</span>
+                  </div>
+                  @if (user.tenantCode) {
+                    <div class="info-row">
+                      <span class="info-label">Mã trường (Tenant Code):</span>
+                      <span class="info-val font-mono"><span class="badge-code">{{ user.tenantCode }}</span></span>
+                    </div>
+                  }
+                  <div class="info-row">
+                    <span class="info-label">Điểm trường / Cơ sở:</span>
+                    <span class="info-val">{{ user.primaryLocationName || 'Toàn trường / Cơ sở chính' }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Tổ chuyên môn / Phòng:</span>
+                    <span class="info-val">{{ user.primaryOrgUnitName || 'Ban Giám Hiệu / Toàn trường' }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section: System Roles & Permissions -->
+              <div class="profile-section-box">
+                <div class="section-box-title">
+                  <span class="material-symbols-outlined icon">security</span>
+                  <span>Vai trò & Quyền hạn được giao</span>
+                </div>
+                <div class="roles-tags-wrap">
+                  @if (authService.isSystemAdmin()) {
+                    <div class="role-badge-chip chip-sysadmin">
+                      <span class="material-symbols-outlined">hub</span>
+                      <div class="chip-text">
+                        <span class="chip-title">SYSTEM_ADMIN • Quản trị Nền tảng SaaS</span>
+                        <span class="chip-scope">Toàn quyền quản trị đa trường học & cấu hình hệ thống</span>
+                      </div>
+                    </div>
+                  } @else if (user.roles && user.roles.length > 0) {
+                    @for (r of user.roles; track $index) {
+                      <div class="role-badge-chip">
+                        <span class="material-symbols-outlined">shield</span>
+                        <div class="chip-text">
+                          <span class="chip-title">{{ authService.getRoleVietnameseName(r.role) }} ({{ r.role }})</span>
+                          @if (r.scopeLocationName || r.scopeOrgUnitName) {
+                            <span class="chip-scope">Phạm vi: {{ r.scopeLocationName || r.scopeOrgUnitName }}</span>
+                          }
+                        </div>
+                      </div>
+                    }
+                  } @else {
+                    <div class="role-badge-chip">
+                      <span class="material-symbols-outlined">person</span>
+                      <div class="chip-text">
+                        <span class="chip-title">Giáo viên / Cán bộ nhân viên</span>
+                        <span class="chip-scope">Trường TH & THCS Phước Tân</span>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-dialog-footer profile-modal-footer">
+              <button type="button" class="btn-dialog-secondary" (click)="openChangePasswordFromProfile()">
+                <span class="material-symbols-outlined">lock_reset</span>
+                <span>Đổi mật khẩu</span>
+              </button>
+              <button type="button" class="btn-dialog-submit" (click)="closeProfileModal()">
+                <span class="material-symbols-outlined">close</span>
+                <span>Đóng</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- 6. CHANGE PASSWORD MODAL (TT 003) -->
       @if (isChangePasswordOpen) {
         <div class="layout-modal-backdrop" (click)="closeChangePassword()">
           <div class="layout-modal-dialog" (click)="$event.stopPropagation()">
@@ -1139,32 +1321,40 @@ import { UserPickerItem } from '../../../core/models/user.models';
           }
         }
 
+        .user-menu-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+
         .header-profile-pill {
           display: flex;
           align-items: center;
           gap: 6px;
-          padding: 2px 7px 2px 3px;
+          padding: 2px 8px 2px 3px;
           border-radius: 999px;
           background: #F8FAFC;
           border: 1px solid #E2E8F0;
           cursor: pointer;
-          transition: background 0.15s;
+          transition: all 0.15s ease;
           white-space: nowrap;
           flex-shrink: 0;
 
-          &:hover {
-            background: #F1F5F9;
+          &:hover, &.active {
+            background: #EFF6FF;
+            border-color: #BFDBFE;
           }
 
           .avatar-ring {
-            width: 24px;
-            height: 24px;
+            width: 26px;
+            height: 26px;
             border-radius: 50%;
             overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            border: 1.5px solid #DBEAFE;
           }
 
           .header-avatar {
@@ -1176,12 +1366,12 @@ import { UserPickerItem } from '../../../core/models/user.models';
           .header-user-text {
             display: flex;
             flex-direction: column;
-            line-height: 1.1;
-            max-width: 110px;
+            line-height: 1.15;
+            max-width: 130px;
             overflow: hidden;
 
             .header-user-name {
-              font-size: 0.75rem;
+              font-size: 0.78rem;
               font-weight: 700;
               color: #0F172A;
               white-space: nowrap;
@@ -1195,6 +1385,179 @@ import { UserPickerItem } from '../../../core/models/user.models';
               white-space: nowrap;
               overflow: hidden;
               text-overflow: ellipsis;
+            }
+          }
+
+          .dropdown-chevron {
+            font-size: 18px;
+            color: #64748B;
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.15s;
+
+            &.rotated {
+              transform: rotate(180deg);
+              color: #2563EB;
+            }
+          }
+        }
+
+        /* Top Header User Dropdown Popover */
+        .user-dropdown-menu {
+          position: absolute;
+          top: calc(100% + 8px);
+          right: 0;
+          width: 290px;
+          background: #FFFFFF;
+          border-radius: 12px;
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.06);
+          border: 1px solid #E2E8F0;
+          z-index: 1000;
+          animation: dropDownIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+          overflow: hidden;
+
+          .dropdown-user-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            background: #F8FAFC;
+            border-bottom: 1px solid #F1F5F9;
+
+            .dropdown-avatar-wrap {
+              width: 42px;
+              height: 42px;
+              border-radius: 50%;
+              overflow: hidden;
+              flex-shrink: 0;
+              border: 2px solid #DBEAFE;
+
+              .dropdown-avatar {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+              }
+            }
+
+            .dropdown-user-meta {
+              flex: 1;
+              min-width: 0;
+              display: flex;
+              flex-direction: column;
+
+              .dropdown-user-name {
+                font-size: 0.88rem;
+                font-weight: 700;
+                color: #0F172A;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              }
+
+              .dropdown-user-email {
+                font-size: 0.72rem;
+                color: #64748B;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                margin-top: 1px;
+              }
+
+              .dropdown-user-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                font-size: 0.65rem;
+                font-weight: 600;
+                color: #1D4ED8;
+                background: #EFF6FF;
+                border: 1px solid #BFDBFE;
+                padding: 1px 6px;
+                border-radius: 4px;
+                margin-top: 4px;
+                align-self: flex-start;
+                max-width: 100%;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+
+                .badge-icon {
+                  font-size: 13px;
+                }
+              }
+            }
+          }
+
+          .dropdown-divider {
+            height: 1px;
+            background: #F1F5F9;
+            margin: 4px 0;
+          }
+
+          .dropdown-menu-list {
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+
+            .dropdown-menu-item {
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              width: 100%;
+              padding: 9px 12px;
+              border: none;
+              background: transparent;
+              border-radius: 8px;
+              cursor: pointer;
+              text-align: left;
+              transition: all 0.15s ease;
+
+              &:hover {
+                background: #F1F5F9;
+              }
+
+              &.logout-item:hover {
+                background: #FEF2F2;
+                .item-label {
+                  color: #DC2626;
+                }
+              }
+
+              .item-icon {
+                font-size: 20px;
+                flex-shrink: 0;
+
+                &.text-blue { color: #2563EB; }
+                &.text-amber { color: #D97706; }
+                &.text-red { color: #EF4444; }
+              }
+
+              .item-text-wrap {
+                flex: 1;
+                min-width: 0;
+                display: flex;
+                flex-direction: column;
+
+                .item-label {
+                  font-size: 0.82rem;
+                  font-weight: 600;
+                  color: #1E293B;
+
+                  &.text-red {
+                    color: #EF4444;
+                  }
+                }
+
+                .item-desc {
+                  font-size: 0.68rem;
+                  color: #94A3B8;
+                  margin-top: 1px;
+                }
+              }
+
+              .item-arrow {
+                font-size: 16px;
+                color: #CBD5E1;
+              }
             }
           }
         }
@@ -1988,6 +2351,228 @@ import { UserPickerItem } from '../../../core/models/user.models';
         border: 1px solid #E2E8F0;
         overflow: hidden;
         animation: dropDownIn 0.2s ease-out;
+
+        &.profile-modal-dialog {
+          max-width: 620px;
+          width: 95%;
+        }
+      }
+
+      /* PERSONAL PROFILE MODAL BODY & CARDS */
+      .profile-modal-body {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        max-height: 75vh;
+        overflow-y: auto;
+      }
+
+      .profile-hero-card {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px;
+        background: linear-gradient(135deg, #EFF6FF, #F8FAFC);
+        border-radius: 12px;
+        border: 1px solid #DBEAFE;
+
+        .hero-avatar {
+          width: 64px;
+          height: 64px;
+          border-radius: 50%;
+          border: 3px solid #FFFFFF;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          object-fit: cover;
+          flex-shrink: 0;
+        }
+
+        .hero-details {
+          flex: 1;
+          min-width: 0;
+
+          .hero-name {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #0F172A;
+            margin: 0 0 4px 0;
+          }
+
+          .hero-role-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #1D4ED8;
+            background: #DBEAFE;
+            padding: 2px 8px;
+            border-radius: 999px;
+            margin-bottom: 4px;
+
+            .pill-icon {
+              font-size: 14px;
+            }
+          }
+
+          .hero-subtext {
+            font-size: 0.78rem;
+            color: #64748B;
+            font-weight: 500;
+          }
+        }
+      }
+
+      .profile-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+
+        @media (max-width: 600px) {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .profile-section-box {
+        padding: 12px 14px;
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+
+        .section-box-title {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.78rem;
+          font-weight: 700;
+          color: #334155;
+          padding-bottom: 6px;
+          border-bottom: 1px solid #F1F5F9;
+
+          .icon {
+            font-size: 18px;
+            color: #2563EB;
+          }
+        }
+
+        .info-row {
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+
+          .info-label {
+            color: #64748B;
+            font-size: 0.7rem;
+            font-weight: 500;
+          }
+
+          .info-val {
+            color: #0F172A;
+            font-size: 0.8rem;
+            font-weight: 600;
+            word-break: break-word;
+
+            .badge-code {
+              background: #F1F5F9;
+              color: #475569;
+              padding: 1px 6px;
+              border-radius: 4px;
+              border: 1px solid #CBD5E1;
+              font-size: 0.72rem;
+              font-weight: 700;
+            }
+          }
+        }
+      }
+
+      .roles-tags-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+
+        .role-badge-chip {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          padding: 8px 10px;
+          background: #F8FAFC;
+          border: 1px solid #E2E8F0;
+          border-radius: 8px;
+          font-size: 0.78rem;
+          color: #334155;
+
+          .material-symbols-outlined {
+            font-size: 18px;
+            color: #2563EB;
+            margin-top: 1px;
+            flex-shrink: 0;
+          }
+
+          .chip-text {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+
+            .chip-title {
+              font-weight: 700;
+              color: #0F172A;
+              font-size: 0.78rem;
+            }
+
+            .chip-scope {
+              font-size: 0.7rem;
+              color: #64748B;
+            }
+          }
+
+          &.chip-sysadmin {
+            background: #F1F5F9;
+            border-color: #CBD5E1;
+
+            .material-symbols-outlined {
+              color: #1E293B;
+            }
+          }
+        }
+      }
+
+      .profile-modal-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 14px 20px;
+        border-top: 1px solid #F1F5F9;
+        background: #F8FAFC;
+
+        .btn-dialog-secondary {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 14px;
+          border-radius: 8px;
+          border: 1px solid #CBD5E1;
+          background: #FFFFFF;
+          color: #334155;
+          font-weight: 600;
+          font-size: 0.82rem;
+          cursor: pointer;
+          transition: all 0.15s ease;
+
+          &:hover {
+            background: #F1F5F9;
+            color: #0F172A;
+            border-color: #94A3B8;
+          }
+
+          .material-symbols-outlined {
+            font-size: 18px;
+            color: #D97706;
+          }
+        }
       }
 
       .modal-dialog-header {
@@ -2187,6 +2772,8 @@ export class LayoutComponent implements OnInit, OnDestroy {
   private router = inject(Router);
 
   isMobileDrawerOpen = false;
+  isUserMenuOpen = false;
+  isProfileModalOpen = false;
 
   // Global Search state
   searchQuery = '';
@@ -2234,10 +2821,11 @@ export class LayoutComponent implements OnInit, OnDestroy {
         },
       });
 
-    // Auto-close mobile drawer & search when route changes
+    // Auto-close mobile drawer, user menu & search when route changes
     this.router.events.subscribe(() => {
       this.isMobileDrawerOpen = false;
       this.isSearchOpen = false;
+      this.isUserMenuOpen = false;
     });
   }
 
@@ -2248,6 +2836,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
   @HostListener('document:click')
   onDocumentClick(): void {
     this.isSearchOpen = false;
+    this.isUserMenuOpen = false;
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -2259,9 +2848,43 @@ export class LayoutComponent implements OnInit, OnDestroy {
         input.focus();
         this.isSearchOpen = true;
       }
-    } else if (event.key === 'Escape' && this.isSearchOpen) {
+    } else if (event.key === 'Escape') {
       this.isSearchOpen = false;
+      this.isUserMenuOpen = false;
+      this.isProfileModalOpen = false;
     }
+  }
+
+  toggleUserMenu(event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.isUserMenuOpen = !this.isUserMenuOpen;
+    this.isSearchOpen = false;
+  }
+
+  closeUserMenu(): void {
+    this.isUserMenuOpen = false;
+  }
+
+  openProfileModal(): void {
+    this.closeUserMenu();
+    this.isMobileDrawerOpen = false;
+    this.isProfileModalOpen = true;
+  }
+
+  closeProfileModal(): void {
+    this.isProfileModalOpen = false;
+  }
+
+  openChangePasswordFromMenu(): void {
+    this.closeUserMenu();
+    this.openChangePassword();
+  }
+
+  openChangePasswordFromProfile(): void {
+    this.closeProfileModal();
+    this.openChangePassword();
   }
 
   onSearchInput(event: Event): void {
@@ -2317,6 +2940,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
   }
 
   openChangePassword(): void {
+    this.closeUserMenu();
     this.currentPassword = '';
     this.newPassword = '';
     this.confirmPassword = '';
@@ -2373,6 +2997,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
   }
 
   logout(): void {
+    this.closeUserMenu();
     this.closeMobileDrawer();
     this.authService.logout();
     this.router.navigate(['/auth/login']);

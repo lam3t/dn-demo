@@ -26,7 +26,12 @@ async function runMultiTenantTests() {
   console.log('🧪 BẮT ĐẦU CHẠY FOCUSED INTEGRATION TESTS: SYSTEM ADMIN & MULTI-TENANT');
   console.log('================================================================');
 
-  // Verify tenants exist in database
+  // Verify tenants exist in database and reset status to ACTIVE for idempotency
+  await prisma.tenant.updateMany({
+    where: { code: { in: ['PHUOC_TAN', 'NGUYEN_HUE'] } },
+    data: { status: 'ACTIVE' },
+  });
+
   const tenantA = await prisma.tenant.findUnique({ where: { code: 'PHUOC_TAN' } });
   const tenantB = await prisma.tenant.findUnique({ where: { code: 'NGUYEN_HUE' } });
 
