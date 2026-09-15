@@ -18,16 +18,18 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
             <span class="material-symbols-outlined icon-breadcrumb">school</span>
             <span>Hồ sơ & Quy mô Nhà trường</span>
             <span class="separator">/</span>
-            <span class="active">Năm học 2026 - 2027</span>
+            <span class="active">Năm học {{ school()?.schoolYear || '2026 - 2027' }}</span>
           </div>
           <h1 class="page-title">
-            {{ school()?.name || 'Trường TH và THCS Phước Tân' }}
-            <span class="status-badge live-badge">Mô hình sáp nhập 3 điểm trường</span>
+            {{ school()?.name || 'Chưa cập nhật tên trường' }}
+            <span class="status-badge live-badge">
+              {{ (school()?.locations?.length || 1) > 1 ? ('Trường có ' + school()?.locations?.length + ' điểm trường / cơ sở') : 'Cơ sở chính' }}
+            </span>
           </h1>
           <p class="page-subtitle">
-            Hiệu trưởng: <strong>Cô {{ school()?.principalName || 'Phạm Thị Nam' }}</strong> • 
-            Địa chỉ: {{ school()?.address || 'Phường Phước Tân, TP. Biên Hòa, Tỉnh Đồng Nai' }} • 
-            Hotline: <a [href]="'tel:' + school()?.phone" class="phone-link">{{ school()?.phone || '02513888999' }}</a>
+            Hiệu trưởng: <strong>{{ school()?.principalName || 'Chưa cập nhật' }}</strong> • 
+            Địa chỉ: {{ school()?.address || 'Chưa cập nhật địa chỉ' }} • 
+            Hotline: <a [href]="school()?.phone ? ('tel:' + school()?.phone) : 'javascript:void(0)'" class="phone-link">{{ school()?.phone || 'Chưa cập nhật' }}</a>
           </p>
         </div>
 
@@ -59,15 +61,15 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
             <div class="stat-info">
               <span class="stat-label">Tổng số Học sinh</span>
               <div class="stat-value">
-                {{ school()?.totalStudents | number }}
+                {{ (school()?.totalStudents || 0) | number }}
                 <span class="stat-unit">học sinh</span>
               </div>
               <div class="stat-sub">
                 <span class="badge female-badge">
                   <span class="material-symbols-outlined mini-icon">female</span>
-                  {{ school()?.totalFemaleStudents | number }} Nữ ({{ getFemalePercent() }}%)
+                  {{ (school()?.totalFemaleStudents || 0) | number }} Nữ ({{ getFemalePercent() }}%)
                 </span>
-                <span class="avg-badge">~46.5 HS/lớp</span>
+                <span class="avg-badge">~{{ getAvgPerClass() }} HS/lớp</span>
               </div>
             </div>
           </div>
@@ -79,11 +81,11 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
             <div class="stat-info">
               <span class="stat-label">Tổng số Lớp học</span>
               <div class="stat-value">
-                {{ school()?.totalClasses }}
+                {{ school()?.totalClasses || 0 }}
                 <span class="stat-unit">lớp</span>
               </div>
               <div class="stat-sub">
-                <span class="text-muted">Khối 6: 31 • Khối 7: 27 • Khối 8: 31 • Khối 9: 33</span>
+                <span class="text-muted">Niên khóa {{ school()?.schoolYear || '2026-2027' }}</span>
               </div>
             </div>
           </div>
@@ -95,11 +97,11 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
             <div class="stat-info">
               <span class="stat-label">Cán bộ • Giáo viên • NV</span>
               <div class="stat-value">
-                {{ school()?.totalStaff }}
+                {{ school()?.totalStaff || 0 }}
                 <span class="stat-unit">nhân sự</span>
               </div>
               <div class="stat-sub">
-                <span class="text-muted">8 Tổ chuyên môn & Văn phòng</span>
+                <span class="text-muted">{{ (school()?.locations?.length || 0) }} Điểm trường • {{ (school()?.totalOrgUnits || 0) }} Tổ/Phòng ban</span>
               </div>
             </div>
           </div>
@@ -111,190 +113,153 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
             <div class="stat-info">
               <span class="stat-label">Điểm trường / Phân hiệu</span>
               <div class="stat-value">
-                {{ school()?.locations?.length || 3 }}
+                {{ school()?.locations?.length || 1 }}
                 <span class="stat-unit">cơ sở</span>
               </div>
               <div class="stat-sub">
-                <span class="text-muted">1 Điểm chính & 2 Phân hiệu</span>
+                <span class="text-muted">{{ (school()?.locations?.length || 1) }} cơ sở trực thuộc</span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 3 Campus Cards Section -->
+        <!-- Campus Cards Section -->
         <div class="section-title-row">
           <h2 class="section-title">
             <span class="material-symbols-outlined title-icon">apartment</span>
-            Quy mô & Cơ sở vật chất 3 Điểm trường (Năm học 2026-2027)
+            Quy mô & Cơ sở vật chất Điểm trường (Năm học {{ school()?.schoolYear || '2026-2027' }})
           </h2>
           <span class="section-desc">Nguyên tắc một kế hoạch giáo dục - một chuẩn kiểm tra đánh giá - dữ liệu dùng chung</span>
         </div>
 
         <div class="locations-grid">
-          <div *ngFor="let loc of school()?.locations" class="location-card" [class.main-loc]="loc.isMain">
-            <div class="loc-header">
-              <div class="loc-title-group">
-                <span class="loc-badge" [class.main]="loc.isMain">
-                  {{ loc.isMain ? 'ĐIỂM CHÍNH (TRUNG TÂM)' : 'PHÂN HIỆU VỆ TINH' }}
-                </span>
-                <h3 class="loc-name">{{ loc.name }}</h3>
-              </div>
-              <div class="loc-code">{{ loc.code }}</div>
+          @if (!school()?.locations || school()?.locations?.length === 0) {
+            <div class="empty-loc-card">
+              <span class="material-symbols-outlined text-muted">domain</span>
+              <p>Chưa có thông tin phân hiệu. Trường học đang hoạt động với điểm trường chính.</p>
             </div>
-
-            <div class="loc-body">
-              <div class="loc-stat-row">
-                <div class="loc-stat-item">
-                  <span class="num">{{ loc.classCount }}</span>
-                  <span class="lbl">Lớp học</span>
+          } @else {
+            <div *ngFor="let loc of school()?.locations" class="location-card" [class.main-loc]="loc.isMain">
+              <div class="loc-header">
+                <div class="loc-title-group">
+                  <span class="loc-badge" [class.main]="loc.isMain">
+                    {{ loc.isMain ? 'ĐIỂM CHÍNH (TRUNG TÂM)' : 'PHÂN HIỆU VỆ TINH' }}
+                  </span>
+                  <h3 class="loc-name">{{ loc.name }}</h3>
                 </div>
-                <div class="loc-stat-item">
-                  <span class="num">{{ loc.studentCount | number }}</span>
-                  <span class="lbl">Học sinh</span>
-                </div>
-                <div class="loc-stat-item">
-                  <span class="num">{{ loc.femaleStudentCount | number }}</span>
-                  <span class="lbl">Học sinh Nữ</span>
-                </div>
-                <div class="loc-stat-item">
-                  <span class="num">{{ loc.userCount || '14+' }}</span>
-                  <span class="lbl">Cán bộ GV</span>
-                </div>
+                <div class="loc-code">{{ loc.code }}</div>
               </div>
 
-              <div class="loc-info-list">
-                <div class="info-row">
-                  <span class="material-symbols-outlined row-icon">location_on</span>
-                  <span class="text">{{ loc.address || 'Phường Phước Tân, TP. Biên Hòa' }}</span>
+              <div class="loc-body">
+                <div class="loc-stat-row">
+                  <div class="loc-stat-item">
+                    <span class="num">{{ loc.classCount || 0 }}</span>
+                    <span class="lbl">Lớp học</span>
+                  </div>
+                  <div class="loc-stat-item">
+                    <span class="num">{{ (loc.studentCount || 0) | number }}</span>
+                    <span class="lbl">Học sinh</span>
+                  </div>
+                  <div class="loc-stat-item">
+                    <span class="num">{{ (loc.femaleStudentCount || 0) | number }}</span>
+                    <span class="lbl">Học sinh Nữ</span>
+                  </div>
+                  <div class="loc-stat-item">
+                    <span class="num">{{ loc.userCount || 0 }}</span>
+                    <span class="lbl">Cán bộ GV</span>
+                  </div>
                 </div>
-                <div class="info-row">
-                  <span class="material-symbols-outlined row-icon">call</span>
-                  <a [href]="'tel:' + loc.phone" class="phone-link">{{ loc.phone }}</a>
-                  <span class="direct-call-badge">Liên hệ trực tiếp</span>
-                </div>
-              </div>
 
-              <div class="loc-progress-bar">
-                <div class="progress-label">
-                  <span>Tỷ trọng học sinh toàn trường:</span>
-                  <strong>{{ getLocRatio(loc.studentCount) }}%</strong>
+                <div class="loc-info-list">
+                  <div class="info-row">
+                    <span class="material-symbols-outlined row-icon">location_on</span>
+                    <span class="text">{{ loc.address || school()?.address || 'Chưa cập nhật địa chỉ' }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="material-symbols-outlined row-icon">call</span>
+                    <a [href]="loc.phone ? ('tel:' + loc.phone) : 'javascript:void(0)'" class="phone-link">{{ loc.phone || school()?.phone || 'Chưa cập nhật' }}</a>
+                    <span class="direct-call-badge">Liên hệ trực tiếp</span>
+                  </div>
                 </div>
-                <div class="bar-track">
-                  <div class="bar-fill" [style.width.%]="getLocRatio(loc.studentCount)"></div>
-                </div>
+
+                @if (school()?.totalStudents && (loc.studentCount || 0) > 0) {
+                  <div class="loc-progress-bar">
+                    <div class="progress-label">
+                      <span>Tỷ trọng học sinh toàn trường:</span>
+                      <strong>{{ getLocRatio(loc.studentCount) }}%</strong>
+                    </div>
+                    <div class="bar-track">
+                      <div class="bar-fill" [style.width.%]="getLocRatio(loc.studentCount)"></div>
+                    </div>
+                  </div>
+                }
               </div>
             </div>
-          </div>
+          }
         </div>
 
-        <!-- Grade Matrix Table Section -->
-        <div class="section-card">
-          <div class="card-header">
-            <div>
-              <h3 class="card-title">
-                <span class="material-symbols-outlined title-icon">table_chart</span>
-                Ma trận Sĩ số & Phân bố Lớp học theo từng Khối (Khối 6 - 9)
-              </h3>
-              <p class="card-subtitle">
-                Căn cứ theo Kế hoạch Giáo dục Nhà trường số 01/KH-THCS đã được UBND và BGH phê duyệt
-              </p>
+        <!-- Grade Matrix Table Section (Only if available) -->
+        @if (school()?.gradeMatrix && school()!.gradeMatrix!.length > 0) {
+          <div class="section-card">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title">
+                  <span class="material-symbols-outlined title-icon">table_chart</span>
+                  Ma trận Sĩ số & Phân bố Lớp học theo từng Khối
+                </h3>
+                <p class="card-subtitle">
+                  Kế hoạch giáo dục và quy mô phân bổ học sinh chi tiết
+                </p>
+              </div>
+              <div class="table-tag">Bình quân toàn trường: {{ getAvgPerClass() }} HS/lớp</div>
             </div>
-            <div class="table-tag">Bình quân toàn trường: 46,5 HS/lớp</div>
-          </div>
 
-          <div class="table-responsive">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th class="text-left">Khối lớp</th>
-                  <th class="text-center">Điểm chính (Trung tâm)</th>
-                  <th class="text-center">Phân hiệu 1 (Tân Lập)</th>
-                  <th class="text-center">Phân hiệu 2 (Vườn Dừa)</th>
-                  <th class="text-center highlight-col">Tổng toàn trường</th>
-                  <th class="text-center">Số học sinh Nữ</th>
-                  <th class="text-center">Bình quân/lớp</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td class="font-bold grade-name">
-                    <span class="grade-pill g6">Khối 6</span>
-                  </td>
-                  <td class="text-center">10 lớp • 494 HS</td>
-                  <td class="text-center">16 lớp • 746 HS</td>
-                  <td class="text-center">5 lớp • 198 HS</td>
-                  <td class="text-center highlight-col font-bold">31 lớp • 1.438 HS</td>
-                  <td class="text-center female-text">702 Nữ (48.8%)</td>
-                  <td class="text-center">46,4 HS/lớp</td>
-                </tr>
-                <tr>
-                  <td class="font-bold grade-name">
-                    <span class="grade-pill g7">Khối 7</span>
-                  </td>
-                  <td class="text-center">10 lớp • 527 HS</td>
-                  <td class="text-center">12 lớp • 570 HS</td>
-                  <td class="text-center">5 lớp • 241 HS</td>
-                  <td class="text-center highlight-col font-bold">27 lớp • 1.338 HS</td>
-                  <td class="text-center female-text">651 Nữ (48.6%)</td>
-                  <td class="text-center">49,5 HS/lớp</td>
-                </tr>
-                <tr>
-                  <td class="font-bold grade-name">
-                    <span class="grade-pill g8">Khối 8</span>
-                  </td>
-                  <td class="text-center">13 lớp • 565 HS</td>
-                  <td class="text-center">14 lớp • 601 HS</td>
-                  <td class="text-center">4 lớp • 179 HS</td>
-                  <td class="text-center highlight-col font-bold">31 lớp • 1.345 HS</td>
-                  <td class="text-center female-text">629 Nữ (46.8%)</td>
-                  <td class="text-center">43,4 HS/lớp</td>
-                </tr>
-                <tr>
-                  <td class="font-bold grade-name">
-                    <span class="grade-pill g9">Khối 9</span>
-                  </td>
-                  <td class="text-center">11 lớp • 551 HS</td>
-                  <td class="text-center">17 lớp • 771 HS</td>
-                  <td class="text-center">5 lớp • 226 HS</td>
-                  <td class="text-center highlight-col font-bold">33 lớp • 1.548 HS</td>
-                  <td class="text-center female-text">754 Nữ (48.7%)</td>
-                  <td class="text-center">46,9 HS/lớp</td>
-                </tr>
-              </tbody>
-              <tfoot>
-                <tr class="total-row">
-                  <td class="font-bold">TỔNG CỘNG</td>
-                  <td class="text-center font-bold">44 lớp • 2.137 HS (1.027 Nữ)</td>
-                  <td class="text-center font-bold">59 lớp • 2.688 HS (1.339 Nữ)</td>
-                  <td class="text-center font-bold">19 lớp • 844 HS (370 Nữ)</td>
-                  <td class="text-center highlight-col font-bold text-primary">122 lớp • 5.669 HS</td>
-                  <td class="text-center font-bold female-text">2.736 Nữ</td>
-                  <td class="text-center font-bold">46,5 HS/lớp</td>
-                </tr>
-              </tfoot>
-            </table>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th class="text-left">Điểm trường</th>
+                    <th class="text-center">Khối 6</th>
+                    <th class="text-center">Khối 7</th>
+                    <th class="text-center">Khối 8</th>
+                    <th class="text-center">Khối 9</th>
+                    <th class="text-center highlight-col">Tổng cộng</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let gm of school()?.gradeMatrix">
+                    <td class="font-bold">{{ gm.locationName || gm.locationId }}</td>
+                    <td class="text-center">{{ gm.grade6?.classes || 0 }} lớp • {{ gm.grade6?.students || 0 }} HS</td>
+                    <td class="text-center">{{ gm.grade7?.classes || 0 }} lớp • {{ gm.grade7?.students || 0 }} HS</td>
+                    <td class="text-center">{{ gm.grade8?.classes || 0 }} lớp • {{ gm.grade8?.students || 0 }} HS</td>
+                    <td class="text-center">{{ gm.grade9?.classes || 0 }} lớp • {{ gm.grade9?.students || 0 }} HS</td>
+                    <td class="text-center highlight-col font-bold">{{ gm.total?.classes || 0 }} lớp • {{ gm.total?.students || 0 }} HS</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        }
 
-        <!-- Management & Legal Spec Section -->
+        <!-- Management & School Summary Section -->
         <div class="legal-info-grid">
           <div class="legal-card">
             <h4 class="legal-title">
               <span class="material-symbols-outlined title-icon text-blue">verified_user</span>
-              Ban Giám hiệu & Quản trị Nhà trường
+              Ban Giám hiệu & Lãnh đạo Nhà trường
             </h4>
             <ul class="legal-list">
               <li>
-                <strong>Hiệu trưởng:</strong> Cô <span>Phạm Thị Nam</span> (Chỉ đạo chung toàn diện 3 điểm trường)
+                <strong>Hiệu trưởng:</strong> <span>{{ school()?.principalName || 'Chưa cập nhật' }}</span>
               </li>
               <li>
-                <strong>Phó Hiệu trưởng (Chuyên môn):</strong> Cô <span>Trần Thị Bích Mai</span>
+                <strong>Điện thoại liên hệ:</strong> <span>{{ school()?.phone || 'Chưa cập nhật' }}</span>
               </li>
               <li>
-                <strong>Phó Hiệu trưởng (Phụ trách PH1):</strong> Thầy <span>Lê Hoàng Long</span> (59 lớp / 2.688 HS)
+                <strong>Email chính thức:</strong> <span>{{ school()?.email || 'Chưa cập nhật' }}</span>
               </li>
               <li>
-                <strong>Phó Hiệu trưởng (Phụ trách PH2):</strong> Thầy <span>Phạm Quốc Tuấn</span> (19 lớp / 844 HS)
+                <strong>Website trường:</strong> <span>{{ school()?.website || 'Chưa cập nhật' }}</span>
               </li>
             </ul>
           </div>
@@ -302,19 +267,13 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
           <div class="legal-card">
             <h4 class="legal-title">
               <span class="material-symbols-outlined title-icon text-blue">description</span>
-              Căn cứ Pháp lý & Kế hoạch Thực hiện
+              Thông tin Hồ sơ & Đặc điểm Tình hình
             </h4>
-            <ul class="legal-list">
-              <li>
-                <strong>Quyết định sáp nhập:</strong> Số 2423/QĐ-UBND ngày 20/8/2026 của UBND TP. Biên Hòa.
-              </li>
-              <li>
-                <strong>Chương trình cốt lõi:</strong> CT GDPT 2018 + 12 tiết Giáo dục Trí tuệ Nhân tạo (AI).
-              </li>
-              <li>
-                <strong>Kỳ báo cáo trọng tâm:</strong> Báo cáo đầu năm (20/9/2026), Sơ kết HK1 (25/01/2027), Tổng kết (15/6/2027).
-              </li>
-            </ul>
+            <div class="legal-list">
+              <p class="text-sm text-slate-700">
+                {{ school()?.description || 'Chưa có thông tin mô tả chi tiết về trường. Nhấn "Cập nhật thông tin" để bổ sung.' }}
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -1218,14 +1177,14 @@ export class SchoolInfoComponent implements OnInit {
       name: ['', Validators.required],
       principalName: ['', Validators.required],
       schoolYear: ['2026 - 2027', Validators.required],
-      totalStudents: [5669, [Validators.required, Validators.min(1)]],
-      totalFemaleStudents: [2736, [Validators.min(0)]],
-      totalClasses: [122, [Validators.required, Validators.min(1)]],
-      totalStaff: [218, [Validators.min(1)]],
-      phone: ['02513888999'],
-      email: ['th_thcs_phuoctan@dongnai.edu.vn'],
-      website: ['https://th-thcsphuoctan.dongnai.edu.vn'],
-      address: ['Phường Phước Tân, TP. Biên Hòa, Tỉnh Đồng Nai'],
+      totalStudents: [0, [Validators.required, Validators.min(0)]],
+      totalFemaleStudents: [0, [Validators.min(0)]],
+      totalClasses: [0, [Validators.required, Validators.min(0)]],
+      totalStaff: [0, [Validators.min(0)]],
+      phone: [''],
+      email: [''],
+      website: [''],
+      address: [''],
       description: [''],
     });
   }
@@ -1251,8 +1210,14 @@ export class SchoolInfoComponent implements OnInit {
 
   getFemalePercent(): number {
     const s = this.school();
-    if (!s || !s.totalStudents) return 48.3;
-    return Math.round((s.totalFemaleStudents / s.totalStudents) * 1000) / 10;
+    if (!s || !s.totalStudents) return 0;
+    return Math.round(((s.totalFemaleStudents || 0) / s.totalStudents) * 1000) / 10;
+  }
+
+  getAvgPerClass(): string {
+    const s = this.school();
+    if (!s || !s.totalStudents || !s.totalClasses) return '0';
+    return (s.totalStudents / s.totalClasses).toFixed(1);
   }
 
   getLocRatio(studentCount: number): number {
@@ -1265,18 +1230,18 @@ export class SchoolInfoComponent implements OnInit {
     const s = this.school();
     if (s) {
       this.editForm.patchValue({
-        name: s.name,
-        principalName: s.principalName || 'Phạm Thị Nam',
+        name: s.name || '',
+        principalName: s.principalName || '',
         schoolYear: s.schoolYear || '2026 - 2027',
-        totalStudents: s.totalStudents,
-        totalFemaleStudents: s.totalFemaleStudents,
-        totalClasses: s.totalClasses,
-        totalStaff: s.totalStaff,
-        phone: s.phone,
-        email: s.email,
-        website: s.website,
-        address: s.address,
-        description: s.description,
+        totalStudents: s.totalStudents || 0,
+        totalFemaleStudents: s.totalFemaleStudents || 0,
+        totalClasses: s.totalClasses || 0,
+        totalStaff: s.totalStaff || 0,
+        phone: s.phone || '',
+        email: s.email || '',
+        website: s.website || '',
+        address: s.address || '',
+        description: s.description || '',
       });
     }
     this.showEditModal.set(true);

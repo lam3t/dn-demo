@@ -63,43 +63,12 @@ export class SchoolService {
       throw new AppError('Không tìm thấy thông tin trường học.', 404);
     }
 
-    // Default detailed grade matrix according to THCS Phuoc Tan spec
-    const defaultGradeMatrix = [
-      {
-        locationId: 'main',
-        locationName: 'Điểm chính (Trung tâm)',
-        grade6: { classes: 10, students: 494, female: 240 },
-        grade7: { classes: 10, students: 527, female: 255 },
-        grade8: { classes: 13, students: 565, female: 270 },
-        grade9: { classes: 11, students: 551, female: 262 },
-        total: { classes: 44, students: 2137, female: 1027, avgPerClass: 48.6 },
-      },
-      {
-        locationId: 'ph1',
-        locationName: 'Phân hiệu 1 (Tân Lập)',
-        grade6: { classes: 16, students: 746, female: 365 },
-        grade7: { classes: 12, students: 570, female: 285 },
-        grade8: { classes: 14, students: 601, female: 300 },
-        grade9: { classes: 17, students: 771, female: 389 },
-        total: { classes: 59, students: 2688, female: 1339, avgPerClass: 45.6 },
-      },
-      {
-        locationId: 'ph2',
-        locationName: 'Phân hiệu 2 (Vườn Dừa)',
-        grade6: { classes: 5, students: 198, female: 97 },
-        grade7: { classes: 5, students: 241, female: 111 },
-        grade8: { classes: 4, students: 179, female: 59 },
-        grade9: { classes: 5, students: 226, female: 103 },
-        total: { classes: 19, students: 844, female: 370, avgPerClass: 44.4 },
-      },
-    ];
-
-    let parsedStats = defaultGradeMatrix;
+    let parsedStats: any[] = [];
     if (school.statsJson) {
       try {
         parsedStats = JSON.parse(school.statsJson);
       } catch (e) {
-        parsedStats = defaultGradeMatrix;
+        parsedStats = [];
       }
     }
 
@@ -110,12 +79,12 @@ export class SchoolService {
       address: school.address,
       phone: school.phone,
       email: school.email,
-      website: school.website || 'http://thcsphuoctan.edu.vn',
-      principalName: school.principalName || 'Phạm Thị Nam',
-      totalStudents: school.totalStudents || 5669,
-      totalFemaleStudents: school.totalFemaleStudents || 2736,
-      totalClasses: school.totalClasses || 122,
-      totalStaff: school.totalStaff || 218,
+      website: school.website || null,
+      principalName: school.principalName || null,
+      totalStudents: school.totalStudents || 0,
+      totalFemaleStudents: school.totalFemaleStudents || 0,
+      totalClasses: school.totalClasses || 0,
+      totalStaff: school.totalStaff || 0,
       schoolYear: school.schoolYear || '2026-2027',
       description: school.description,
       gradeMatrix: parsedStats,

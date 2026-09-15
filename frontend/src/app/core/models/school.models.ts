@@ -58,6 +58,8 @@ export interface SchoolInfo {
   schoolYear: string;
   description?: string;
   statsJson?: string | SchoolStatsDetail;
+  gradeMatrix?: any[];
+  totalOrgUnits?: number;
   locations?: LocationInfo[];
   orgUnitsCount?: number;
 }

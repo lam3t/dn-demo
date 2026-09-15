@@ -36,14 +36,14 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
             <span class="material-symbols-outlined">corporate_fare</span>
             <span>CƠ CẤU TỔ CHỨC & PHÂN HIỆU</span>
           </div>
-          <h1 class="page-title">Sơ Đồ Tổ Chức & 3 Điểm Trường</h1>
+          <h1 class="page-title">Sơ Đồ Tổ Chức & Điểm Trường</h1>
           <p class="page-subtitle">
-            Mô hình sáp nhập: TH và THCS Phước Tân gồm 3 điểm trường (Trung tâm, Phân hiệu 1, Phân hiệu 2) và 8 tổ chuyên môn.
+            Cơ cấu tổ chức trường học: Quản lý thống nhất các điểm trường/phân hiệu và các tổ chuyên môn, phòng ban chức năng.
           </p>
         </div>
       </header>
 
-      <!-- CAMPUS HERO CARDS (3 ĐIỂM TRƯỜNG) -->
+      <!-- CAMPUS HERO CARDS -->
       <section class="campuses-cards-grid">
         @for (loc of locations(); track loc.id; let idx = $index) {
           <div
@@ -64,7 +64,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
             <h3 class="campus-name">{{ loc.name }}</h3>
             <p class="campus-address">
               <span class="material-symbols-outlined">place</span>
-              <span>{{ loc.address || 'Khu vực trường TH và THCS Phước Tân' }}</span>
+              <span>{{ loc.address || 'Chưa cập nhật địa chỉ' }}</span>
             </p>
 
             <div class="campus-footer-metrics">
@@ -77,7 +77,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                 <span>{{ getLocationTaskCount(loc.id) }} công việc</span>
               </div>
               <a
-                [href]="'tel:' + (loc.phone || '0912111001')"
+                [href]="loc.phone ? ('tel:' + loc.phone) : 'javascript:void(0)'"
                 class="campus-call-btn tap-target"
                 (click)="$event.stopPropagation()"
                 title="Gọi hotline điểm trường"

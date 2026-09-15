@@ -149,8 +149,8 @@ import { UserPickerItem } from '../../../core/models/user.models';
           <div class="nav-bar-left">
             <div class="header-brand-title hide-on-mobile">
               <span class="material-symbols-outlined brand-star-icon">{{ authService.isSystemAdmin() ? 'hub' : 'school' }}</span>
-              <span class="brand-school">{{ authService.isSystemAdmin() ? 'TN EDU • QUẢN TRỊ NỀN TẢNG SAAS' : (authService.currentUser()?.tenantName || authService.currentUser()?.schoolName || 'Trường TH và THCS Phước Tân') }}</span>
-              <span class="brand-scale-badge">{{ authService.isSystemAdmin() ? 'Platform Management' : (authService.currentUser()?.tenantCode ? ('Mã: ' + authService.currentUser()?.tenantCode) : '122 Lớp • 5.669 Học sinh') }}</span>
+              <span class="brand-school">{{ authService.isSystemAdmin() ? 'TN EDU • QUẢN TRỊ NỀN TẢNG SAAS' : (authService.currentUser()?.tenantName || authService.currentUser()?.schoolName || 'TN EDU - Quản lý Kế hoạch & Công việc') }}</span>
+              <span class="brand-scale-badge">{{ authService.isSystemAdmin() ? 'Platform Management' : (authService.currentUser()?.tenantCode ? ('Mã: ' + authService.currentUser()?.tenantCode) : 'Hệ thống Quản lý Trường học') }}</span>
             </div>
           </div>
 

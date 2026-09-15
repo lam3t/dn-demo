@@ -116,7 +116,7 @@ export class ReportService {
       include: { school: true },
     });
 
-    const schoolName = tenant?.school?.name || tenant?.name || 'Trường TH và THCS Phước Tân';
+    const schoolName = tenant?.school?.name || tenant?.name || 'Trường học';
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'TN EDU SaaS Platform';

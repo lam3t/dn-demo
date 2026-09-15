@@ -33,7 +33,7 @@ import { LocationItem } from '../../core/models/user.models';
             <div class="banner-text-box">
               <div class="banner-role-badge">
                 <span class="role-tag">{{ authService.activeRole()?.roleTitle || user.title }}</span>
-                <span class="scope-tag">{{ authService.activeRole()?.scopeName || 'TH & THCS Phước Tân' }}</span>
+                <span class="scope-tag">{{ authService.activeRole()?.scopeName || user.tenantName || user.schoolName || 'Toàn trường' }}</span>
               </div>
               <h2 class="banner-welcome-title">
                 Xin chào, {{ user.fullName }}
@@ -77,10 +77,10 @@ import { LocationItem } from '../../core/models/user.models';
               <a
                 routerLink="/tasks"
                 class="banner-cta-btn cta-indigo tap-target"
-                title="Theo dõi việc Phân hiệu 1"
+                title="Theo dõi việc phụ trách"
               >
                 <span class="material-symbols-outlined">assignment</span>
-                <span>Công việc Phân hiệu 1</span>
+                <span>{{ authService.activeRole()?.scopeName ? ('Công việc ' + authService.activeRole()?.scopeName) : 'Công việc phụ trách' }}</span>
               </a>
             }
           </div>
@@ -92,7 +92,7 @@ import { LocationItem } from '../../core/models/user.models';
         <div class="header-title-box">
           <h1 class="page-title">Tổng Quan Điều Hành</h1>
           <p class="page-subtitle">
-            Theo dõi tiến độ công việc và kế hoạch toàn trường TH và THCS Phước Tân sau sáp nhập
+            Theo dõi tiến độ công việc và kế hoạch {{ authService.currentUser()?.tenantName || authService.currentUser()?.schoolName || 'nhà trường' }}
           </p>
         </div>
 

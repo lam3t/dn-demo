@@ -503,7 +503,7 @@ export class KpiService {
     const avgScore = totalStaff > 0 ? Math.round((totalScore / totalStaff) * 100) / 100 : 0;
 
     return {
-      schoolName: school?.name || 'Trường TH & THCS Phước Tân',
+      schoolName: school?.name || 'Trường học',
       periodKey,
       overall: {
         totalStaff,
