@@ -64,17 +64,42 @@ export class AdminService {
    * 1. GET /api/admin/users
    * Danh sách đầy đủ tài khoản cho Quản trị viên
    */
-  async getUsers(filters: AdminUserFilterDto, schoolId?: string, tenantId?: string) {
+  async getUsers(filters: AdminUserFilterDto, schoolId?: string, tenantId?: string, isSystemAdmin?: boolean) {
     const page = Math.max(1, Number(filters.page) || 1);
     const pageSize = Math.min(100, Math.max(1, Number(filters.pageSize) || 20));
     const searchQuery = (filters.search || '').trim();
 
+    let effectiveTenantId = tenantId;
+    if (!effectiveTenantId && schoolId) {
+      const school = await prisma.school.findUnique({
+        where: { id: schoolId },
+        select: { tenantId: true },
+      });
+      if (school) effectiveTenantId = school.tenantId;
+    }
+
+    // Nếu không phải System Admin, bắt buộc phải có tenantId/schoolId để không bao giờ query toàn bộ DB
+    if (!isSystemAdmin && !effectiveTenantId && !schoolId) {
+      return {
+        items: [],
+        total: 0,
+        page,
+        pageSize,
+        totalPages: 1,
+      };
+    }
+
     const where: any = {};
 
-    if (tenantId) {
-      where.tenantId = tenantId;
+    if (effectiveTenantId) {
+      where.tenantId = effectiveTenantId;
     } else if (schoolId) {
       where.schoolId = schoolId;
+    }
+
+    // Không phải System Admin thì tuyệt đối không bao giờ thấy tài khoản System Admin
+    if (!isSystemAdmin) {
+      where.isSystemAdmin = false;
     }
 
     if (filters.locationId) {
@@ -376,10 +401,25 @@ export class AdminService {
    * 3. PATCH /api/admin/users/:id
    * Cập nhật thông tin cơ bản của người dùng
    */
-  async updateUser(actorUserId: string, id: string, data: UpdateAdminUserDto) {
+  async updateUser(
+    actorUserId: string,
+    id: string,
+    data: UpdateAdminUserDto,
+    tenantId?: string,
+    isSystemAdmin?: boolean
+  ) {
     const existing = await prisma.user.findUnique({ where: { id } });
     if (!existing) {
       throw new AppError('Không tìm thấy thông tin tài khoản người dùng.', 404);
+    }
+
+    if (!isSystemAdmin) {
+      if (existing.isSystemAdmin) {
+        throw new AppError('Không thể thao tác trên tài khoản Quản trị viên nền tảng (System Admin).', 403);
+      }
+      if (tenantId && existing.tenantId && existing.tenantId !== tenantId) {
+        throw new AppError('Bạn không có quyền thao tác trên tài khoản của trường/đơn vị khác.', 403);
+      }
     }
 
     if (data.phone && data.phone.trim() !== existing.phone) {
@@ -527,10 +567,25 @@ export class AdminService {
    * 4. PATCH /api/admin/users/:id/status
    * Khoá hoặc mở khoá tài khoản
    */
-  async toggleUserStatus(actorUserId: string, id: string, isActive: boolean) {
+  async toggleUserStatus(
+    actorUserId: string,
+    id: string,
+    isActive: boolean,
+    tenantId?: string,
+    isSystemAdmin?: boolean
+  ) {
     const existing = await prisma.user.findUnique({ where: { id } });
     if (!existing) {
       throw new AppError('Không tìm thấy thông tin tài khoản người dùng.', 404);
+    }
+
+    if (!isSystemAdmin) {
+      if (existing.isSystemAdmin) {
+        throw new AppError('Không thể thao tác trên tài khoản Quản trị viên nền tảng (System Admin).', 403);
+      }
+      if (tenantId && existing.tenantId && existing.tenantId !== tenantId) {
+        throw new AppError('Bạn không có quyền thao tác trên tài khoản của trường/đơn vị khác.', 403);
+      }
     }
 
     // Không cho phép tự khoá tài khoản của chính mình
@@ -565,10 +620,24 @@ export class AdminService {
    * 5. POST /api/admin/users/:id/reset-password
    * Đặt lại mật khẩu về mặc định 123456
    */
-  async resetPassword(actorUserId: string, id: string) {
+  async resetPassword(
+    actorUserId: string,
+    id: string,
+    tenantId?: string,
+    isSystemAdmin?: boolean
+  ) {
     const existing = await prisma.user.findUnique({ where: { id } });
     if (!existing) {
       throw new AppError('Không tìm thấy thông tin tài khoản người dùng.', 404);
+    }
+
+    if (!isSystemAdmin) {
+      if (existing.isSystemAdmin) {
+        throw new AppError('Không thể thao tác trên tài khoản Quản trị viên nền tảng (System Admin).', 403);
+      }
+      if (tenantId && existing.tenantId && existing.tenantId !== tenantId) {
+        throw new AppError('Bạn không có quyền thao tác trên tài khoản của trường/đơn vị khác.', 403);
+      }
     }
 
     const passwordHash = await bcrypt.hash('123456', 10);
@@ -595,7 +664,12 @@ export class AdminService {
    * 6. DELETE /api/admin/users/:id
    * Xoá tài khoản nếu chưa từng là CHU_TRI hoặc PHOI_HOP của bất kỳ Task nào
    */
-  async deleteUser(actorUserId: string, id: string) {
+  async deleteUser(
+    actorUserId: string,
+    id: string,
+    tenantId?: string,
+    isSystemAdmin?: boolean
+  ) {
     const existing = await prisma.user.findUnique({
       where: { id },
       include: {
@@ -616,6 +690,15 @@ export class AdminService {
 
     if (!existing) {
       throw new AppError('Không tìm thấy thông tin tài khoản người dùng.', 404);
+    }
+
+    if (!isSystemAdmin) {
+      if (existing.isSystemAdmin) {
+        throw new AppError('Không thể thao tác trên tài khoản Quản trị viên nền tảng (System Admin).', 403);
+      }
+      if (tenantId && existing.tenantId && existing.tenantId !== tenantId) {
+        throw new AppError('Bạn không có quyền thao tác trên tài khoản của trường/đơn vị khác.', 403);
+      }
     }
 
     if (id === actorUserId) {
@@ -654,7 +737,13 @@ export class AdminService {
    * 7. POST /api/admin/users/:id/roles
    * Thêm 1 dòng UserRole (role, scopeLocationId, scopeOrgUnitId)
    */
-  async addUserRole(actorUserId: string, userId: string, data: AddUserRoleDto) {
+  async addUserRole(
+    actorUserId: string,
+    userId: string,
+    data: AddUserRoleDto,
+    tenantId?: string,
+    isSystemAdmin?: boolean
+  ) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { roles: true },
@@ -662,6 +751,15 @@ export class AdminService {
 
     if (!user) {
       throw new AppError('Không tìm thấy thông tin người dùng.', 404);
+    }
+
+    if (!isSystemAdmin) {
+      if (user.isSystemAdmin) {
+        throw new AppError('Không thể thao tác trên tài khoản Quản trị viên nền tảng (System Admin).', 403);
+      }
+      if (tenantId && user.tenantId && user.tenantId !== tenantId) {
+        throw new AppError('Bạn không có quyền thao tác trên tài khoản của trường/đơn vị khác.', 403);
+      }
     }
 
     const scopeLoc = data.scopeLocationId || null;
@@ -707,7 +805,13 @@ export class AdminService {
    * 8. DELETE /api/admin/users/:id/roles/:userRoleId
    * Gỡ 1 vai trò/phạm vi khỏi tài khoản (chặn nếu đây là vai trò cuối cùng)
    */
-  async removeUserRole(actorUserId: string, userId: string, userRoleId: string) {
+  async removeUserRole(
+    actorUserId: string,
+    userId: string,
+    userRoleId: string,
+    tenantId?: string,
+    isSystemAdmin?: boolean
+  ) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { roles: true },
@@ -715,6 +819,15 @@ export class AdminService {
 
     if (!user) {
       throw new AppError('Không tìm thấy thông tin người dùng.', 404);
+    }
+
+    if (!isSystemAdmin) {
+      if (user.isSystemAdmin) {
+        throw new AppError('Không thể thao tác trên tài khoản Quản trị viên nền tảng (System Admin).', 403);
+      }
+      if (tenantId && user.tenantId && user.tenantId !== tenantId) {
+        throw new AppError('Bạn không có quyền thao tác trên tài khoản của trường/đơn vị khác.', 403);
+      }
     }
 
     const roleToDelete = user.roles.find((r) => r.id === userRoleId);

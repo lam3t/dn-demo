@@ -7,6 +7,8 @@ export class UserController {
     try {
       const { search, orgUnitId, locationId, role, page, pageSize } = req.query;
       const schoolId = req.user?.schoolId;
+      const tenantId = req.user?.tenantId;
+      const isSystemAdmin = req.user?.isSystemAdmin;
 
       const result = await userService.searchUsers({
         search: search as string,
@@ -14,6 +16,8 @@ export class UserController {
         locationId: locationId as string,
         role: role as Role,
         schoolId,
+        tenantId,
+        isSystemAdmin,
         page: page ? Number(page) : 1,
         pageSize: pageSize ? Number(pageSize) : 20,
       });
@@ -45,7 +49,7 @@ export class UserController {
   async getById(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const user = await userService.getById(id);
+      const user = await userService.getById(id, req.user?.tenantId, req.user?.isSystemAdmin);
       res.status(200).json({
         success: true,
         data: user,
@@ -58,7 +62,8 @@ export class UserController {
   async create(req: Request, res: Response, next: NextFunction) {
     try {
       const schoolId = req.body.schoolId || req.user?.schoolId;
-      const user = await userService.create({ ...req.body, schoolId });
+      const tenantId = req.body.tenantId || req.user?.tenantId;
+      const user = await userService.create({ ...req.body, schoolId, tenantId });
       res.status(201).json({
         success: true,
         message: 'Thêm mới nhân sự thành công.',
@@ -72,7 +77,7 @@ export class UserController {
   async update(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const user = await userService.update(id, req.body);
+      const user = await userService.update(id, req.body, req.user?.tenantId, req.user?.isSystemAdmin);
       res.status(200).json({
         success: true,
         message: 'Cập nhật thông tin nhân sự thành công.',
@@ -86,7 +91,7 @@ export class UserController {
   async delete(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      await userService.delete(id);
+      await userService.delete(id, req.user?.tenantId, req.user?.isSystemAdmin);
       res.status(200).json({
         success: true,
         message: 'Xóa / Vô hiệu hóa nhân sự thành công.',

@@ -12,6 +12,7 @@ export interface UserSearchParams {
   locationId?: string;
   schoolId?: string;
   tenantId?: string;
+  isSystemAdmin?: boolean;
   role?: Role;
   page?: number;
   pageSize?: number;
@@ -29,17 +30,47 @@ export class UserService {
     const pageSize = Math.min(100, Math.max(1, Number(params.pageSize) || 20));
     const searchQuery = (params.search || '').trim();
 
+    let effectiveTenantId = params.tenantId;
+    if (!effectiveTenantId && params.schoolId) {
+      const school = await prisma.school.findUnique({
+        where: { id: params.schoolId },
+        select: { tenantId: true },
+      });
+      if (school) effectiveTenantId = school.tenantId;
+    }
+
+    // Nếu không phải System Admin, bắt buộc phải có tenantId/schoolId
+    if (!params.isSystemAdmin && !effectiveTenantId && !params.schoolId) {
+      return {
+        items: [],
+        total: 0,
+        page,
+        pageSize,
+        totalPages: 1,
+      };
+    }
+
     // Cache toàn bộ user directory cho People Picker trong 30s
-    const tenantScope = params.tenantId || params.schoolId || 'all';
+    const tenantScope = effectiveTenantId || params.schoolId || 'all';
     const dirCacheKey = `users:directory:${tenantScope}`;
     let allUsers = appCache.get<any[]>(dirCacheKey);
 
     if (!allUsers) {
+      const where: any = {
+        isActive: true,
+      };
+      if (effectiveTenantId) {
+        where.tenantId = effectiveTenantId;
+      } else if (params.schoolId) {
+        where.schoolId = params.schoolId;
+      }
+
+      if (!params.isSystemAdmin) {
+        where.isSystemAdmin = false;
+      }
+
       allUsers = await prisma.user.findMany({
-        where: {
-          isActive: true,
-          ...(params.tenantId ? { tenantId: params.tenantId } : (params.schoolId ? { schoolId: params.schoolId } : {})),
-        },
+        where,
         include: {
           primaryLocation: { select: { id: true, name: true, code: true } },
           primaryOrgUnit: { select: { id: true, name: true, code: true } },
@@ -159,12 +190,14 @@ export class UserService {
     const taskIds = userTasks.map((t) => t.taskId);
 
     if (taskIds.length === 0) {
-      // Nếu chưa có task, lấy mặc định vài đồng nghiệp cùng tổ / điểm trường
+      // Nếu chưa có task, lấy mặc định vài đồng nghiệp cùng tổ / điểm trường trong cùng tenant
       const currentUser = await prisma.user.findUnique({ where: { id: userId } });
       const fallbackUsers = await prisma.user.findMany({
         where: {
           id: { not: userId },
           isActive: true,
+          isSystemAdmin: false,
+          ...(currentUser?.tenantId ? { tenantId: currentUser.tenantId } : {}),
           OR: [
             { primaryOrgUnitId: currentUser?.primaryOrgUnitId },
             { primaryLocationId: currentUser?.primaryLocationId },
@@ -253,7 +286,7 @@ export class UserService {
     }));
   }
 
-  async getById(id: string) {
+  async getById(id: string, tenantId?: string, isSystemAdmin?: boolean) {
     const user = await prisma.user.findUnique({
       where: { id },
       include: {
@@ -276,6 +309,15 @@ export class UserService {
 
     if (!user) {
       throw new AppError('Không tìm thấy thông tin nhân sự.', 404);
+    }
+
+    if (!isSystemAdmin) {
+      if (user.isSystemAdmin) {
+        throw new AppError('Không thể xem tài khoản Quản trị viên nền tảng (System Admin).', 403);
+      }
+      if (tenantId && user.tenantId && user.tenantId !== tenantId) {
+        throw new AppError('Bạn không có quyền xem tài khoản của trường/đơn vị khác.', 403);
+      }
     }
 
     const { passwordHash, ...safeUser } = user;
@@ -344,11 +386,22 @@ export class UserService {
       primaryLocationId?: string;
       primaryOrgUnitId?: string;
       isActive?: boolean;
-    }
+    },
+    tenantId?: string,
+    isSystemAdmin?: boolean
   ) {
     const existing = await prisma.user.findUnique({ where: { id } });
     if (!existing) {
       throw new AppError('Không tìm thấy thông tin nhân sự.', 404);
+    }
+
+    if (!isSystemAdmin) {
+      if (existing.isSystemAdmin) {
+        throw new AppError('Không thể thao tác trên tài khoản Quản trị viên nền tảng (System Admin).', 403);
+      }
+      if (tenantId && existing.tenantId && existing.tenantId !== tenantId) {
+        throw new AppError('Bạn không có quyền thao tác trên tài khoản của trường/đơn vị khác.', 403);
+      }
     }
 
     const user = await prisma.user.update({
@@ -373,7 +426,7 @@ export class UserService {
     return safeUser;
   }
 
-  async delete(id: string) {
+  async delete(id: string, tenantId?: string, isSystemAdmin?: boolean) {
     const existing = await prisma.user.findUnique({
       where: { id },
       include: {
@@ -385,6 +438,15 @@ export class UserService {
 
     if (!existing) {
       throw new AppError('Không tìm thấy thông tin nhân sự.', 404);
+    }
+
+    if (!isSystemAdmin) {
+      if (existing.isSystemAdmin) {
+        throw new AppError('Không thể thao tác trên tài khoản Quản trị viên nền tảng (System Admin).', 403);
+      }
+      if (tenantId && existing.tenantId && existing.tenantId !== tenantId) {
+        throw new AppError('Bạn không có quyền thao tác trên tài khoản của trường/đơn vị khác.', 403);
+      }
     }
 
     if (existing._count.taskAssignments > 0 || existing._count.createdTasks > 0) {

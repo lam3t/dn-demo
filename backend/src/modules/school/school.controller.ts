@@ -6,7 +6,8 @@ export class SchoolController {
   async getSchoolInfo(req: Request, res: Response, next: NextFunction) {
     try {
       const schoolId = req.user?.schoolId;
-      const info = await schoolService.getSchoolInfo(schoolId);
+      const tenantId = req.user?.tenantId;
+      const info = await schoolService.getSchoolInfo(schoolId, tenantId);
       res.status(200).json({ success: true, data: info });
     } catch (error) {
       next(error);

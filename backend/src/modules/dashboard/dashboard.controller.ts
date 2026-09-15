@@ -6,9 +6,11 @@ export class DashboardController {
     try {
       const { locationId, orgUnitId } = req.query;
       const schoolId = req.user?.schoolId;
+      const tenantId = req.user?.tenantId;
 
       const overview = await dashboardService.getOverview({
         schoolId,
+        tenantId,
         locationId: locationId as string,
         orgUnitId: orgUnitId as string,
       });

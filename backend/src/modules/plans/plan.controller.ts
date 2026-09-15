@@ -7,9 +7,11 @@ export class PlanController {
     try {
       const { level, parentPlanId, search } = req.query;
       const schoolId = req.user?.schoolId;
+      const tenantId = req.user?.tenantId;
 
       const plans = await planService.getAll({
         schoolId,
+        tenantId,
         level: level as PlanLevel,
         parentPlanId: parentPlanId as string,
         search: search as string,
@@ -25,7 +27,8 @@ export class PlanController {
     try {
       const rootPlanId = (req.params.id && req.params.id !== 'tree' ? req.params.id : (req.query.rootPlanId as string)) || undefined;
       const schoolId = req.user?.schoolId;
-      const tree = await planService.getTree(rootPlanId, schoolId);
+      const tenantId = req.user?.tenantId;
+      const tree = await planService.getTree(rootPlanId, schoolId, tenantId);
 
       res.status(200).json({ success: true, data: tree });
     } catch (error) {

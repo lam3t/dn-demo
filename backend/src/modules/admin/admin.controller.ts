@@ -9,6 +9,8 @@ export class AdminController {
   async getUsers(req: Request, res: Response, next: NextFunction) {
     try {
       const schoolId = req.user?.schoolId;
+      const tenantId = req.user?.tenantId;
+      const isSystemAdmin = req.user?.isSystemAdmin;
       const { search, locationId, orgUnitId, role, status, page, pageSize } = req.query;
 
       const result = await adminService.getUsers(
@@ -21,7 +23,9 @@ export class AdminController {
           page: page ? Number(page) : undefined,
           pageSize: pageSize ? Number(pageSize) : undefined,
         },
-        schoolId
+        schoolId,
+        tenantId,
+        isSystemAdmin
       );
 
       res.status(200).json({
@@ -40,12 +44,16 @@ export class AdminController {
     try {
       const actorUserId = req.user!.id;
       const schoolId = req.body.schoolId || req.user?.schoolId;
+      const tenantId = req.body.tenantId || req.user?.tenantId;
 
-      if (!schoolId) {
-        throw new AppError('Không tìm thấy trường học tương ứng.', 400);
+      if (!schoolId && !tenantId) {
+        throw new AppError('Không tìm thấy thông tin trường học tương ứng.', 400);
       }
 
-      const result = await adminService.createUser(actorUserId, schoolId, req.body);
+      const result = await adminService.createUser(actorUserId, schoolId, {
+        ...req.body,
+        tenantId,
+      });
 
       res.status(201).json({
         success: true,
@@ -63,9 +71,11 @@ export class AdminController {
   async updateUser(req: Request, res: Response, next: NextFunction) {
     try {
       const actorUserId = req.user!.id;
+      const tenantId = req.user?.tenantId;
+      const isSystemAdmin = req.user?.isSystemAdmin;
       const { id } = req.params;
 
-      const result = await adminService.updateUser(actorUserId, id, req.body);
+      const result = await adminService.updateUser(actorUserId, id, req.body, tenantId, isSystemAdmin);
 
       res.status(200).json({
         success: true,
@@ -83,6 +93,8 @@ export class AdminController {
   async toggleUserStatus(req: Request, res: Response, next: NextFunction) {
     try {
       const actorUserId = req.user!.id;
+      const tenantId = req.user?.tenantId;
+      const isSystemAdmin = req.user?.isSystemAdmin;
       const { id } = req.params;
       const { isActive } = req.body;
 
@@ -90,7 +102,13 @@ export class AdminController {
         throw new AppError('Thiếu trường trạng thái isActive (true/false).', 400);
       }
 
-      const result = await adminService.toggleUserStatus(actorUserId, id, Boolean(isActive));
+      const result = await adminService.toggleUserStatus(
+        actorUserId,
+        id,
+        Boolean(isActive),
+        tenantId,
+        isSystemAdmin
+      );
 
       res.status(200).json({
         success: true,
@@ -108,9 +126,11 @@ export class AdminController {
   async resetPassword(req: Request, res: Response, next: NextFunction) {
     try {
       const actorUserId = req.user!.id;
+      const tenantId = req.user?.tenantId;
+      const isSystemAdmin = req.user?.isSystemAdmin;
       const { id } = req.params;
 
-      const result = await adminService.resetPassword(actorUserId, id);
+      const result = await adminService.resetPassword(actorUserId, id, tenantId, isSystemAdmin);
 
       res.status(200).json({
         success: true,
@@ -127,9 +147,11 @@ export class AdminController {
   async deleteUser(req: Request, res: Response, next: NextFunction) {
     try {
       const actorUserId = req.user!.id;
+      const tenantId = req.user?.tenantId;
+      const isSystemAdmin = req.user?.isSystemAdmin;
       const { id } = req.params;
 
-      const result = await adminService.deleteUser(actorUserId, id);
+      const result = await adminService.deleteUser(actorUserId, id, tenantId, isSystemAdmin);
 
       res.status(200).json({
         success: true,
@@ -146,6 +168,8 @@ export class AdminController {
   async addUserRole(req: Request, res: Response, next: NextFunction) {
     try {
       const actorUserId = req.user!.id;
+      const tenantId = req.user?.tenantId;
+      const isSystemAdmin = req.user?.isSystemAdmin;
       const { id } = req.params;
       const { role, scopeLocationId, scopeOrgUnitId } = req.body;
 
@@ -153,11 +177,17 @@ export class AdminController {
         throw new AppError('Thiếu vai trò cần gán (role).', 400);
       }
 
-      const result = await adminService.addUserRole(actorUserId, id, {
-        role,
-        scopeLocationId,
-        scopeOrgUnitId,
-      });
+      const result = await adminService.addUserRole(
+        actorUserId,
+        id,
+        {
+          role,
+          scopeLocationId,
+          scopeOrgUnitId,
+        },
+        tenantId,
+        isSystemAdmin
+      );
 
       res.status(201).json({
         success: true,
@@ -175,9 +205,17 @@ export class AdminController {
   async removeUserRole(req: Request, res: Response, next: NextFunction) {
     try {
       const actorUserId = req.user!.id;
+      const tenantId = req.user?.tenantId;
+      const isSystemAdmin = req.user?.isSystemAdmin;
       const { id, userRoleId } = req.params;
 
-      const result = await adminService.removeUserRole(actorUserId, id, userRoleId);
+      const result = await adminService.removeUserRole(
+        actorUserId,
+        id,
+        userRoleId,
+        tenantId,
+        isSystemAdmin
+      );
 
       res.status(200).json({
         success: true,
