@@ -1,11 +1,20 @@
 import { Router } from 'express';
 import { adminController } from './admin.controller';
-import { requireAuth, requireRole, requirePermission } from '../auth/auth.middleware';
+import { requireAuth, requireRole, requirePermission, optionalAuth } from '../auth/auth.middleware';
 import { Role } from '@prisma/client';
 
 const router = Router();
 
-// Tất cả các route quản trị bên dưới yêu cầu đăng nhập và có vai trò ADMIN hoặc HIEU_TRUONG
+// --------------------------------------------------------------------------
+// Public / Authenticated Read-Only Endpoints (Categories & Shared Data)
+// --------------------------------------------------------------------------
+router.get('/categories', optionalAuth, (req, res, next) => adminController.getCategories(req, res, next));
+router.get('/shared-categories', optionalAuth, (req, res, next) => adminController.getCategories(req, res, next));
+router.get('/kpi-definitions', optionalAuth, (req, res, next) => adminController.getKPIDefinitions(req, res, next));
+
+// --------------------------------------------------------------------------
+// Administrative Operations (Bắt buộc đăng nhập & có vai trò Quản trị viên)
+// --------------------------------------------------------------------------
 router.use(requireAuth);
 router.use(requireRole(Role.ADMIN));
 
@@ -30,14 +39,15 @@ router.patch('/roles/:id', requirePermission('role.update'), (req, res, next) =>
 router.put('/roles/:id/permissions', requirePermission('role.update'), (req, res, next) => adminController.updateRolePermissions(req, res, next));
 router.delete('/roles/:id', requirePermission('role.delete'), (req, res, next) => adminController.deleteRole(req, res, next));
 
-// 4. Danh mục dùng chung (Shared Categories)
-router.get('/categories', (req, res, next) => adminController.getCategories(req, res, next));
+// 4. Quản lý Danh mục dùng chung (Shared Categories Mutation)
 router.post('/categories', requirePermission('org.manage_categories'), (req, res, next) => adminController.createCategory(req, res, next));
 router.patch('/categories/:id', requirePermission('org.manage_categories'), (req, res, next) => adminController.updateCategory(req, res, next));
 router.delete('/categories/:id', requirePermission('org.manage_categories'), (req, res, next) => adminController.deleteCategory(req, res, next));
+router.post('/shared-categories', requirePermission('org.manage_categories'), (req, res, next) => adminController.createCategory(req, res, next));
+router.patch('/shared-categories/:id', requirePermission('org.manage_categories'), (req, res, next) => adminController.updateCategory(req, res, next));
+router.delete('/shared-categories/:id', requirePermission('org.manage_categories'), (req, res, next) => adminController.deleteCategory(req, res, next));
 
-// 5. Cấu hình chỉ số KPI (KPI Definitions)
-router.get('/kpi-definitions', (req, res, next) => adminController.getKPIDefinitions(req, res, next));
+// 5. Cấu hình chỉ số KPI (KPI Definitions Mutation)
 router.post('/kpi-definitions', requirePermission('kpi.config'), (req, res, next) => adminController.createKPIDefinition(req, res, next));
 router.patch('/kpi-definitions/:id', requirePermission('kpi.config'), (req, res, next) => adminController.updateKPIDefinition(req, res, next));
 router.delete('/kpi-definitions/:id', requirePermission('kpi.config'), (req, res, next) => adminController.deleteKPIDefinition(req, res, next));
@@ -46,4 +56,5 @@ router.delete('/kpi-definitions/:id', requirePermission('kpi.config'), (req, res
 router.get('/quota', requirePermission('system.view_quota'), (req, res, next) => adminController.getTenantQuota(req, res, next));
 
 export default router;
+
 

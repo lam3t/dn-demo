@@ -5,7 +5,9 @@ import { PlanLevel } from '@prisma/client';
 export class PlanController {
   async getAll(req: Request, res: Response, next: NextFunction) {
     try {
-      const { level, parentPlanId, search } = req.query;
+      const { level, parentPlanId, search, schoolYear } = req.query;
+      const headerYear = req.headers['x-academic-year'] as string | undefined;
+      const activeSchoolYear = (schoolYear as string) || headerYear;
       const schoolId = req.user?.schoolId;
       const tenantId = req.user?.tenantId;
 
@@ -15,6 +17,7 @@ export class PlanController {
         level: level as PlanLevel,
         parentPlanId: parentPlanId as string,
         search: search as string,
+        schoolYear: activeSchoolYear,
       });
 
       res.status(200).json({ success: true, data: plans });
@@ -26,9 +29,12 @@ export class PlanController {
   async getTree(req: Request, res: Response, next: NextFunction) {
     try {
       const rootPlanId = (req.params.id && req.params.id !== 'tree' ? req.params.id : (req.query.rootPlanId as string)) || undefined;
+      const { schoolYear } = req.query;
+      const headerYear = req.headers['x-academic-year'] as string | undefined;
+      const activeSchoolYear = (schoolYear as string) || headerYear;
       const schoolId = req.user?.schoolId;
       const tenantId = req.user?.tenantId;
-      const tree = await planService.getTree(rootPlanId, schoolId, tenantId);
+      const tree = await planService.getTree(rootPlanId, schoolId, tenantId, activeSchoolYear);
 
       res.status(200).json({ success: true, data: tree });
     } catch (error) {

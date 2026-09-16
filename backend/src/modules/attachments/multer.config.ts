@@ -14,6 +14,9 @@ const ALLOWED_MIME_TYPES = [
   'image/png',
   'image/webp',
   'image/jpg',
+  'image/heic',
+  'image/heif',
+  'image/svg+xml',
 ];
 
 const storage = multer.diskStorage({
@@ -29,10 +32,10 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     // Giữ tên file sạch và thêm timestamp chống trùng
-    const ext = path.extname(file.originalname);
+    const ext = path.extname(file.originalname) || '.jpg';
     const baseName = path
       .basename(file.originalname, ext)
-      .replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF-]/g, '_');
+      .replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF-]/g, '_') || 'anh_chup';
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e4)}`;
     cb(null, `${baseName}-${uniqueSuffix}${ext}`);
   },
@@ -44,12 +47,16 @@ export const uploadAttachment = multer({
     fileSize: 20 * 1024 * 1024, // Giới hạn 20MB
   },
   fileFilter: (req, file, cb) => {
-    if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+    const mime = (file.mimetype || '').toLowerCase();
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const isImage = mime.startsWith('image/') || ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'].includes(ext);
+
+    if (ALLOWED_MIME_TYPES.includes(mime) || isImage) {
       cb(null, true);
     } else {
       cb(
         new AppError(
-          'Định dạng tệp không được hỗ trợ. Vui lòng tải lên tệp PDF, Word (doc/docx), Excel (xls/xlsx) hoặc Hình ảnh (jpg/png/webp).',
+          'Định dạng tệp không được hỗ trợ. Vui lòng tải lên tệp PDF, Word (doc/docx), Excel (xls/xlsx) hoặc Hình ảnh (jpg/png/webp/heic).',
           400
         )
       );

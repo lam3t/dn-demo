@@ -5,13 +5,15 @@ export class NotificationController {
   async getNotifications(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.user!.id;
-      const { unreadOnly, page, pageSize } = req.query;
+      const { unreadOnly, page, pageSize, search, type } = req.query;
 
       const result = await notificationService.getUserNotifications(
         userId,
         unreadOnly === 'true',
         page ? Number(page) : 1,
-        pageSize ? Number(pageSize) : 20
+        pageSize ? Number(pageSize) : 20,
+        search as string | undefined,
+        type as any
       );
 
       res.status(200).json({ success: true, data: result });

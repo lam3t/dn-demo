@@ -87,7 +87,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
         >
           <span class="material-symbols-outlined">apartment</span>
           <span>Điểm trường & Phân hiệu</span>
-          <span class="tab-badge">{{ locations().length }}</span>
+          <span class="tab-badge">{{ locationsSummary().length || locations().length }}</span>
         </button>
 
         <button
@@ -1240,7 +1240,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
       <!-- ======================================================= -->
       @if (showLocationModal()) {
         <div class="modal-backdrop" (click)="closeModals()">
-          <div class="modal-dialog" (click)="$event.stopPropagation()">
+          <div class="modal-dialog modal-lg" (click)="$event.stopPropagation()">
             <div class="modal-header">
               <h3>{{ editingLocationId ? 'Sửa Điểm trường' : 'Tạo mới Điểm trường' }}</h3>
               <button type="button" class="modal-close-btn" (click)="closeModals()">
@@ -1277,12 +1277,63 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
                   </label>
                 </div>
               </div>
+
+              <!-- Người phụ trách cơ sở / điểm trường -->
+              <div class="form-group">
+                <label>Người phụ trách điểm trường / phân hiệu</label>
+                <app-people-picker
+                  placeholder="Tìm & chỉ định người phụ trách cơ sở..."
+                  mode="single"
+                  [required]="false"
+                  [(ngModel)]="locationForm.managerId"
+                ></app-people-picker>
+                <span class="field-hint" style="font-size: 0.8rem; color: #64748B;">
+                  Cán bộ chịu trách nhiệm quản lý cơ sở và nhận báo cáo định kỳ.
+                </span>
+              </div>
             </div>
 
             <div class="modal-footer">
               <button type="button" class="btn-cancel tap-target" (click)="closeModals()">Hủy</button>
               <button type="button" class="btn-primary tap-target" [disabled]="isSubmitting()" (click)="submitLocationForm()">
                 {{ isSubmitting() ? 'Đang lưu...' : (editingLocationId ? 'Cập nhật' : 'Tạo điểm trường') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- MODAL ĐIỀU CHUYỂN CƠ SỞ CÔNG TÁC -->
+      @if (showTransferModal() && transferTeacherTarget()) {
+        <div class="modal-backdrop" (click)="closeModals()">
+          <div class="modal-dialog" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <h3>Điều chuyển Cơ sở công tác</h3>
+              <button type="button" class="modal-close-btn" (click)="closeModals()">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <div class="user-transfer-card" style="padding: 12px; background: #F8FAFC; border-radius: 8px; border: 1px solid #E2E8F0; display: flex; align-items: center; gap: 12px;">
+                <img [src]="transferTeacherTarget()?.avatarUrl || 'https://ui-avatars.com/api/?name=' + transferTeacherTarget()?.fullName" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover;" />
+                <div>
+                  <div style="font-weight: 700; color: #1E293B;">{{ transferTeacherTarget()?.fullName }}</div>
+                  <div style="font-size: 0.85rem; color: #64748B;">{{ transferTeacherTarget()?.title || 'Giáo viên' }} • Cơ sở hiện tại: <strong>{{ getCurrentCampusName() }}</strong></div>
+                </div>
+              </div>
+              <div class="form-group" style="margin-top: 10px;">
+                <label>Chọn Điểm trường / Phân hiệu tiếp nhận <span class="req">*</span></label>
+                <select [(ngModel)]="transferDestinationLocationId" class="form-select">
+                  @for (loc of getOtherCampuses(); track loc.id) {
+                    <option [value]="loc.id">{{ loc.name }} ({{ loc.code }})</option>
+                  }
+                </select>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn-cancel tap-target" (click)="closeModals()">Hủy</button>
+              <button type="button" class="btn-primary tap-target" [disabled]="isSubmitting() || !transferDestinationLocationId" (click)="confirmTransferCampus()">
+                {{ isSubmitting() ? 'Đang chuyển...' : 'Xác nhận điều chuyển' }}
               </button>
             </div>
           </div>
@@ -3063,6 +3114,9 @@ export class AdminSettingsComponent implements OnInit {
   showAddRoleModal = signal<boolean>(false);
   showLocationModal = signal<boolean>(false);
   showCustomRoleModal = signal<boolean>(false);
+  showTransferModal = signal<boolean>(false);
+  transferTeacherTarget = signal<AdminUserItem | null>(null);
+  transferDestinationLocationId = '';
   showCategoryModal = signal<boolean>(false);
   showKPIModal = signal<boolean>(false);
   createdUserSuccessInfo = signal<AdminUserItem | null>(null);
@@ -3159,10 +3213,22 @@ export class AdminSettingsComponent implements OnInit {
     } else if (tab === 'locations') {
       this.loadLocationsSummary();
     } else if (tab === 'teachers-by-loc') {
-      if (!this.selectedCampusId && this.locations().length > 0) {
-        this.selectedCampusId = this.locations()[0].id;
-      }
-      this.loadCampusTeachers();
+      this.userService.clearLocationsCache();
+      this.adminService.getLocationsWithSummary().subscribe({
+        next: (res) => {
+          this.locationsSummary.set(res);
+          this.locations.set(res);
+          if (!this.selectedCampusId && res.length > 0) {
+            this.selectedCampusId = res[0].id;
+          } else if (this.selectedCampusId && !res.some((l) => l.id === this.selectedCampusId) && res.length > 0) {
+            this.selectedCampusId = res[0].id;
+          }
+          this.loadCampusTeachers();
+        },
+        error: () => {
+          this.loadCampusTeachers();
+        },
+      });
     } else if (tab === 'categories') {
       this.loadCategories();
     } else if (tab === 'kpi-config') {
@@ -3181,10 +3247,13 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   loadCommonMetadata() {
-    this.userService.getLocations().subscribe({
+    this.userService.clearLocationsCache();
+    this.userService.getLocations(true).subscribe({
       next: (locs) => {
         this.locations.set(locs);
         if (!this.selectedCampusId && locs.length > 0) {
+          this.selectedCampusId = locs[0].id;
+        } else if (this.selectedCampusId && !locs.some((l) => l.id === this.selectedCampusId) && locs.length > 0) {
           this.selectedCampusId = locs[0].id;
         }
       },
@@ -3575,6 +3644,12 @@ export class AdminSettingsComponent implements OnInit {
     this.adminService.getLocationsWithSummary().subscribe({
       next: (res) => {
         this.locationsSummary.set(res);
+        this.locations.set(res);
+        if (!this.selectedCampusId && res.length > 0) {
+          this.selectedCampusId = res[0].id;
+        } else if (this.selectedCampusId && !res.some((l) => l.id === this.selectedCampusId) && res.length > 0) {
+          this.selectedCampusId = res[0].id;
+        }
         this.isLoadingLocations.set(false);
       },
       error: () => {
@@ -3616,12 +3691,18 @@ export class AdminSettingsComponent implements OnInit {
     }
 
     this.isSubmitting.set(true);
+    const payload = {
+      ...this.locationForm,
+      managerId: this.locationForm.managerId || null,
+    };
+
     if (this.editingLocationId) {
-      this.adminService.updateLocation(this.editingLocationId, this.locationForm).subscribe({
+      this.adminService.updateLocation(this.editingLocationId, payload).subscribe({
         next: () => {
           this.isSubmitting.set(false);
           this.showLocationModal.set(false);
           this.showAlert('Cập nhật thông tin điểm trường thành công.');
+          this.userService.clearLocationsCache();
           this.loadLocationsSummary();
           this.loadCommonMetadata();
         },
@@ -3631,11 +3712,12 @@ export class AdminSettingsComponent implements OnInit {
         },
       });
     } else {
-      this.adminService.createLocation(this.locationForm).subscribe({
+      this.adminService.createLocation(payload).subscribe({
         next: () => {
           this.isSubmitting.set(false);
           this.showLocationModal.set(false);
           this.showAlert('Tạo điểm trường mới thành công.');
+          this.userService.clearLocationsCache();
           this.loadLocationsSummary();
           this.loadCommonMetadata();
         },
@@ -3652,6 +3734,7 @@ export class AdminSettingsComponent implements OnInit {
       this.adminService.deleteLocation(loc.id).subscribe({
         next: () => {
           this.showAlert(`Đã xóa điểm trường ${loc.name}`);
+          this.userService.clearLocationsCache();
           this.loadLocationsSummary();
           this.loadCommonMetadata();
         },
@@ -3693,21 +3776,42 @@ export class AdminSettingsComponent implements OnInit {
     this.openCreateUserModal(this.selectedCampusId);
   }
 
+  getCurrentCampusName(): string {
+    const loc = this.locations().find((l) => l.id === this.selectedCampusId);
+    return loc ? loc.name : 'Điểm trường hiện tại';
+  }
+
+  getOtherCampuses(): LocationItem[] {
+    return this.locations().filter((l) => l.id !== this.selectedCampusId);
+  }
+
   openTransferCampusModal(teacher: AdminUserItem) {
-    const loc = this.locations().find((l) => l.id !== this.selectedCampusId);
-    if (!loc) return;
-    if (confirm(`Chuyển công tác của ${teacher.fullName} sang ${loc.name}?`)) {
-      this.adminService.updateUser(teacher.id, { locationId: loc.id }).subscribe({
-        next: () => {
-          this.showAlert(`Đã chuyển ${teacher.fullName} sang ${loc.name}`);
-          this.loadCampusTeachers();
-          this.loadLocationsSummary();
-        },
-        error: (err) => {
-          this.showAlert(err.error?.message || 'Chuyển cơ sở thất bại.', 'error');
-        },
-      });
-    }
+    this.transferTeacherTarget.set(teacher);
+    const other = this.getOtherCampuses();
+    this.transferDestinationLocationId = other[0]?.id || '';
+    this.showTransferModal.set(true);
+  }
+
+  confirmTransferCampus() {
+    const teacher = this.transferTeacherTarget();
+    if (!teacher || !this.transferDestinationLocationId) return;
+    const targetLoc = this.locations().find((l) => l.id === this.transferDestinationLocationId);
+    this.isSubmitting.set(true);
+    this.adminService.updateUser(teacher.id, { locationId: this.transferDestinationLocationId }).subscribe({
+      next: () => {
+        this.isSubmitting.set(false);
+        this.showTransferModal.set(false);
+        this.showAlert(`Đã điều chuyển ${teacher.fullName} sang ${targetLoc?.name || 'cơ sở mới'}`);
+        this.userService.clearLocationsCache();
+        this.loadCampusTeachers();
+        this.loadLocationsSummary();
+        this.loadCommonMetadata();
+      },
+      error: (err) => {
+        this.isSubmitting.set(false);
+        this.showAlert(err.error?.message || 'Chuyển cơ sở thất bại.', 'error');
+      },
+    });
   }
 
   // =======================================================
@@ -3910,6 +4014,7 @@ export class AdminSettingsComponent implements OnInit {
     this.showEditUserModal.set(false);
     this.showAddRoleModal.set(false);
     this.showLocationModal.set(false);
+    this.showTransferModal.set(false);
     this.showCustomRoleModal.set(false);
     this.showCategoryModal.set(false);
     this.showKPIModal.set(false);

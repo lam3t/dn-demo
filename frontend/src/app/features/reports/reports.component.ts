@@ -1,12 +1,14 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { ReportService, ReportFilterCriteria, ReportSummaryKpis, BreakdownStatItem } from '../../core/services/report.service';
 import { AuthService } from '../../core/services/auth.service';
 import { UserService } from '../../core/services/user.service';
 import { PlanService } from '../../core/services/plan.service';
 import { ContactCardService } from '../../core/services/contact-card.service';
+import { AcademicYearService } from '../../core/services/academic-year.service';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { TaskDetailModalComponent } from '../../shared/components/task-detail-modal/task-detail-modal.component';
 import { TaskItem } from '../../core/models/task.models';
@@ -32,11 +34,11 @@ type PresetType = 'DEFAULT' | 'OVERDUE' | 'LOCATIONS' | 'ORGS' | 'WAITING_REVIEW
         <div class="header-left">
           <div class="breadcrumb-row">
             <span class="material-symbols-outlined">analytics</span>
-            <span>Báo Cáo & Thống Kê Điều Hành</span>
+            <span>Báo Cáo & Thống Kê Điều Hành • Năm học {{ academicYearService.formattedCurrentYear() }}</span>
           </div>
           <h1 class="page-title">Xây Dựng Báo Cáo Công Việc & Kế Hoạch</h1>
           <p class="page-subtitle">
-            Tổng hợp đa chiều tiến độ thực hiện nhiệm vụ theo 3 Điểm trường, 8 Tổ chuyên môn và trích xuất file Excel báo cáo
+            Tổng hợp đa chiều tiến độ thực hiện nhiệm vụ Năm học {{ academicYearService.formattedCurrentYear() }} theo 3 Điểm trường, 8 Tổ chuyên môn và trích xuất file Excel báo cáo
           </p>
         </div>
 
@@ -1899,13 +1901,16 @@ type PresetType = 'DEFAULT' | 'OVERDUE' | 'LOCATIONS' | 'ORGS' | 'WAITING_REVIEW
     `,
   ],
 })
-export class ReportsComponent implements OnInit {
+export class ReportsComponent implements OnInit, OnDestroy {
   private reportService = inject(ReportService);
   authService = inject(AuthService);
+  academicYearService = inject(AcademicYearService);
   private userService = inject(UserService);
   private planService = inject(PlanService);
   private contactCardService = inject(ContactCardService);
   private router = inject(Router);
+
+  private yearSub?: Subscription;
 
   Math = Math;
 
@@ -1986,6 +1991,14 @@ export class ReportsComponent implements OnInit {
     this.updateCurrentDateTime();
     this.loadFilterDropdowns();
     this.loadReportData();
+
+    this.yearSub = this.academicYearService.yearChanged$.subscribe(() => {
+      this.loadReportData();
+    });
+  }
+
+  ngOnDestroy() {
+    this.yearSub?.unsubscribe();
   }
 
   updateCurrentDateTime() {

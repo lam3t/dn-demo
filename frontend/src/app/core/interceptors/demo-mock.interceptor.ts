@@ -28,6 +28,7 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
       if (req.url.startsWith('/api')) {
         const url = req.urlWithParams || req.url;
         const method = req.method.toUpperCase();
+        const reqAcademicYear = (req.headers.get('X-Academic-Year') || req.params.get('schoolYear') || (url.match(/[?&]schoolYear=([^&]+)/)?.[1]) || '2026-2027').trim();
 
         // 0. AUTH & LOGIN (Only for static offline demo preview with status === 0 or 404)
         if (url.includes('/api/auth')) {
@@ -119,7 +120,10 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
 
         // 1. SCHOOL INFO
         if (url.includes('/api/school')) {
-          return of(new HttpResponse({ status: 200, body: { success: true, data: MOCK_SCHOOL_INFO } }));
+          const displayYear = reqAcademicYear.includes('-') && !reqAcademicYear.includes(' - ')
+            ? reqAcademicYear.replace('-', ' - ')
+            : reqAcademicYear;
+          return of(new HttpResponse({ status: 200, body: { success: true, data: { ...MOCK_SCHOOL_INFO, schoolYear: displayYear } } }));
         }
 
         // 2. LOCATIONS
@@ -331,44 +335,61 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
               plan: MOCK_PLANS.find((p) => p.id === 'plan-m3'),
             }));
 
+            const isArchivedYear = reqAcademicYear === '2025-2026' || reqAcademicYear === '2024-2025';
+            const isUpcomingYear = reqAcademicYear === '2027-2028';
+            const startYearNum = parseInt(reqAcademicYear.split('-')[0], 10) || 2026;
+            const endYearNum = startYearNum + 1;
+
             const nodeM1 = {
               id: 'plan-m1',
-              title: '1. Ổn định tổ chức bộ máy và nhân sự sau sáp nhập 3 điểm trường',
+              title: isArchivedYear
+                ? `1. Kiện toàn tổ chức bộ máy & quy chế hoạt động (${startYearNum})`
+                : isUpcomingYear
+                ? `1. Chuẩn bị nhân sự và phương án phân công chuyên môn (${startYearNum})`
+                : '1. Ổn định tổ chức bộ máy và nhân sự sau sáp nhập 3 điểm trường',
               description: 'Kiện toàn các tổ chuyên môn, ban hành quy chế làm việc và phân công nhiệm vụ',
               level: 'THANG' as any,
-              startDate: '2026-08-15',
-              endDate: '2026-09-15',
-              progressPercent: 90,
+              startDate: `${startYearNum}-08-15`,
+              endDate: `${startYearNum}-09-15`,
+              progressPercent: isArchivedYear ? 100 : isUpcomingYear ? 0 : 90,
               taskCount: planTasksM1.length,
-              completedTaskCount: planTasksM1.filter((t) => t.status === 'HOAN_THANH' || t.status === 'DONG').length,
+              completedTaskCount: isArchivedYear ? planTasksM1.length : isUpcomingYear ? 0 : planTasksM1.filter((t) => t.status === 'HOAN_THANH' || t.status === 'DONG').length,
               tasks: planTasksM1 as any[],
               children: [],
             };
 
             const nodeM2 = {
               id: 'plan-m2',
-              title: '2. Hoàn thiện và công khai Kế hoạch giáo dục nhà trường',
+              title: isArchivedYear
+                ? `2. Triển khai kế hoạch giáo dục và nâng cao chất lượng dạy học (${startYearNum})`
+                : isUpcomingYear
+                ? `2. Dự thảo kế hoạch giáo dục nhà trường & phân phối chương trình (${startYearNum})`
+                : '2. Hoàn thiện và công khai Kế hoạch giáo dục nhà trường',
               description: 'Xây dựng ma trận dạy học, phân phối chương trình và các chuyên đề đổi mới PPDH',
               level: 'THANG' as any,
-              startDate: '2026-08-20',
-              endDate: '2026-09-20',
-              progressPercent: 75,
+              startDate: `${startYearNum}-08-20`,
+              endDate: `${startYearNum}-09-20`,
+              progressPercent: isArchivedYear ? 100 : isUpcomingYear ? 0 : 75,
               taskCount: planTasksM2.length,
-              completedTaskCount: planTasksM2.filter((t) => t.status === 'HOAN_THANH' || t.status === 'DONG').length,
+              completedTaskCount: isArchivedYear ? planTasksM2.length : isUpcomingYear ? 0 : planTasksM2.filter((t) => t.status === 'HOAN_THANH' || t.status === 'DONG').length,
               tasks: planTasksM2 as any[],
               children: [],
             };
 
             const nodeM3 = {
               id: 'plan-m3',
-              title: '3. Kiểm tra chuyên đề đổi mới phương pháp dạy học & KTĐG',
+              title: isArchivedYear
+                ? `3. Tổng kết chuyên đề đổi mới PPDH & kiểm tra định kỳ (${startYearNum})`
+                : isUpcomingYear
+                ? `3. Kế hoạch tập huấn cán bộ quản lý & giáo viên hè (${startYearNum})`
+                : '3. Kiểm tra chuyên đề đổi mới phương pháp dạy học & KTĐG',
               description: 'Kiểm tra hồ sơ giáo án, sinh hoạt chuyên môn cụm trường và hoạt động trải nghiệm',
               level: 'THANG' as any,
-              startDate: '2026-09-01',
-              endDate: '2026-09-30',
-              progressPercent: 45,
+              startDate: `${startYearNum}-09-01`,
+              endDate: `${startYearNum}-09-30`,
+              progressPercent: isArchivedYear ? 100 : isUpcomingYear ? 0 : 45,
               taskCount: planTasksM3.length,
-              completedTaskCount: planTasksM3.filter((t) => t.status === 'HOAN_THANH' || t.status === 'DONG').length,
+              completedTaskCount: isArchivedYear ? planTasksM3.length : isUpcomingYear ? 0 : planTasksM3.filter((t) => t.status === 'HOAN_THANH' || t.status === 'DONG').length,
               tasks: planTasksM3 as any[],
               children: [],
             };
@@ -379,12 +400,12 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
 
             const nodeTerm1: any = {
               id: 'plan-term1',
-              title: 'Kế hoạch Học kỳ I (Năm học 2026 - 2027)',
-              description: 'Trọng tâm ổn định bộ máy, chuẩn hóa cơ sở vật chất và nâng cao chất lượng dạy học',
+              title: `Kế hoạch Học kỳ I (Năm học ${startYearNum} - ${endYearNum})`,
+              description: isArchivedYear ? 'Đã hoàn thành toàn bộ chỉ tiêu học kỳ I' : 'Trọng tâm ổn định bộ máy, chuẩn hóa cơ sở vật chất và nâng cao chất lượng dạy học',
               level: 'HOC_KY' as any,
-              startDate: '2026-08-15',
-              endDate: '2027-01-15',
-              progressPercent: 55,
+              startDate: `${startYearNum}-08-15`,
+              endDate: `${endYearNum}-01-15`,
+              progressPercent: isArchivedYear ? 100 : isUpcomingYear ? 0 : 55,
               taskCount: term1TasksCount,
               completedTaskCount: term1CompletedCount,
               tasks: [] as any[],
@@ -393,12 +414,12 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
 
             const nodeYear: any = {
               id: 'plan-year',
-              title: 'Kế hoạch Chiến lược & Hoạt động Năm học 2026 - 2027',
-              description: 'Kế hoạch tổng thể vận hành trường TH và THCS Phước Tân sau sáp nhập 3 điểm trường',
+              title: `Kế hoạch Chiến lược & Hoạt động Năm học ${startYearNum} - ${endYearNum}${isArchivedYear ? ' (Đã tổng kết & lưu trữ)' : isUpcomingYear ? ' (Dự thảo)' : ''}`,
+              description: isArchivedYear ? 'Toàn bộ chỉ tiêu năm học đã hoàn thành xuất sắc.' : 'Kế hoạch tổng thể vận hành trường TH và THCS Phước Tân',
               level: 'NAM' as any,
-              startDate: '2026-08-01',
-              endDate: '2027-05-31',
-              progressPercent: 42,
+              startDate: `${startYearNum}-08-01`,
+              endDate: `${endYearNum}-05-31`,
+              progressPercent: isArchivedYear ? 100 : isUpcomingYear ? 0 : 42,
               taskCount: term1TasksCount,
               completedTaskCount: term1CompletedCount,
               tasks: [] as any[],
@@ -667,26 +688,261 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
 
         // 6. NOTIFICATIONS
         if (url.includes('/api/notifications')) {
-          return of(
-            new HttpResponse({
-              status: 200,
-              body: {
-                success: true,
-                data: {
-                  items: MOCK_NOTIFICATIONS,
-                  total: MOCK_NOTIFICATIONS.length,
-                  unreadCount: MOCK_NOTIFICATIONS.filter((n) => !n.isRead).length,
-                  page: 1,
-                  pageSize: 20,
-                  totalPages: 1,
+          if (url.includes('/read-all') && (method === 'PATCH' || method === 'POST')) {
+            MOCK_NOTIFICATIONS.forEach((n) => {
+              n.isRead = true;
+              n.readAt = new Date().toISOString();
+            });
+            return of(
+              new HttpResponse({
+                status: 200,
+                body: {
+                  success: true,
+                  message: 'Đã đánh dấu đọc tất cả thông báo.',
+                  data: { count: MOCK_NOTIFICATIONS.length },
                 },
-              },
-            })
-          );
+              })
+            );
+          }
+
+          const readSingleMatch = url.match(/\/api\/notifications\/([a-zA-Z0-9_-]+)\/read/);
+          if (readSingleMatch && (method === 'PATCH' || method === 'POST')) {
+            const notifId = readSingleMatch[1];
+            const found = MOCK_NOTIFICATIONS.find((n) => n.id === notifId);
+            if (found) {
+              found.isRead = true;
+              found.readAt = new Date().toISOString();
+            }
+            return of(
+              new HttpResponse({
+                status: 200,
+                body: {
+                  success: true,
+                  message: 'Đã đánh dấu đã đọc.',
+                  data: found || null,
+                },
+              })
+            );
+          }
+
+          if (method === 'GET') {
+            const page = parseInt(req.params.get('page') || (url.match(/[?&]page=([^&]+)/)?.[1]) || '1', 10);
+            const limit = parseInt(req.params.get('limit') || (url.match(/[?&]limit=([^&]+)/)?.[1]) || '20', 10);
+            const unreadOnly = req.params.get('unreadOnly') === 'true' || url.includes('unreadOnly=true');
+            const search = (req.params.get('search') || (url.match(/[?&]search=([^&]+)/)?.[1]) || '').trim().toLowerCase();
+            const type = (req.params.get('type') || (url.match(/[?&]type=([^&]+)/)?.[1]) || '').trim();
+
+            let filtered = [...MOCK_NOTIFICATIONS];
+            if (unreadOnly) {
+              filtered = filtered.filter((n) => !n.isRead);
+            }
+            if (type && type !== 'ALL') {
+              filtered = filtered.filter((n) => n.type === type);
+            }
+            if (search) {
+              filtered = filtered.filter(
+                (n) =>
+                  (n.title && n.title.toLowerCase().includes(search)) ||
+                  (n.content && n.content.toLowerCase().includes(search)) ||
+                  (n.taskCode && n.taskCode.toLowerCase().includes(search)) ||
+                  (n.senderName && n.senderName.toLowerCase().includes(search))
+              );
+            }
+
+            const total = filtered.length;
+            const totalPages = Math.ceil(total / limit) || 1;
+            const startIndex = (page - 1) * limit;
+            const items = filtered.slice(startIndex, startIndex + limit);
+            const unreadCount = MOCK_NOTIFICATIONS.filter((n) => !n.isRead).length;
+
+            return of(
+              new HttpResponse({
+                status: 200,
+                body: {
+                  success: true,
+                  data: {
+                    items,
+                    total,
+                    unreadCount,
+                    page,
+                    pageSize: limit,
+                    totalPages,
+                  },
+                },
+              })
+            );
+          }
         }
 
         // 7. TASKS
-        if (url.includes('/api/tasks')) {
+        if (url.includes('/api/tasks') || url.includes('/api/attachments')) {
+          // 7.0 Task Attachments: POST /api/tasks/:id/attachments & DELETE /api/attachments/:id
+          if (url.includes('/attachments')) {
+            const taskIdMatch = url.match(/\/api\/tasks\/([a-zA-Z0-9_-]+)\/attachments/);
+            const taskId = taskIdMatch ? taskIdMatch[1] : '';
+            let targetTask: any = MOCK_TASKS.find((t) => t.id === taskId || t.code === taskId);
+            if (!targetTask && taskId) {
+              targetTask = {
+                id: taskId,
+                title: 'Công việc',
+                code: 'CV-' + taskId.slice(-6),
+                status: 'DA_GIAO',
+                priority: 'TRUNG_BINH',
+                assignments: [],
+                comments: [],
+                logs: [],
+                attachments: [],
+              } as any;
+              MOCK_TASKS.unshift(targetTask);
+            }
+
+            let currentUser: any = MOCK_USERS[0];
+            try {
+              const stored = localStorage.getItem('tn_edu_user_profile') || localStorage.getItem('currentUser');
+              if (stored) currentUser = JSON.parse(stored);
+            } catch (e) {}
+
+            if (method === 'POST') {
+              if (!targetTask.attachments) targetTask.attachments = [];
+              const now = new Date();
+              const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')} ${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}`;
+              const newAttId = 'att-' + Date.now();
+              const newAtt = {
+                id: newAttId,
+                taskId: targetTask?.id || taskId,
+                fileName: `Minh_chung_ket_qua_${Date.now()}.jpg`,
+                originalName: `Minh_chung_ket_qua_${timeStr.replace(/[: /]/g, '_')}.jpg`,
+                fileUrl: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?w=800&auto=format&fit=crop&q=80',
+                fileSize: 1024 * 512, // 512 KB
+                mimeType: 'image/jpeg',
+                uploadedById: currentUser.id || 'u-user',
+                uploadedBy: {
+                  id: currentUser.id || 'u-user',
+                  fullName: currentUser.fullName || 'Người thực hiện',
+                  title: currentUser.title || 'Cán bộ',
+                  avatarUrl: currentUser.avatarUrl || null,
+                },
+                createdAt: now.toISOString(),
+              };
+
+              targetTask?.attachments?.unshift(newAtt);
+
+              if (targetTask) {
+                if (!targetTask.logs) targetTask.logs = [];
+                targetTask.logs.unshift({
+                  id: 'log-' + Date.now(),
+                  taskId: targetTask.id,
+                  userId: currentUser.id || 'u-user',
+                  action: 'DINH_KEM_MINH_CHUNG',
+                  note: `Đã tải lên tệp/ảnh minh chứng kết quả: ${newAtt.originalName}`,
+                  createdAt: now.toISOString(),
+                  user: currentUser,
+                });
+              }
+
+              MOCK_NOTIFICATIONS.unshift({
+                id: 'notif-' + Date.now(),
+                taskId: targetTask?.id || taskId,
+                taskCode: targetTask?.code || 'CV-AUTO',
+                title: 'Minh chứng mới được tải lên',
+                content: `${currentUser.fullName || 'Cán bộ'} đã tải lên tệp/ảnh minh chứng: ${newAtt.originalName} cho việc "${targetTask?.title || 'Công việc'}"`,
+                type: 'STATUS_CHANGED',
+                isRead: false,
+                senderName: currentUser.fullName || 'Người thực hiện',
+                senderAvatar: currentUser.avatarUrl || null,
+                createdAt: now.toISOString(),
+              });
+
+              return of(
+                new HttpResponse({
+                  status: 201,
+                  body: {
+                    success: true,
+                    message: 'Đã tải lên thành công 1 tệp đính kèm.',
+                    data: [newAtt],
+                  },
+                })
+              );
+            }
+
+            if (method === 'DELETE') {
+              const attIdMatch = url.match(/\/api\/attachments\/([a-zA-Z0-9_-]+)/);
+              const attId = attIdMatch ? attIdMatch[1] : '';
+              MOCK_TASKS.forEach((t) => {
+                if (t.attachments) {
+                  t.attachments = t.attachments.filter((a: any) => a.id !== attId);
+                }
+              });
+              return of(
+                new HttpResponse({
+                  status: 200,
+                  body: { success: true, message: 'Xóa tệp đính kèm thành công.' },
+                })
+              );
+            }
+
+            if (method === 'GET') {
+              return of(
+                new HttpResponse({
+                  status: 200,
+                  body: { success: true, data: targetTask?.attachments || [] },
+                })
+              );
+            }
+          }
+
+          // 7.05 Task Evaluation: POST /api/tasks/:id/evaluate
+          if (url.includes('/evaluate') && method === 'POST') {
+            const taskIdMatch = url.match(/\/api\/tasks\/([a-zA-Z0-9_-]+)\/evaluate/);
+            const taskId = taskIdMatch ? taskIdMatch[1] : '';
+            let targetTask: any = MOCK_TASKS.find((t) => t.id === taskId || t.code === taskId);
+            const body = (req.body || {}) as any;
+            let currentUser: any = MOCK_USERS[0];
+            try {
+              const stored = localStorage.getItem('tn_edu_user_profile') || localStorage.getItem('currentUser');
+              if (stored) currentUser = JSON.parse(stored);
+            } catch (e) {}
+
+            if (targetTask) {
+              targetTask.evaluationRating = body.rating;
+              targetTask.evaluationComment = body.comment || null;
+              targetTask.evaluatedAt = new Date().toISOString();
+              targetTask.evaluatedById = currentUser.id;
+              targetTask.evaluatedBy = currentUser;
+
+              if (!targetTask.logs) targetTask.logs = [];
+              targetTask.logs.unshift({
+                id: 'log-' + Date.now(),
+                taskId: targetTask.id,
+                userId: currentUser.id,
+                action: 'DANH_GIA_KET_QUA',
+                note: `Đánh giá xếp loại: [${body.rating}] ${body.comment ? '— ' + body.comment : ''}`,
+                createdAt: new Date().toISOString(),
+                user: currentUser,
+              });
+
+              MOCK_NOTIFICATIONS.unshift({
+                id: 'notif-' + Date.now(),
+                taskId: targetTask.id,
+                taskCode: targetTask.code || 'CV-AUTO',
+                title: `Kết quả nghiệm thu: [${body.rating === 'XUAT_SAC' ? 'Xuất sắc' : body.rating === 'TOT' ? 'Tốt' : body.rating === 'HOAN_THANH' ? 'Hoàn thành' : 'Chưa đạt'}]`,
+                content: `${currentUser.fullName || 'Ban Giám hiệu'} đã đánh giá xếp loại công việc "${targetTask.title}". ${body.comment ? 'Nhận xét: ' + body.comment : ''}`,
+                type: body.rating === 'CHUA_DAT' ? 'CAN_BO_SUNG' : 'TASK_APPROVED',
+                isRead: false,
+                senderName: currentUser.fullName || 'Ban Giám hiệu',
+                senderAvatar: currentUser.avatarUrl || null,
+                createdAt: new Date().toISOString(),
+              });
+            }
+
+            return of(
+              new HttpResponse({
+                status: 200,
+                body: { success: true, data: targetTask, message: 'Đánh giá kết quả công việc thành công.' },
+              })
+            );
+          }
+
           // 7.1 Comments Endpoint: POST /api/tasks/:id/comments
           if (url.includes('/comments') && method === 'POST') {
             const taskIdMatch = url.match(/\/api\/tasks\/([a-zA-Z0-9_-]+)\/comments/);
@@ -729,6 +985,19 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
 
             if (!targetTask.comments) targetTask.comments = [];
             targetTask.comments.push(newComment as any);
+
+            MOCK_NOTIFICATIONS.unshift({
+              id: 'notif-' + Date.now(),
+              taskId: targetTask.id,
+              taskCode: targetTask.code || 'CV-AUTO',
+              title: `Trao đổi mới trong ${targetTask.code || 'công việc'}`,
+              content: `${currentUser.fullName || 'Cán bộ'}: "${body.content.length > 80 ? body.content.slice(0, 80) + '...' : body.content}"`,
+              type: 'GENERAL',
+              isRead: false,
+              senderName: currentUser.fullName || 'Cán bộ',
+              senderAvatar: currentUser.avatarUrl || null,
+              createdAt: new Date().toISOString(),
+            });
 
             return of(
               new HttpResponse({
@@ -785,6 +1054,29 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
               user: currentUser,
             } as any);
 
+            const statusNames: any = {
+              DA_TIEP_NHAN: 'Đã tiếp nhận',
+              DANG_THUC_HIEN: 'Bắt đầu thực hiện',
+              CHO_KIEM_TRA: 'Chờ kiểm tra / nghiệm thu',
+              BO_SUNG: 'Yêu cầu bổ sung',
+              HOAN_THANH: 'Đã hoàn thành',
+              DONG: 'Đã đóng hồ sơ',
+            };
+            const sName = statusNames[body.status] || body.status;
+
+            MOCK_NOTIFICATIONS.unshift({
+              id: 'notif-' + Date.now(),
+              taskId: targetTask.id,
+              taskCode: targetTask.code || 'CV-AUTO',
+              title: `Chuyển trạng thái: ${sName}`,
+              content: `${currentUser.fullName || 'Cán bộ'} đã chuyển việc "${targetTask.title}" sang trạng thái [${sName}]. ${body.note ? 'Ghi chú: ' + body.note : ''}`,
+              type: body.status === 'BO_SUNG' ? 'CAN_BO_SUNG' : body.status === 'HOAN_THANH' ? 'DA_HOAN_THANH' : 'STATUS_CHANGED',
+              isRead: false,
+              senderName: currentUser.fullName || 'Cán bộ',
+              senderAvatar: currentUser.avatarUrl || null,
+              createdAt: new Date().toISOString(),
+            });
+
             return of(
               new HttpResponse({
                 status: 200,
@@ -834,6 +1126,19 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
               user: currentUser,
             } as any);
 
+            MOCK_NOTIFICATIONS.unshift({
+              id: 'notif-' + Date.now(),
+              taskId: targetTask.id,
+              taskCode: targetTask.code || 'CV-AUTO',
+              title: `Cập nhật tiến độ: ${targetTask.progressPercent}%`,
+              content: `${currentUser.fullName || 'Cán bộ'} đã cập nhật tiến độ công việc "${targetTask.title}" lên ${targetTask.progressPercent}%. ${body.note ? 'Ghi chú: ' + body.note : ''}`,
+              type: 'STATUS_CHANGED',
+              isRead: false,
+              senderName: currentUser.fullName || 'Cán bộ',
+              senderAvatar: currentUser.avatarUrl || null,
+              createdAt: new Date().toISOString(),
+            });
+
             return of(
               new HttpResponse({
                 status: 200,
@@ -871,6 +1176,27 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
               if (loc) (targetTask as any).location = loc;
             }
             if (body.priority !== undefined) targetTask.priority = body.priority;
+
+            let currentUser: any = MOCK_USERS[0];
+            try {
+              const stored = localStorage.getItem('tn_edu_user_profile') || localStorage.getItem('currentUser');
+              if (stored) currentUser = JSON.parse(stored);
+            } catch (e) {}
+
+            if (body.dueDate) {
+              MOCK_NOTIFICATIONS.unshift({
+                id: 'notif-' + Date.now(),
+                taskId: targetTask.id,
+                taskCode: targetTask.code || 'CV-AUTO',
+                title: 'Thay đổi hạn hoàn thành',
+                content: `Hạn hoàn thành của công việc "${targetTask.title}" đã được điều chỉnh sang ngày ${body.dueDate}.`,
+                type: 'NHAC_VIEC',
+                isRead: false,
+                senderName: currentUser.fullName || 'Người giao việc',
+                senderAvatar: currentUser.avatarUrl || null,
+                createdAt: new Date().toISOString(),
+              });
+            }
 
             return of(
               new HttpResponse({
@@ -935,6 +1261,20 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
               ],
             };
             MOCK_TASKS.unshift(newTask);
+
+            MOCK_NOTIFICATIONS.unshift({
+              id: 'notif-' + Date.now(),
+              taskId: newTask.id,
+              taskCode: newTask.code,
+              title: 'Giao nhiệm vụ mới',
+              content: `${currentUser.fullName || 'Ban Giám hiệu'} đã phân công nhiệm vụ "${newTask.title}". Hạn: ${newTask.dueDate}.`,
+              type: 'GIAO_VIEC',
+              isRead: false,
+              senderName: currentUser.fullName || 'Ban Giám hiệu',
+              senderAvatar: currentUser.avatarUrl || null,
+              createdAt: new Date().toISOString(),
+            });
+
             return of(
               new HttpResponse({
                 status: 201,
@@ -1059,6 +1399,19 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
         }
 
         // 8. USERS & ADMIN
+        if (url.includes('/api/admin/shared-categories')) {
+          const typeMatch = url.match(/[?&]type=([^&]+)/);
+          const type = typeMatch ? typeMatch[1] : '';
+          if (type === 'NAM_HOC' || !type) {
+            const academicYearCategories = [
+              { id: 'cat-nh-2627', tenantId: 'tenant-phuoc-tan', type: 'NAM_HOC', code: '2026-2027', name: 'Năm học 2026 - 2027', orderIndex: 1, isDefault: true, isActive: true },
+              { id: 'cat-nh-2526', tenantId: 'tenant-phuoc-tan', type: 'NAM_HOC', code: '2025-2026', name: 'Năm học 2025 - 2026', orderIndex: 2, isDefault: false, isActive: true },
+              { id: 'cat-nh-2425', tenantId: 'tenant-phuoc-tan', type: 'NAM_HOC', code: '2024-2025', name: 'Năm học 2024 - 2025', orderIndex: 3, isDefault: false, isActive: true },
+              { id: 'cat-nh-2728', tenantId: 'tenant-phuoc-tan', type: 'NAM_HOC', code: '2027-2028', name: 'Năm học 2027 - 2028', orderIndex: 4, isDefault: false, isActive: true },
+            ];
+            return of(new HttpResponse({ status: 200, body: { success: true, data: academicYearCategories } }));
+          }
+        }
         if (url.includes('/api/admin/permissions-matrix')) {
           return of(new HttpResponse({ status: 200, body: { success: true, data: MOCK_PERMISSIONS_MATRIX } }));
         }

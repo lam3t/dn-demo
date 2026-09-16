@@ -39,6 +39,26 @@ export const routes: Routes = [
           import('./features/kpi/my-kpi.component').then((m) => m.MyKpiComponent),
       },
       {
+        path: 'kpi/my',
+        loadComponent: () =>
+          import('./features/kpi/my-kpi.component').then((m) => m.MyKpiComponent),
+      },
+      {
+        path: 'kpi/school',
+        loadComponent: () =>
+          import('./features/kpi/school-kpi.component').then((m) => m.SchoolKpiComponent),
+      },
+      {
+        path: 'kpi/overview',
+        loadComponent: () =>
+          import('./features/kpi/school-kpi.component').then((m) => m.SchoolKpiComponent),
+      },
+      {
+        path: 'kpi/config/axes',
+        loadComponent: () =>
+          import('./features/kpi/kpi-axis-config.component').then((m) => m.KpiAxisConfigComponent),
+      },
+      {
         path: 'plans',
         loadComponent: () =>
           import('./features/plans/plans.component').then((m) => m.PlansComponent),

@@ -88,7 +88,7 @@ export interface FileQueueItem {
         <input
           #cameraInput
           type="file"
-          accept="image/*"
+          accept="image/*,image/jpeg,image/png,image/heic,image/heif,image/webp"
           capture="environment"
           class="hidden-input"
           (change)="onFileInputChange($event)"
@@ -606,10 +606,11 @@ export class FileDropzoneComponent {
   @Input() maxFileSizeMB = 20;
   @Input() maxFiles = 10;
   @Input() autoUpload = true;
-  @Input() accept = '.pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg';
+  @Input() accept = '.pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.heic,.heif,.webp,image/*';
 
   @Output() filesSelected = new EventEmitter<File[]>();
   @Output() uploadComplete = new EventEmitter<any>();
+  @Output() uploadSuccess = new EventEmitter<any>();
   @Output() fileRemoved = new EventEmitter<number>();
 
   isDragOver = signal(false);
@@ -667,7 +668,7 @@ export class FileDropzoneComponent {
     const newItems: FileQueueItem[] = [];
     const validFiles: File[] = [];
 
-    for (const file of files) {
+    for (let file of files) {
       if (file.size > maxSizeBytes) {
         this.validationError.set(
           `Tệp "${file.name}" vượt quá kích thước giới hạn ${this.maxFileSizeMB}MB.`
@@ -675,14 +676,29 @@ export class FileDropzoneComponent {
         continue;
       }
 
+      // Xử lý chuẩn hóa tên ảnh chụp từ camera điện thoại
+      let fileName = file.name;
+      if (!fileName || fileName === 'image.jpg' || fileName === 'image.png' || fileName === 'captured_image.jpg' || fileName === 'blob') {
+        const now = new Date();
+        const timeStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}_${now.getHours().toString().padStart(2,'0')}${now.getMinutes().toString().padStart(2,'0')}${now.getSeconds().toString().padStart(2,'0')}`;
+        const ext = file.type.includes('png') ? '.png' : file.type.includes('webp') ? '.webp' : '.jpg';
+        fileName = `Minh_chung_anh_chup_${timeStr}${ext}`;
+        // Tạo File object mới với tên đẹp
+        try {
+          file = new File([file], fileName, { type: file.type || 'image/jpeg' });
+        } catch (_) {}
+      }
+
       let previewUrl: string | null = null;
-      if (file.type.startsWith('image/')) {
-        previewUrl = URL.createObjectURL(file);
+      if (file.type.startsWith('image/') || file.type.includes('heic') || file.type.includes('heif')) {
+        try {
+          previewUrl = URL.createObjectURL(file);
+        } catch (_) {}
       }
 
       newItems.push({
         file,
-        name: file.name,
+        name: fileName,
         size: file.size,
         type: file.type,
         previewUrl,
@@ -733,6 +749,7 @@ export class FileDropzoneComponent {
           if (event.completed) {
             this.isUploading.set(false);
             this.uploadComplete.emit(event.data);
+            this.uploadSuccess.emit(event.data);
           }
         },
         error: (err) => {

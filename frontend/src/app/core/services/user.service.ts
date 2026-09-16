@@ -57,8 +57,8 @@ export class UserService {
     this.orgUnitsCache$ = undefined;
   }
 
-  getLocations(): Observable<LocationItem[]> {
-    if (!this.locationsCache$) {
+  getLocations(forceRefresh: boolean = false): Observable<LocationItem[]> {
+    if (forceRefresh || !this.locationsCache$) {
       this.locationsCache$ = this.http
         .get<{ success: boolean; data: LocationItem[] }>('/api/locations')
         .pipe(

@@ -21,7 +21,15 @@ export class TaskController {
         search,
         page,
         pageSize,
+        schoolYear,
+        periodId,
+        primaryAxisId,
+        kpiOnly,
+        nonKpiOnly,
       } = req.query;
+
+      const headerYear = req.headers['x-academic-year'] as string | undefined;
+      const activeSchoolYear = (schoolYear as string) || headerYear;
 
       const tenantId = req.user?.tenantId;
       const schoolId = req.user?.schoolId;
@@ -44,6 +52,11 @@ export class TaskController {
         proposalStatus: proposalStatus as string,
         currentUserId,
         search: search as string,
+        schoolYear: activeSchoolYear,
+        periodId: periodId as string,
+        primaryAxisId: primaryAxisId as string,
+        kpiOnly: kpiOnly as any,
+        nonKpiOnly: nonKpiOnly as any,
         page: page ? Number(page) : 1,
         pageSize: pageSize ? Number(pageSize) : 20,
       });
@@ -228,7 +241,9 @@ export class TaskController {
     try {
       const { id } = req.params;
       const tenantId = req.user?.tenantId;
-      const task = await taskService.update(id, req.body, tenantId);
+      const userId = req.user!.id;
+      const userRoles = req.user!.roles.map((r) => r.role);
+      const task = await taskService.update(id, req.body, tenantId, userId, userRoles);
 
       res.status(200).json({
         success: true,

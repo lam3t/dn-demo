@@ -25,8 +25,10 @@
     "test:phase3": "ts-node src/modules/tasks/phase3-features.test.ts",
     "test:audit-v12": "ts-node src/modules/tasks/audit-v12-features.test.ts",
     "test:kpi": "ts-node src/modules/kpi/kpi-calculation.test.ts",
+    "test:kpi:flexible": "ts-node src/modules/kpi/kpi-axis-flexible.test.ts",
     "test:security": "ts-node src/modules/auth/security-penetration.test.ts",
-    "test:all": "npm run test:auth && npm run test:users && npm run test:plans && npm run test:tasks && npm run test:dashboard && npm run test:admin && npm run test:multi-tenant && npm run test:permissions && npm run test:phase3 && npm run test:audit-v12 && npm run test:kpi && npm run test:security"
+    "test:locations": "ts-node src/modules/locations/location-crud.test.ts",
+    "test:all": "npm run test:auth && npm run test:users && npm run test:plans && npm run test:tasks && npm run test:dashboard && npm run test:admin && npm run test:multi-tenant && npm run test:permissions && npm run test:phase3 && npm run test:audit-v12 && npm run test:kpi && npm run test:locations && npm run test:security"
   },
   "keywords": [
     "education",

@@ -8,9 +8,11 @@ export class DashboardService {
     tenantId?: string;
     locationId?: string;
     orgUnitId?: string;
+    schoolYear?: string;
   }) {
     const scopeKey = params.tenantId || params.schoolId || 'all';
-    const cacheKey = `dashboard:${scopeKey}:${params.locationId || 'all'}:${params.orgUnitId || 'all'}`;
+    const yearKey = params.schoolYear || 'default';
+    const cacheKey = `dashboard:${scopeKey}:${params.locationId || 'all'}:${params.orgUnitId || 'all'}:${yearKey}`;
     const cached = appCache.get(cacheKey);
     if (cached) {
       return cached;
@@ -25,6 +27,21 @@ export class DashboardService {
     const tenantOrSchoolWhere: any = {};
     if (params.tenantId) tenantOrSchoolWhere.tenantId = params.tenantId;
     else if (params.schoolId) tenantOrSchoolWhere.schoolId = params.schoolId;
+
+    if (params.schoolYear) {
+      const parts = params.schoolYear.split('-');
+      if (parts.length === 2) {
+        const startY = parseInt(parts[0].trim(), 10);
+        const endY = parseInt(parts[1].trim(), 10);
+        if (!isNaN(startY) && !isNaN(endY)) {
+          const startDate = new Date(Date.UTC(startY, 7, 15, 0, 0, 0));
+          const endDate = new Date(Date.UTC(endY, 7, 31, 23, 59, 59, 999));
+          // Apply time window filter
+          where.createdAt = { gte: startDate, lte: endDate };
+          tenantOrSchoolWhere.createdAt = { gte: startDate, lte: endDate };
+        }
+      }
+    }
 
     const now = new Date();
     const threeDaysLater = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);

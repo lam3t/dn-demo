@@ -6,6 +6,7 @@ import { Subscription } from 'rxjs';
 import { TaskService } from '../../core/services/task.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ContactCardService } from '../../core/services/contact-card.service';
+import { AcademicYearService } from '../../core/services/academic-year.service';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { StatusTabsCounterComponent, StatusTabItem } from '../../shared/components/status-tabs-counter/status-tabs-counter.component';
 import { FileDropzoneComponent } from '../../shared/components/file-dropzone/file-dropzone.component';
@@ -54,9 +55,9 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
       <!-- HEADER -->
       <div class="page-header">
         <div class="header-left">
-          <h1 class="page-title">Việc Của Tôi</h1>
+          <h1 class="page-title">Việc Của Tôi • Năm học {{ academicYearService.formattedCurrentYear() }}</h1>
           <p class="page-subtitle">
-            Theo dõi nhiệm vụ được giao, cập nhật tiến độ & đính kèm minh chứng thực hiện
+            Theo dõi nhiệm vụ được giao Năm học {{ academicYearService.formattedCurrentYear() }}, cập nhật tiến độ & đính kèm minh chứng thực hiện
           </p>
         </div>
 
@@ -264,6 +265,16 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
                     <span class="my-role-badge" [ngClass]="getMyRoleBadgeClass(task)">
                       {{ getMyRoleName(task) }}
                     </span>
+                    @if (task.primaryAxis) {
+                      <span class="kpi-axis-badge" [title]="'Trục KPI: ' + task.primaryAxis.name + ' (' + (task.weightScore || 10) + ' điểm)'">
+                        <span class="material-symbols-outlined icon-kpi-mini">hub</span>
+                        <span>{{ task.primaryAxis.name }} ({{ task.weightScore || 10 }}đ)</span>
+                      </span>
+                    } @else {
+                      <span class="non-kpi-badge" title="Việc thường kỳ / Phân công BGH (không tính KPI cá nhân)">
+                        <span>Việc thường kỳ</span>
+                      </span>
+                    }
                     @if (task.priority === 'KHAN_CAP' || task.priority === 'CAO') {
                       <span class="priority-badge" [ngClass]="'prio-' + task.priority">
                         {{ task.priority === 'KHAN_CAP' ? 'Khẩn cấp' : 'Ưu tiên cao' }}
@@ -424,6 +435,14 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
                             </span>
                           }
                           <strong class="task-title-text">{{ task.title }}</strong>
+                          @if (task.primaryAxis) {
+                            <span class="kpi-axis-badge" [title]="'Trục KPI: ' + task.primaryAxis.name + ' (' + (task.weightScore || 10) + ' điểm)'">
+                              <span class="material-symbols-outlined icon-kpi-mini">hub</span>
+                              <span>{{ task.primaryAxis.name }} ({{ task.weightScore || 10 }}đ)</span>
+                            </span>
+                          } @else {
+                            <span class="non-kpi-badge" title="Việc thường kỳ / Phân công BGH (không tính KPI)">Việc thường kỳ</span>
+                          }
                           @if (task.requireAttachment) {
                             <span class="req-attach-icon" title="Bắt buộc có minh chứng">
                               <span class="material-symbols-outlined">attach_file</span>
@@ -983,6 +1002,38 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
                 &.role-phoi-hop { background: #F3E8FF; color: #7E22CE; }
                 &.role-kiem-tra { background: #FEF3C7; color: #92400E; }
                 &.role-other { background: #F1F5F9; color: #475569; }
+              }
+
+              .kpi-axis-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 3px;
+                background: #EEF4FC;
+                border: 1px solid #BFDBFE;
+                color: #1E40AF;
+                padding: 1px 7px;
+                border-radius: 4px;
+                font-size: 0.7rem;
+                font-weight: 700;
+                white-space: nowrap;
+
+                .icon-kpi-mini {
+                  font-size: 13px;
+                  color: #2563EB;
+                }
+              }
+
+              .non-kpi-badge {
+                display: inline-flex;
+                align-items: center;
+                background: #F1F5F9;
+                border: 1px solid #E2E8F0;
+                color: #64748B;
+                padding: 1px 6px;
+                border-radius: 4px;
+                font-size: 0.68rem;
+                font-weight: 600;
+                white-space: nowrap;
               }
 
               .priority-badge {
@@ -2045,6 +2096,7 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
 export class MyTasksComponent implements OnInit, OnDestroy {
   taskService = inject(TaskService);
   authService = inject(AuthService);
+  academicYearService = inject(AcademicYearService);
   private contactCardService = inject(ContactCardService);
   private router = inject(Router);
 
@@ -2064,6 +2116,7 @@ export class MyTasksComponent implements OnInit, OnDestroy {
   quickUpdateError = signal<string | null>(null);
 
   private accountSub?: Subscription;
+  private yearSub?: Subscription;
 
   totalCount = computed(() => this.allTasks().length);
 
@@ -2213,10 +2266,16 @@ export class MyTasksComponent implements OnInit, OnDestroy {
     this.accountSub = this.authService.accountSwitched$.subscribe(() => {
       this.loadMyTasks();
     });
+
+    // Subscribe to academic year changes
+    this.yearSub = this.academicYearService.yearChanged$.subscribe(() => {
+      this.loadMyTasks();
+    });
   }
 
   ngOnDestroy() {
     this.accountSub?.unsubscribe();
+    this.yearSub?.unsubscribe();
   }
 
   getRoleBannerClass(): string {

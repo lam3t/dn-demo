@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of, map, catchError } from 'rxjs';
 import { TaskService } from './task.service';
 import { AuthService } from './auth.service';
+import { AcademicYearService } from './academic-year.service';
 import { KpiRowItem, KpiSummaryScores, KpiEvaluationSheet, KpiPeriod } from '../models/kpi.models';
 import { TaskItem } from '../models/task.models';
 
@@ -13,6 +14,7 @@ export class KpiService {
   private http = inject(HttpClient);
   private taskService = inject(TaskService);
   private authService = inject(AuthService);
+  private academicYearService = inject(AcademicYearService);
 
   private readonly STORAGE_KEY_PREFIX = 'tn_edu_kpi_sheet_';
 
@@ -402,7 +404,7 @@ export class KpiService {
       userTitle: user?.title || 'Cán bộ Quản lý / Giáo viên',
       period,
       periodLabel,
-      schoolYear: '2026 - 2027',
+      schoolYear: this.academicYearService.formattedCurrentYear(),
       locationName: role?.scopeName || user?.tenantName || user?.schoolName || 'Nhà trường',
       orgUnitName: user?.primaryOrgUnitName || 'Tổ chuyên môn',
       evaluatorRole: 'T/M BAN THƯỜNG VỤ',
@@ -415,14 +417,15 @@ export class KpiService {
   }
 
   getPeriodLabel(period: KpiPeriod): string {
+    const yearStr = this.academicYearService ? this.academicYearService.formattedCurrentYear() : '2026 - 2027';
     switch (period) {
       case 'QUY_1': return 'Quý I (Tháng 1 - 3)';
       case 'QUY_2': return 'Quý II (Tháng 4 - 6)';
       case 'QUY_3': return 'Quý III (Tháng 7 - 9)';
       case 'QUY_4': return 'Quý IV (Tháng 10 - 12)';
-      case 'HOC_KY_1': return 'Học kỳ I (Năm học 2026 - 2027)';
-      case 'HOC_KY_2': return 'Học kỳ II (Năm học 2026 - 2027)';
-      case 'NAM_HOC': return 'Cả Năm học 2026 - 2027';
+      case 'HOC_KY_1': return `Học kỳ I (${yearStr})`;
+      case 'HOC_KY_2': return `Học kỳ II (${yearStr})`;
+      case 'NAM_HOC': return `Cả Năm học ${yearStr}`;
       default: return 'Kỳ đánh giá';
     }
   }

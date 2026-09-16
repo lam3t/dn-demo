@@ -353,12 +353,31 @@ export class AdminController {
 
   async getCategories(req: Request, res: Response, next: NextFunction) {
     try {
-      const tenantId = req.user?.tenantId;
-      if (!tenantId) {
-        throw new AppError('Không tìm thấy thông tin trường (tenantId).', 400);
-      }
+      const tenantId = req.user?.tenantId || (req.headers['x-tenant-id'] as string) || (req.query.tenantId as string);
       const { type } = req.query;
-      const categories = await adminService.getCategories(tenantId, type as string);
+      let categories: any[] = [];
+      
+      if (tenantId) {
+        categories = await adminService.getCategories(tenantId, type as string);
+      }
+
+      if (!categories || categories.length === 0) {
+        // Trả về danh mục niên khóa mặc định nếu chưa có cấu hình trong DB hoặc truy cập ẩn danh
+        if (type === 'NAM_HOC' || !type) {
+          const defaultYears = [
+            { id: 'nam_hoc_2026_2027', type: 'NAM_HOC', code: '2026-2027', name: 'Năm học 2026 - 2027', orderIndex: 1, isDefault: true, isActive: true },
+            { id: 'nam_hoc_2025_2026', type: 'NAM_HOC', code: '2025-2026', name: 'Năm học 2025 - 2026', orderIndex: 2, isDefault: false, isActive: true },
+            { id: 'nam_hoc_2024_2025', type: 'NAM_HOC', code: '2024-2025', name: 'Năm học 2024 - 2025', orderIndex: 3, isDefault: false, isActive: true },
+            { id: 'nam_hoc_2027_2028', type: 'NAM_HOC', code: '2027-2028', name: 'Năm học 2027 - 2028', orderIndex: 4, isDefault: false, isActive: true },
+          ];
+          if (type === 'NAM_HOC') {
+            categories = defaultYears;
+          } else if (!type) {
+            categories = defaultYears;
+          }
+        }
+      }
+
       res.status(200).json({
         success: true,
         data: categories,
@@ -367,6 +386,7 @@ export class AdminController {
       next(error);
     }
   }
+
 
   async createCategory(req: Request, res: Response, next: NextFunction) {
     try {

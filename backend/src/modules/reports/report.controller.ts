@@ -10,12 +10,29 @@ export class ReportController {
         throw new AppError('Yêu cầu định danh tenant không hợp lệ.', 403);
       }
 
-      const { startDate, endDate, locationId, orgUnitId, status, planId } = req.query;
+      const { startDate, endDate, locationId, orgUnitId, status, planId, schoolYear } = req.query;
+      const headerYear = req.headers['x-academic-year'] as string | undefined;
+      const activeSchoolYear = (schoolYear as string) || headerYear;
+
+      let parsedStartDate: Date | undefined = startDate ? new Date(String(startDate)) : undefined;
+      let parsedEndDate: Date | undefined = endDate ? new Date(String(endDate)) : undefined;
+
+      if (!parsedStartDate && !parsedEndDate && activeSchoolYear) {
+        const parts = activeSchoolYear.split('-');
+        if (parts.length === 2) {
+          const startY = parseInt(parts[0].trim(), 10);
+          const endY = parseInt(parts[1].trim(), 10);
+          if (!isNaN(startY) && !isNaN(endY)) {
+            parsedStartDate = new Date(Date.UTC(startY, 7, 15, 0, 0, 0));
+            parsedEndDate = new Date(Date.UTC(endY, 7, 31, 23, 59, 59, 999));
+          }
+        }
+      }
 
       const data = await ReportService.getPeriodSummary({
         tenantId,
-        startDate: startDate ? new Date(String(startDate)) : undefined,
-        endDate: endDate ? new Date(String(endDate)) : undefined,
+        startDate: parsedStartDate,
+        endDate: parsedEndDate,
         locationId: locationId ? String(locationId) : undefined,
         orgUnitId: orgUnitId ? String(orgUnitId) : undefined,
         status: status ? String(status) : undefined,
@@ -38,12 +55,29 @@ export class ReportController {
         throw new AppError('Yêu cầu định danh tenant không hợp lệ.', 403);
       }
 
-      const { startDate, endDate, locationId, orgUnitId, status, planId } = req.query;
+      const { startDate, endDate, locationId, orgUnitId, status, planId, schoolYear } = req.query;
+      const headerYear = req.headers['x-academic-year'] as string | undefined;
+      const activeSchoolYear = (schoolYear as string) || headerYear;
+
+      let parsedStartDate: Date | undefined = startDate ? new Date(String(startDate)) : undefined;
+      let parsedEndDate: Date | undefined = endDate ? new Date(String(endDate)) : undefined;
+
+      if (!parsedStartDate && !parsedEndDate && activeSchoolYear) {
+        const parts = activeSchoolYear.split('-');
+        if (parts.length === 2) {
+          const startY = parseInt(parts[0].trim(), 10);
+          const endY = parseInt(parts[1].trim(), 10);
+          if (!isNaN(startY) && !isNaN(endY)) {
+            parsedStartDate = new Date(Date.UTC(startY, 7, 15, 0, 0, 0));
+            parsedEndDate = new Date(Date.UTC(endY, 7, 31, 23, 59, 59, 999));
+          }
+        }
+      }
 
       const buffer = await ReportService.generateExcelReport({
         tenantId,
-        startDate: startDate ? new Date(String(startDate)) : undefined,
-        endDate: endDate ? new Date(String(endDate)) : undefined,
+        startDate: parsedStartDate,
+        endDate: parsedEndDate,
         locationId: locationId ? String(locationId) : undefined,
         orgUnitId: orgUnitId ? String(orgUnitId) : undefined,
         status: status ? String(status) : undefined,

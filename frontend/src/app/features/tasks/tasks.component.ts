@@ -15,6 +15,7 @@ import { TaskService, TaskFilterParams } from '../../core/services/task.service'
 import { UserService } from '../../core/services/user.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ContactCardService } from '../../core/services/contact-card.service';
+import { AcademicYearService } from '../../core/services/academic-year.service';
 import {
   TaskItem,
   TaskStatus,
@@ -47,11 +48,11 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
         <div class="header-left">
           <div class="header-badge">
             <span class="material-symbols-outlined">assignment</span>
-            <span>QUẢN TRỊ CÔNG VIỆC TRƯỜNG HỌC</span>
+            <span>QUẢN TRỊ CÔNG VIỆC • NĂM HỌC {{ academicYearService.formattedCurrentYear() }}</span>
           </div>
           <h1 class="page-title">Theo Dõi, Phê Duyệt & Phân Công Việc</h1>
           <p class="page-subtitle">
-            Giám sát tiến độ toàn trường, phát hiện điểm nghẽn và phê duyệt kết quả theo quy trình RACI.
+            Giám sát tiến độ toàn trường Năm học {{ academicYearService.formattedCurrentYear() }}, phát hiện điểm nghẽn và phê duyệt kết quả theo quy trình RACI.
           </p>
         </div>
 
@@ -114,6 +115,13 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
             <option value="CAO">Quan trọng</option>
             <option value="TRUNG_BINH">Bình thường</option>
             <option value="THAP">Thấp</option>
+          </select>
+
+          <!-- KPI AXIS FILTER -->
+          <select class="filter-select tap-target" [(ngModel)]="filterKpiType" (ngModelChange)="loadTasks()">
+            <option value="">Tất cả (KPI & Thường kỳ)</option>
+            <option value="KPI">Chỉ việc tính KPI (70đ)</option>
+            <option value="NON_KPI">Việc thường kỳ / Không tính KPI</option>
           </select>
 
           <!-- QUICK TOGGLE: ONLY MY ACTIONABLE TASKS -->
@@ -198,6 +206,16 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                         <div class="title-top">
                           <span class="priority-dot" [ngClass]="'prio-' + task.priority"></span>
                           <strong class="task-name">{{ task.title }}</strong>
+                          @if (task.primaryAxis) {
+                            <span class="kpi-axis-badge" [title]="'Trục: ' + task.primaryAxis.name + ' (' + (task.weightScore || 10) + ' điểm)'">
+                              <span class="material-symbols-outlined icon-kpi-mini">hub</span>
+                              <span>{{ task.primaryAxis.name }} ({{ task.weightScore || 10 }}đ)</span>
+                            </span>
+                          } @else {
+                            <span class="non-kpi-badge" title="Công việc thường kỳ / BGH phân công (không tính KPI cá nhân)">
+                              <span>Việc thường kỳ</span>
+                            </span>
+                          }
                           @if (task.requireAttachment) {
                             <span class="attach-badge" title="Bắt buộc có minh chứng">
                               <span class="material-symbols-outlined">attach_file</span>
@@ -323,6 +341,14 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                   <div class="tags-row">
                     <span class="code-badge">{{ task.code || 'CV-' + task.id.slice(0, 4) }}</span>
                     <app-status-badge [status]="task.status"></app-status-badge>
+                    @if (task.primaryAxis) {
+                      <span class="kpi-axis-badge">
+                        <span class="material-symbols-outlined icon-kpi-mini">hub</span>
+                        <span>{{ task.primaryAxis.name }} ({{ task.weightScore || 10 }}đ)</span>
+                      </span>
+                    } @else {
+                      <span class="non-kpi-badge">Việc thường kỳ</span>
+                    }
                     @if (isOverdue(task)) {
                       <span class="overdue-pill">QUÁ HẠN</span>
                     }
@@ -695,6 +721,38 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                 &.prop-CHO_DUYET { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; }
                 &.prop-DA_DUYET { background: #DCFCE7; color: #166534; border: 1px solid #86EFAC; }
                 &.prop-TU_CHOI { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+              }
+
+              .kpi-axis-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 3px;
+                background: #EEF4FC;
+                border: 1px solid #BFDBFE;
+                color: #1E40AF;
+                padding: 1px 7px;
+                border-radius: 4px;
+                font-size: 0.7rem;
+                font-weight: 700;
+                white-space: nowrap;
+
+                .icon-kpi-mini {
+                  font-size: 13px;
+                  color: #2563EB;
+                }
+              }
+
+              .non-kpi-badge {
+                display: inline-flex;
+                align-items: center;
+                background: #F1F5F9;
+                border: 1px solid #E2E8F0;
+                color: #64748B;
+                padding: 1px 6px;
+                border-radius: 4px;
+                font-size: 0.68rem;
+                font-weight: 600;
+                white-space: nowrap;
               }
             }
 
@@ -1111,6 +1169,7 @@ export class TasksComponent implements OnInit, OnDestroy {
   authService = inject(AuthService);
   private dashboardService = inject(DashboardService);
   private contactCardService = inject(ContactCardService);
+  academicYearService = inject(AcademicYearService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
@@ -1157,6 +1216,7 @@ export class TasksComponent implements OnInit, OnDestroy {
   filterLocationId = '';
   filterOrgUnitId = '';
   filterPriority = '';
+  filterKpiType = '';
   filterOnlyMyAction = signal(false);
 
   // Options
@@ -1167,6 +1227,7 @@ export class TasksComponent implements OnInit, OnDestroy {
   selectedTaskId = signal<string | null>(null);
 
   private accountSub?: Subscription;
+  private yearSub?: Subscription;
 
   ngOnInit() {
     this.loadFilterOptions();
@@ -1176,6 +1237,13 @@ export class TasksComponent implements OnInit, OnDestroy {
     // Subscribe to switchDemoAccount to reload data immediately
     this.accountSub = this.authService.accountSwitched$.subscribe(() => {
       this.loadTasks();
+      this.loadTabCounters();
+    });
+
+    // Subscribe to academic year changes
+    this.yearSub = this.academicYearService.yearChanged$.subscribe(() => {
+      this.loadTasks();
+      this.loadTabCounters();
     });
 
     // Check query params for direct task opening (e.g. ?taskId=...) or create wizard (?create=true)
@@ -1194,6 +1262,7 @@ export class TasksComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.accountSub?.unsubscribe();
+    this.yearSub?.unsubscribe();
   }
 
   private loadFilterOptions() {
@@ -1261,6 +1330,12 @@ export class TasksComponent implements OnInit, OnDestroy {
       priority: this.filterPriority || undefined,
       pageSize: 50,
     };
+
+    if (this.filterKpiType === 'KPI') {
+      params.kpiOnly = true;
+    } else if (this.filterKpiType === 'NON_KPI') {
+      params.nonKpiOnly = true;
+    }
 
     // Map active status tab to filter param
     if (this.activeStatusTab() === 'MOI') {

@@ -35,6 +35,10 @@ export interface TaskFilterParams {
   role?: string;
   page?: number;
   pageSize?: number;
+  periodId?: string;
+  primaryAxisId?: string;
+  kpiOnly?: boolean;
+  nonKpiOnly?: boolean;
 }
 
 export interface CreateTaskPayload {
@@ -51,6 +55,12 @@ export interface CreateTaskPayload {
   requireAttachment?: boolean;
   isProposal?: boolean;
   proposalNote?: string;
+  periodId?: string | null;
+  primaryAxisId?: string | null;
+  taskSubtype?: string | null;
+  weightScore?: number | null;
+  evidenceFiles?: any;
+  secondaryAxisIds?: string[];
   assignments?: Array<{ userId: string; role: TaskAssignmentRole; note?: string }>;
 }
 
@@ -75,6 +85,10 @@ export class TaskService {
     if (params.proposalStatus) httpParams = httpParams.set('proposalStatus', params.proposalStatus);
     if (params.assigneeId) httpParams = httpParams.set('assigneeId', params.assigneeId);
     if (params.role) httpParams = httpParams.set('role', params.role);
+    if (params.periodId) httpParams = httpParams.set('periodId', params.periodId);
+    if (params.primaryAxisId) httpParams = httpParams.set('primaryAxisId', params.primaryAxisId);
+    if (params.kpiOnly !== undefined) httpParams = httpParams.set('kpiOnly', params.kpiOnly.toString());
+    if (params.nonKpiOnly !== undefined) httpParams = httpParams.set('nonKpiOnly', params.nonKpiOnly.toString());
     if (params.page) httpParams = httpParams.set('page', params.page.toString());
     if (params.pageSize) httpParams = httpParams.set('pageSize', params.pageSize.toString());
 
@@ -108,6 +122,12 @@ export class TaskService {
       startDate?: string | null;
       dueDate?: string | null;
       requireAttachment?: boolean;
+      periodId?: string | null;
+      primaryAxisId?: string | null;
+      taskSubtype?: string | null;
+      weightScore?: number | null;
+      evidenceFiles?: any;
+      secondaryAxisIds?: string[];
     }
   ): Observable<TaskItem> {
     return this.http

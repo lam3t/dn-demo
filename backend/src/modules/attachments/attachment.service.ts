@@ -1,7 +1,8 @@
 import prisma from '../../prisma';
 import { AppError } from '../../middlewares/error.middleware';
-import { Role } from '@prisma/client';
+import { Role, NotificationType, TaskAssignmentRole } from '@prisma/client';
 import { StorageService } from '../../services/storage.service';
+import { QueueService } from '../../services/queue.service';
 
 export class AttachmentService {
   async uploadFiles(
@@ -14,7 +15,10 @@ export class AttachmentService {
       throw new AppError('Không có tệp nào được tải lên.', 400);
     }
 
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: { assignments: true },
+    });
     if (!task) {
       throw new AppError('Không tìm thấy công việc để đính kèm tệp.', 404);
     }
@@ -57,6 +61,27 @@ export class AttachmentService {
         note: `Đã tải lên ${files.length} tệp minh chứng: ${files.map((f) => f.originalname).join(', ')}`,
       },
     });
+
+    // Bắn thông báo nộp minh chứng
+    const uploader = await prisma.user.findUnique({ where: { id: uploadedById }, select: { fullName: true } });
+    const uploaderName = uploader?.fullName || 'Người thực hiện';
+    const notifyTargets = new Set<string>();
+    if (task.createdById) notifyTargets.add(task.createdById);
+    task.assignments
+      .filter((a) => a.role === TaskAssignmentRole.KIEM_TRA || a.role === TaskAssignmentRole.PHE_DUYET)
+      .forEach((a) => notifyTargets.add(a.userId));
+    notifyTargets.delete(uploadedById);
+
+    for (const targetUserId of notifyTargets) {
+      await QueueService.pushNotification({
+        tenantId: task.tenantId,
+        userId: targetUserId,
+        type: NotificationType.HE_THONG,
+        title: `Nộp minh chứng mới: ${task.title}`,
+        content: `${uploaderName} đã tải lên ${files.length} tệp minh chứng kết quả công việc.`,
+        link: `/tasks/${taskId}`,
+      });
+    }
 
     return createdAttachments;
   }

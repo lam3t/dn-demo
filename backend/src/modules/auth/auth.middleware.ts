@@ -94,6 +94,70 @@ export const requireAuth = async (req: Request, _res: Response, next: NextFuncti
 };
 
 /**
+ * Middleware xác thực tùy chọn (nếu có token hợp lệ thì gán req.user, nếu không thì bỏ qua mà không ném lỗi 401)
+ */
+export const optionalAuth = async (req: Request, _res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return next();
+    }
+
+    const token = authHeader.split(' ')[1];
+    let decoded: TokenPayload;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
+    } catch {
+      return next();
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      include: {
+        tenant: true,
+        school: true,
+        roles: true,
+      },
+    });
+
+    if (user && user.isActive) {
+      const tenantId = user.tenantId || user.school?.tenantId || null;
+      const permissions = await getTenantUserPermissions(user.id, tenantId, user.isSystemAdmin);
+
+      req.user = {
+        id: user.id,
+        email: user.email,
+        phone: user.phone,
+        fullName: user.fullName,
+        title: user.title,
+        avatarUrl: user.avatarUrl,
+        schoolId: user.schoolId || undefined,
+        tenantId: tenantId || undefined,
+        tenantName: user.tenant?.name || undefined,
+        tenantCode: user.tenant?.code || undefined,
+        isSystemAdmin: user.isSystemAdmin,
+        primaryLocationId: user.primaryLocationId,
+        primaryOrgUnitId: user.primaryOrgUnitId,
+        roles: user.roles.map((r) => ({
+          role: r.role,
+          roleId: r.roleId,
+          scopeLocationId: r.scopeLocationId,
+          scopeOrgUnitId: r.scopeOrgUnitId,
+        })),
+        permissions,
+      };
+
+      req.tenantId = user.isSystemAdmin ? 'system_bypass' : (tenantId || undefined);
+    }
+
+    next();
+  } catch {
+    next();
+  }
+};
+
+
+/**
  * Middleware kiểm tra vai trò System Admin (requireSystemAdmin)
  */
 export const requireSystemAdmin = (req: Request, _res: Response, next: NextFunction) => {

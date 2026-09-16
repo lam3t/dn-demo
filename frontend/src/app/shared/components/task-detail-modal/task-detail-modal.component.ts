@@ -14,6 +14,7 @@ import { TaskService } from '../../../core/services/task.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { AttachmentService } from '../../../core/services/attachment.service';
 import { ContactCardService } from '../../../core/services/contact-card.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import {
   TaskItem,
   TaskStatus,
@@ -50,16 +51,23 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                     {{ task()!.location?.name }}
                   </span>
                 }
-                <!-- DUE DATE BADGE CLICK TO EDIT -->
-                <div class="due-tag tap-target" [class.is-overdue]="isTaskOverdue()" (click)="startEditDueDate()" title="Bấm vào để đổi hạn hoàn thành">
-                  <span class="material-symbols-outlined">{{ isTaskOverdue() ? 'alarm_on' : 'event' }}</span>
-                  <span>{{ isTaskOverdue() ? 'Quá hạn: ' : 'Hạn: ' }}{{ formatDateOnly(task()!.dueDate) }}</span>
-                  <span class="material-symbols-outlined edit-hint">edit</span>
-                </div>
+                <!-- DUE DATE BADGE (KIỂM TRA QUYỀN SỬA) -->
+                @if (canEditDueDate()) {
+                  <div class="due-tag tap-target can-edit" [class.is-overdue]="isTaskOverdue()" (click)="startEditDueDate()" title="Bấm vào để đổi hạn hoàn thành (Chỉ người giao việc/BGH)">
+                    <span class="material-symbols-outlined">{{ isTaskOverdue() ? 'alarm_on' : 'event' }}</span>
+                    <span>{{ isTaskOverdue() ? 'Quá hạn: ' : 'Hạn: ' }}{{ formatDateOnly(task()!.dueDate) }}</span>
+                    <span class="material-symbols-outlined edit-hint">edit</span>
+                  </div>
+                } @else {
+                  <div class="due-tag read-only" [class.is-overdue]="isTaskOverdue()" [title]="'Hạn hoàn thành: ' + formatDateOnly(task()!.dueDate)">
+                    <span class="material-symbols-outlined">{{ isTaskOverdue() ? 'alarm_on' : 'event' }}</span>
+                    <span>{{ isTaskOverdue() ? 'Quá hạn: ' : 'Hạn: ' }}{{ formatDateOnly(task()!.dueDate) }}</span>
+                  </div>
+                }
               </div>
               <h2 class="task-title">{{ task()!.title }}</h2>
             </div>
-            <button type="button" class="btn-close-modal" (click)="close()" title="Đóng">
+            <button type="button" class="btn-close-modal tap-target" (click)="close()" title="Đóng">
               <span class="material-symbols-outlined">close</span>
             </button>
           </div>
@@ -107,6 +115,7 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                     class="progress-slider"
                     [(ngModel)]="tempProgress"
                     (ngModelChange)="onProgressChange()"
+                    [disabled]="!canAssigneeAct()"
                   />
                   <div class="slider-marks">
                     <span>0% (Bắt đầu)</span>
@@ -115,29 +124,40 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                     <span>75%</span>
                     <span>100% (Hoàn thành)</span>
                   </div>
+                  <!-- PRESET BUTTONS -->
+                  @if (canAssigneeAct()) {
+                    <div class="progress-presets-row">
+                      <button type="button" class="btn-preset tap-target" (click)="setTempProgress(25)">25%</button>
+                      <button type="button" class="btn-preset tap-target" (click)="setTempProgress(50)">50%</button>
+                      <button type="button" class="btn-preset tap-target" (click)="setTempProgress(75)">75%</button>
+                      <button type="button" class="btn-preset btn-preset-100 tap-target" (click)="setTempProgress(100)">100% Hoàn thành</button>
+                    </div>
+                  }
                 </div>
 
-                <div class="progress-note-box">
-                  <input
-                    type="text"
-                    class="prog-note-input"
-                    [(ngModel)]="progressNote"
-                    placeholder="Ghi chú thêm về nội dung vừa hoàn thành (tùy chọn)..."
-                  />
-                  <button
-                    type="button"
-                    class="btn-save-prog tap-target"
-                    (click)="saveProgress()"
-                    [disabled]="isUpdatingProgress() || tempProgress() === task()!.progressPercent"
-                  >
-                    @if (isUpdatingProgress()) {
-                      <span class="material-symbols-outlined spin">progress_activity</span>
-                    } @else {
-                      <span class="material-symbols-outlined">check</span>
-                    }
-                    <span>Lưu % tiến độ</span>
-                  </button>
-                </div>
+                @if (canAssigneeAct()) {
+                  <div class="progress-note-box">
+                    <input
+                      type="text"
+                      class="prog-note-input"
+                      [(ngModel)]="progressNote"
+                      placeholder="Ghi chú thêm về nội dung vừa hoàn thành (tùy chọn)..."
+                    />
+                    <button
+                      type="button"
+                      class="btn-save-prog tap-target"
+                      (click)="saveProgress()"
+                      [disabled]="isUpdatingProgress() || tempProgress() === task()!.progressPercent"
+                    >
+                      @if (isUpdatingProgress()) {
+                        <span class="material-symbols-outlined spin">progress_activity</span>
+                      } @else {
+                        <span class="material-symbols-outlined">check</span>
+                      }
+                      <span>Lưu % tiến độ</span>
+                    </button>
+                  </div>
+                }
               </div>
 
               <!-- FILE ATTACHMENTS & DROPZONE -->
@@ -175,14 +195,16 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                           <a [href]="file.fileUrl" target="_blank" class="btn-file-action" title="Xem trước / Tải về">
                             <span class="material-symbols-outlined">download</span>
                           </a>
-                          <button
-                            type="button"
-                            class="btn-file-action delete"
-                            (click)="deleteAttachment(file.id)"
-                            title="Xóa tệp"
-                          >
-                            <span class="material-symbols-outlined">delete</span>
-                          </button>
+                          @if (canDeleteAttachment(file)) {
+                            <button
+                              type="button"
+                              class="btn-file-action delete tap-target"
+                              (click)="deleteAttachment(file.id)"
+                              title="Xóa tệp"
+                            >
+                              <span class="material-symbols-outlined">delete</span>
+                            </button>
+                          }
                         </div>
                       </div>
                     }
@@ -194,10 +216,12 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                   </div>
                 }
 
-                <!-- FILE DROPZONE -->
+                <!-- FILE DROPZONE (HỖ TRỢ CAMERA DI ĐỘNG & DESKTOP) -->
                 <div class="dropzone-wrapper">
                   <app-file-dropzone
                     [taskId]="task()!.id"
+                    [autoUpload]="true"
+                    (uploadComplete)="onUploadSuccess($event)"
                     (uploadSuccess)="onUploadSuccess($event)"
                   ></app-file-dropzone>
                 </div>
@@ -318,7 +342,7 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
 
             <!-- RIGHT COLUMN: RACI TEAM & METADATA -->
             <div class="body-side-col">
-              <!-- STATUS WORKFLOW ACTIONS -->
+              <!-- STATUS WORKFLOW ACTIONS (CHUẨN HÓA LOGIC THEO VAI TRÒ & TRẠNG THÁI) -->
               <div class="side-card action-workflow-card">
                 <h4 class="side-title">Hành động quy trình</h4>
                 <div class="workflow-status-notice">
@@ -327,107 +351,163 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                 </div>
 
                 <div class="workflow-action-buttons">
-                  @if (!hasAnyAction() && task()!.status !== 'DONG') {
+                  <!-- THÔNG BÁO CHO OBSERVER -->
+                  @if (!canPerformAnyAction() && task()!.status !== 'DONG') {
                     <div class="read-only-role-notice">
                       <span class="material-symbols-outlined">visibility</span>
-                      <span>Bạn đang xem công việc với quyền theo dõi (Chỉ người được phân công RACI phù hợp mới có thể chuyển trạng thái).</span>
+                      <span>Bạn đang xem công việc với quyền theo dõi (Chỉ cán bộ được phân công RACI phù hợp hoặc Ban Giám hiệu mới có quyền thao tác).</span>
                     </div>
                   }
 
-                  <!-- NÚT 1: NHẬN VIỆC & BẮT ĐẦU NGAY (KHI DA_GIAO/NHAP) -->
-                  @if (canTransitionTo('DANG_THUC_HIEN') && (task()!.status === 'DA_GIAO' || task()!.status === 'NHAP')) {
-                    <button
-                      type="button"
-                      class="btn-workflow-action btn-indigo tap-target"
-                      (click)="performStatusChange('DANG_THUC_HIEN', 'Nhận việc & Bắt đầu thực hiện')"
-                    >
-                      <span class="material-symbols-outlined">play_circle</span>
-                      <span>Nhận việc & Bắt đầu làm</span>
-                    </button>
+                  <!-- 1. KHI Ở TRẠNG THÁI MỚI GIAO (DA_GIAO) HOẶC NHÁP (NHAP) -->
+                  @if (task()!.status === 'DA_GIAO' || task()!.status === 'NHAP') {
+                    @if (canAssigneeAct()) {
+                      <button
+                        type="button"
+                        class="btn-workflow-action btn-indigo tap-target"
+                        (click)="performStatusChange('DANG_THUC_HIEN', 'Tiếp nhận & Bắt đầu thực hiện')"
+                      >
+                        <span class="material-symbols-outlined">play_circle</span>
+                        <span>Tiếp nhận & Bắt đầu làm</span>
+                      </button>
+                    } @else if (isInspectorOrBGH()) {
+                      <div class="status-info-box">
+                        <span class="material-symbols-outlined">schedule</span>
+                        <span>Đã giao việc, đang chờ cán bộ phụ trách tiếp nhận & triển khai.</span>
+                      </div>
+                    }
                   }
 
-                  <!-- NÚT 1B: TIẾP NHẬN VIỆC (CHUYỂN SANG DA_TIEP_NHAN) -->
-                  @if (canTransitionTo('DA_TIEP_NHAN')) {
-                    <button
-                      type="button"
-                      class="btn-workflow-action btn-blue tap-target"
-                      (click)="performStatusChange('DA_TIEP_NHAN', 'Đã tiếp nhận công việc')"
-                    >
-                      <span class="material-symbols-outlined">assignment_turned_in</span>
-                      <span>Tiếp nhận công việc</span>
-                    </button>
+                  <!-- 2. KHI Ở TRẠNG THÁI ĐÃ TIẾP NHẬN (DA_TIEP_NHAN) -->
+                  @if (task()!.status === 'DA_TIEP_NHAN') {
+                    @if (canAssigneeAct()) {
+                      <button
+                        type="button"
+                        class="btn-workflow-action btn-indigo tap-target"
+                        (click)="performStatusChange('DANG_THUC_HIEN', 'Bắt đầu thực hiện công việc')"
+                      >
+                        <span class="material-symbols-outlined">play_arrow</span>
+                        <span>Bắt đầu thực hiện</span>
+                      </button>
+                    } @else if (isInspectorOrBGH()) {
+                      <div class="status-info-box">
+                        <span class="material-symbols-outlined">info</span>
+                        <span>Cán bộ đã tiếp nhận, đang chuẩn bị thực hiện.</span>
+                      </div>
+                    }
                   }
 
-                  <!-- NÚT 2: BẮT ĐẦU LÀM (KHI ĐANG Ở DA_TIEP_NHAN HOẶC BO_SUNG) -->
-                  @if (canTransitionTo('DANG_THUC_HIEN') && task()!.status !== 'DA_GIAO' && task()!.status !== 'NHAP' && task()!.status !== 'HOAN_THANH' && task()!.status !== 'DONG') {
-                    <button
-                      type="button"
-                      class="btn-workflow-action btn-indigo tap-target"
-                      (click)="performStatusChange('DANG_THUC_HIEN', 'Bắt đầu thực hiện')"
-                    >
-                      <span class="material-symbols-outlined">play_arrow</span>
-                      <span>Bắt đầu thực hiện</span>
-                    </button>
+                  <!-- 3. KHI ĐANG THỰC HIỆN (DANG_THUC_HIEN) -->
+                  @if (task()!.status === 'DANG_THUC_HIEN') {
+                    @if (canAssigneeAct()) {
+                      <button
+                        type="button"
+                        class="btn-workflow-action btn-amber tap-target"
+                        (click)="submitForReview()"
+                      >
+                        <span class="material-symbols-outlined">send</span>
+                        <span>Gửi yêu cầu kiểm tra & nghiệm thu</span>
+                      </button>
+                    } @else if (isInspectorOrBGH()) {
+                      <div class="status-info-box">
+                        <span class="material-symbols-outlined">engineering</span>
+                        <span>Cán bộ đang trong quá trình thực hiện nhiệm vụ (Tiến độ: {{ task()!.progressPercent }}%).</span>
+                      </div>
+                    }
                   }
 
-                  <!-- NÚT 3: GỬI DUYỆT / NGHIỆM THU (CHO_KIEM_TRA) -->
-                  @if (canTransitionTo('CHO_KIEM_TRA')) {
-                    <button
-                      type="button"
-                      class="btn-workflow-action btn-amber tap-target"
-                      (click)="performStatusChange('CHO_KIEM_TRA', 'Đã nộp kết quả, gửi kiểm tra nghiệm thu')"
-                    >
-                      <span class="material-symbols-outlined">send_and_archive</span>
-                      <span>Gửi yêu cầu kiểm tra & nghiệm thu</span>
-                    </button>
+                  <!-- 4. KHI CHỜ KIỂM TRA (CHO_KIEM_TRA) -->
+                  @if (task()!.status === 'CHO_KIEM_TRA') {
+                    @if (isInspectorOrBGH()) {
+                      <button
+                        type="button"
+                        class="btn-workflow-action btn-green tap-target"
+                        (click)="approveCompleted()"
+                      >
+                        <span class="material-symbols-outlined">check_circle</span>
+                        <span>Nghiệm thu ĐẠT / Hoàn thành</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        class="btn-workflow-action btn-orange tap-target"
+                        (click)="promptForReasonAndChange('BO_SUNG', 'Yêu cầu bổ sung thêm minh chứng/hồ sơ rõ ràng hơn')"
+                      >
+                        <span class="material-symbols-outlined">replay</span>
+                        <span>Yêu cầu bổ sung kết quả</span>
+                      </button>
+                    } @else {
+                      <div class="status-info-box alert-waiting">
+                        <span class="material-symbols-outlined">hourglass_top</span>
+                        <span>Đã gửi kết quả. Đang chờ Người kiểm tra / Ban Giám hiệu nghiệm thu.</span>
+                      </div>
+                    }
                   }
 
-                  <!-- NÚT 4: PHÊ DUYỆT ĐẠT (HOAN_THANH) CHO NGƯỜI KIỂM TRA & BGH -->
-                  @if (canTransitionTo('HOAN_THANH')) {
-                    <button
-                      type="button"
-                      class="btn-workflow-action btn-green tap-target"
-                      (click)="performStatusChange('HOAN_THANH', 'Nghiệm thu đạt yêu cầu')"
-                    >
-                      <span class="material-symbols-outlined">check_circle</span>
-                      <span>Nghiệm thu ĐẠT / Hoàn thành</span>
-                    </button>
+                  <!-- 5. KHI CẦN BỔ SUNG (BO_SUNG) -->
+                  @if (task()!.status === 'BO_SUNG') {
+                    @if (canAssigneeAct()) {
+                      <button
+                        type="button"
+                        class="btn-workflow-action btn-amber tap-target"
+                        (click)="submitForReview()"
+                      >
+                        <span class="material-symbols-outlined">send</span>
+                        <span>Gửi lại yêu cầu kiểm tra & nghiệm thu</span>
+                      </button>
+                    } @else {
+                      <div class="status-info-box alert-waiting">
+                        <span class="material-symbols-outlined">edit_note</span>
+                        <span>Đang chờ cán bộ bổ sung thêm minh chứng/kết quả theo yêu cầu.</span>
+                      </div>
+                    }
                   }
 
-                  <!-- NÚT 5: YÊU CẦU BỔ SUNG (BO_SUNG) CHO NGƯỜI KIỂM TRA -->
-                  @if (canTransitionTo('BO_SUNG')) {
-                    <button
-                      type="button"
-                      class="btn-workflow-action btn-orange tap-target"
-                      (click)="promptForReasonAndChange('BO_SUNG', 'Yêu cầu bổ sung minh chứng/kết quả')"
-                    >
-                      <span class="material-symbols-outlined">replay</span>
-                      <span>Yêu cầu bổ sung kết quả</span>
-                    </button>
+                  <!-- 6. KHI ĐÃ HOÀN THÀNH (HOAN_THANH) -->
+                  @if (task()!.status === 'HOAN_THANH' || task()!.status === 'XAC_NHAN') {
+                    <div class="status-info-box alert-completed">
+                      <span class="material-symbols-outlined">task_alt</span>
+                      <span>Công việc đã được nghiệm thu hoàn thành.</span>
+                    </div>
+
+                    @if (canCloseOrReopen()) {
+                      <button
+                        type="button"
+                        class="btn-workflow-action btn-gray tap-target"
+                        (click)="performStatusChange('DONG', 'Đã đóng hồ sơ công việc')"
+                      >
+                        <span class="material-symbols-outlined">lock</span>
+                        <span>Đóng hồ sơ công việc</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        class="btn-workflow-action btn-reopen tap-target"
+                        (click)="performStatusChange('DANG_THUC_HIEN', 'Mở lại công việc để tiếp tục thực hiện')"
+                      >
+                        <span class="material-symbols-outlined">lock_open</span>
+                        <span>Mở lại công việc</span>
+                      </button>
+                    }
                   }
 
-                  <!-- NÚT 6: ĐÓNG VIỆC (DONG) CHO BGH / NGƯỜI TẠO -->
-                  @if (canTransitionTo('DONG')) {
-                    <button
-                      type="button"
-                      class="btn-workflow-action btn-gray tap-target"
-                      (click)="performStatusChange('DONG', 'Đã đóng hồ sơ công việc')"
-                    >
+                  <!-- 7. KHI ĐÃ ĐÓNG (DONG) -->
+                  @if (task()!.status === 'DONG') {
+                    <div class="status-info-box alert-locked">
                       <span class="material-symbols-outlined">lock</span>
-                      <span>Đóng hồ sơ công việc</span>
-                    </button>
-                  }
+                      <span>Hồ sơ công việc đã hoàn tất và đóng lưu trữ.</span>
+                    </div>
 
-                  <!-- NÚT 7: MỞ LẠI CÔNG VIỆC (CHO BGH / ADMIN) -->
-                  @if (canTransitionTo('REOPEN')) {
-                    <button
-                      type="button"
-                      class="btn-workflow-action btn-reopen tap-target"
-                      (click)="performStatusChange('DANG_THUC_HIEN', 'Mở lại công việc để tiếp tục thực hiện')"
-                    >
-                      <span class="material-symbols-outlined">lock_open</span>
-                      <span>Mở lại công việc</span>
-                    </button>
+                    @if (canCloseOrReopen()) {
+                      <button
+                        type="button"
+                        class="btn-workflow-action btn-reopen tap-target"
+                        (click)="performStatusChange('DANG_THUC_HIEN', 'Mở lại công việc để tiếp tục thực hiện')"
+                      >
+                        <span class="material-symbols-outlined">lock_open</span>
+                        <span>Mở lại công việc</span>
+                      </button>
+                    }
                   }
                 </div>
 
@@ -469,7 +549,7 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                         <span class="raci-loc">{{ a.user.primaryLocation?.name }}</span>
                       </div>
                       @if (a.user.phone) {
-                        <a [href]="'tel:' + a.user.phone" class="btn-call-mini" (click)="$event.stopPropagation()" [title]="'Gọi ngay: ' + a.user.phone">
+                        <a [href]="'tel:' + a.user.phone" class="btn-call-mini tap-target" (click)="$event.stopPropagation()" [title]="'Gọi ngay: ' + a.user.phone">
                           <span class="material-symbols-outlined">call</span>
                           <span class="call-phone-text">{{ a.user.phone }}</span>
                         </a>
@@ -497,7 +577,7 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                             <span class="raci-sub">{{ a.user.title }}</span>
                           </div>
                           @if (a.user.phone) {
-                            <a [href]="'tel:' + a.user.phone" class="btn-call-mini" (click)="$event.stopPropagation()" [title]="'Gọi ngay: ' + a.user.phone">
+                            <a [href]="'tel:' + a.user.phone" class="btn-call-mini tap-target" (click)="$event.stopPropagation()" [title]="'Gọi ngay: ' + a.user.phone">
                               <span class="material-symbols-outlined">call</span>
                               <span class="call-phone-text">{{ a.user.phone }}</span>
                             </a>
@@ -523,7 +603,7 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                         <span class="raci-sub">{{ a.user.title }}</span>
                       </div>
                       @if (a.user.phone) {
-                        <a [href]="'tel:' + a.user.phone" class="btn-call-mini" (click)="$event.stopPropagation()" [title]="'Gọi ngay: ' + a.user.phone">
+                        <a [href]="'tel:' + a.user.phone" class="btn-call-mini tap-target" (click)="$event.stopPropagation()" [title]="'Gọi ngay: ' + a.user.phone">
                           <span class="material-symbols-outlined">call</span>
                           <span class="call-phone-text">{{ a.user.phone }}</span>
                         </a>
@@ -566,28 +646,34 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
                 }
               </div>
 
-              <!-- TIME & META CARD -->
+              <!-- TIME & META CARD (KIỂM TRA QUYỀN SỬA HẠN HOÀN THÀNH) -->
               <div class="side-card meta-info-card">
                 <h4 class="side-title">Thông tin thời hạn</h4>
                 <div class="meta-row due-meta-row">
                   <span class="meta-label">Hạn hoàn thành:</span>
-                  @if (!isEditingDueDate()) {
-                    <button type="button" class="btn-edit-due-badge tap-target" [class.overdue-badge]="isTaskOverdue()" (click)="startEditDueDate()" title="Bấm để đổi ngày hạn hoàn thành">
-                      <span class="material-symbols-outlined">calendar_month</span>
-                      <strong class="due-text">{{ formatDateOnly(task()!.dueDate) }}</strong>
-                      <span class="material-symbols-outlined edit-icon">edit</span>
-                    </button>
+                  @if (canEditDueDate()) {
+                    @if (!isEditingDueDate()) {
+                      <button type="button" class="btn-edit-due-badge tap-target" [class.overdue-badge]="isTaskOverdue()" (click)="startEditDueDate()" title="Bấm để đổi ngày hạn hoàn thành (Chỉ người giao việc/BGH)">
+                        <span class="material-symbols-outlined">calendar_month</span>
+                        <strong class="due-text">{{ formatDateOnly(task()!.dueDate) }}</strong>
+                        <span class="material-symbols-outlined edit-icon">edit</span>
+                      </button>
+                    } @else {
+                      <div class="due-edit-inline-box" (click)="$event.stopPropagation()">
+                        <input type="date" class="date-inline-input tap-target" [(ngModel)]="editDueDateVal" />
+                        <button type="button" class="btn-inline-save tap-target" (click)="saveDueDate()" [disabled]="isSavingDueDate()" title="Lưu hạn mới">
+                          <span class="material-symbols-outlined">check</span>
+                          <span>Lưu</span>
+                        </button>
+                        <button type="button" class="btn-inline-cancel tap-target" (click)="cancelEditDueDate()" title="Hủy">
+                          <span class="material-symbols-outlined">close</span>
+                        </button>
+                      </div>
+                    }
                   } @else {
-                    <div class="due-edit-inline-box" (click)="$event.stopPropagation()">
-                      <input type="date" class="date-inline-input tap-target" [(ngModel)]="editDueDateVal" />
-                      <button type="button" class="btn-inline-save tap-target" (click)="saveDueDate()" [disabled]="isSavingDueDate()" title="Lưu hạn mới">
-                        <span class="material-symbols-outlined">check</span>
-                        <span>Lưu</span>
-                      </button>
-                      <button type="button" class="btn-inline-cancel tap-target" (click)="cancelEditDueDate()" title="Hủy">
-                        <span class="material-symbols-outlined">close</span>
-                      </button>
-                    </div>
+                    <span class="meta-val static-due-val" [class.overdue-text]="isTaskOverdue()">
+                      {{ formatDateOnly(task()!.dueDate) }}
+                    </span>
                   }
                 </div>
                 <div class="meta-row">
@@ -605,6 +691,100 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
               </div>
             </div>
           </div>
+
+          <!-- EVALUATION MODAL DIALOG POPUP (TT 70, 89) -->
+          @if (showEvalModal()) {
+            <div class="eval-modal-backdrop" (click)="showEvalModal.set(false)">
+              <div class="eval-modal-box" (click)="$event.stopPropagation()">
+                <div class="eval-modal-header">
+                  <div class="eval-modal-title">
+                    <span class="material-symbols-outlined star-icon">hotel_class</span>
+                    <h3>Đánh giá xếp loại kết quả công việc</h3>
+                  </div>
+                  <button type="button" class="btn-eval-close tap-target" (click)="showEvalModal.set(false)" title="Đóng">
+                    <span class="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+
+                <div class="eval-modal-body">
+                  <p class="eval-task-name">Nhiệm vụ: <strong>{{ task()!.title }}</strong></p>
+
+                  <label class="eval-field-label">Chọn mức xếp loại đánh giá:</label>
+                  <div class="eval-options-grid">
+                    <button
+                      type="button"
+                      class="eval-opt-btn opt-xuat-sac tap-target"
+                      [class.active]="selectedRating() === 'XUAT_SAC'"
+                      (click)="selectedRating.set('XUAT_SAC')"
+                    >
+                      <span class="eval-opt-icon">⭐</span>
+                      <span class="eval-opt-title">Xuất sắc</span>
+                      <span class="eval-opt-sub">Vượt tiến độ, chất lượng cao</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="eval-opt-btn opt-tot tap-target"
+                      [class.active]="selectedRating() === 'TOT'"
+                      (click)="selectedRating.set('TOT')"
+                    >
+                      <span class="eval-opt-icon">🟢</span>
+                      <span class="eval-opt-title">Tốt</span>
+                      <span class="eval-opt-sub">Đúng tiến độ, hồ sơ đầy đủ</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="eval-opt-btn opt-hoan-thanh tap-target"
+                      [class.active]="selectedRating() === 'HOAN_THANH'"
+                      (click)="selectedRating.set('HOAN_THANH')"
+                    >
+                      <span class="eval-opt-icon">🔵</span>
+                      <span class="eval-opt-title">Hoàn thành</span>
+                      <span class="eval-opt-sub">Đạt yêu cầu cơ bản</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="eval-opt-btn opt-chua-dat tap-target"
+                      [class.active]="selectedRating() === 'CHUA_DAT'"
+                      (click)="selectedRating.set('CHUA_DAT')"
+                    >
+                      <span class="eval-opt-icon">🔴</span>
+                      <span class="eval-opt-title">Chưa đạt</span>
+                      <span class="eval-opt-sub">Chưa đạt yêu cầu/chậm tiến độ</span>
+                    </button>
+                  </div>
+
+                  <label class="eval-field-label">Nhận xét / Đánh giá chi tiết:</label>
+                  <textarea
+                    rows="3"
+                    class="eval-textarea tap-target"
+                    [(ngModel)]="evalCommentText"
+                    placeholder="Nhập nhận xét về chất lượng thực hiện, tiến độ và sản phẩm công việc..."
+                  ></textarea>
+                </div>
+
+                <div class="eval-modal-footer">
+                  <button type="button" class="btn-eval-cancel tap-target" (click)="showEvalModal.set(false)">Hủy</button>
+                  <button
+                    type="button"
+                    class="btn-eval-submit tap-target"
+                    (click)="submitEvaluation()"
+                    [disabled]="isSubmittingEval()"
+                  >
+                    @if (isSubmittingEval()) {
+                      <span class="material-symbols-outlined spin">progress_activity</span>
+                      <span>Đang lưu...</span>
+                    } @else {
+                      <span class="material-symbols-outlined">save</span>
+                      <span>Lưu đánh giá kết quả</span>
+                    }
+                  </button>
+                </div>
+              </div>
+            </div>
+          }
         </div>
       </div>
     }
@@ -1641,6 +1821,291 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
         }
       }
 
+      /* PROGRESS PRESETS */
+      .progress-presets-row {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+
+        .btn-preset {
+          flex: 1;
+          padding: 4px 8px;
+          background: #F1F5F9;
+          border: 1px solid #CBD5E1;
+          border-radius: 6px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: #475569;
+          cursor: pointer;
+          transition: all 0.15s ease;
+
+          &:hover {
+            background: #EEF4FC;
+            border-color: #93C5FD;
+            color: #1F3864;
+          }
+
+          &.btn-preset-100 {
+            background: #ECFDF5;
+            border-color: #86EFAC;
+            color: #16A34A;
+            font-weight: 700;
+
+            &:hover {
+              background: #DCFCE7;
+              border-color: #22C55E;
+            }
+          }
+        }
+      }
+
+      /* STATUS INFO BOXES */
+      .status-info-box {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 10px 12px;
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        color: #475569;
+        line-height: 1.4;
+
+        .material-symbols-outlined {
+          font-size: 18px;
+          color: #1F3864;
+          flex-shrink: 0;
+          margin-top: 1px;
+        }
+
+        &.alert-waiting {
+          background: #FEF3C7;
+          border-color: #FDE68A;
+          color: #92400E;
+          .material-symbols-outlined { color: #D97706; }
+        }
+
+        &.alert-completed {
+          background: #ECFDF5;
+          border-color: #A7F3D0;
+          color: #065F46;
+          .material-symbols-outlined { color: #059669; }
+        }
+
+        &.alert-locked {
+          background: #F1F5F9;
+          border-color: #CBD5E1;
+          color: #475569;
+          .material-symbols-outlined { color: #64748B; }
+        }
+      }
+
+      /* DUE DATE READ-ONLY / EDITABLE BADGES */
+      .due-tag.can-edit {
+        cursor: pointer;
+      }
+      .due-tag.read-only {
+        cursor: default;
+        background: #F1F5F9;
+        border-color: #E2E8F0;
+        color: #475569;
+        &:hover {
+          background: #F1F5F9;
+          color: #475569;
+        }
+      }
+      .static-due-val {
+        font-weight: 600;
+        color: #1E293B;
+
+        &.overdue-text {
+          color: #DC2626;
+          font-weight: 700;
+        }
+      }
+
+      /* EVALUATION MODAL DIALOG */
+      .eval-modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(4px);
+        z-index: 2300;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        animation: fadeIn 0.15s ease-out;
+      }
+
+      .eval-modal-box {
+        width: 100%;
+        max-width: 540px;
+        background: #FFFFFF;
+        border-radius: 16px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+        animation: scaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .eval-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        background: #F8FAFC;
+        border-bottom: 1px solid #E2E8F0;
+
+        .eval-modal-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+
+          .star-icon {
+            color: #D97706;
+            font-size: 22px;
+          }
+
+          h3 {
+            margin: 0;
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: #1E293B;
+          }
+        }
+
+        .btn-eval-close {
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          border: none;
+          background: #EEF4FC;
+          color: #1F3864;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+        }
+      }
+
+      .eval-modal-body {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+
+        .eval-task-name {
+          margin: 0;
+          font-size: 0.88rem;
+          color: #475569;
+          padding: 8px 12px;
+          background: #F8FAFC;
+          border-radius: 8px;
+          border-left: 3px solid #1F3864;
+        }
+
+        .eval-field-label {
+          font-size: 0.82rem;
+          font-weight: 700;
+          color: #1E293B;
+          margin-top: 4px;
+        }
+
+        .eval-options-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+
+          .eval-opt-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 10px 12px;
+            background: #FFFFFF;
+            border: 2px solid #E2E8F0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: left;
+
+            .eval-opt-icon { font-size: 1.2rem; margin-bottom: 2px; }
+            .eval-opt-title { font-size: 0.88rem; font-weight: 700; color: #1E293B; }
+            .eval-opt-sub { font-size: 0.72rem; color: #64748B; margin-top: 2px; }
+
+            &:hover {
+              border-color: #CBD5E1;
+              background: #F8FAFC;
+            }
+
+            &.active {
+              &.opt-xuat-sac { border-color: #F59E0B; background: #FFFBEB; }
+              &.opt-tot { border-color: #10B981; background: #ECFDF5; }
+              &.opt-hoan-thanh { border-color: #3B82F6; background: #EFF6FF; }
+              &.opt-chua-dat { border-color: #EF4444; background: #FEF2F2; }
+            }
+          }
+        }
+
+        .eval-textarea {
+          width: 100%;
+          padding: 10px 12px;
+          border: 1px solid #CBD5E1;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          font-family: inherit;
+          box-sizing: border-box;
+
+          &:focus {
+            border-color: #1F3864;
+            outline: none;
+          }
+        }
+      }
+
+      .eval-modal-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 14px 20px;
+        background: #F8FAFC;
+        border-top: 1px solid #E2E8F0;
+
+        .btn-eval-cancel {
+          padding: 8px 16px;
+          background: #FFFFFF;
+          border: 1px solid #CBD5E1;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: #475569;
+          cursor: pointer;
+          &:hover { background: #F1F5F9; }
+        }
+
+        .btn-eval-submit {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 18px;
+          background: #1F3864;
+          color: #FFFFFF;
+          border: none;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          font-weight: 700;
+          cursor: pointer;
+          &:hover:not(:disabled) { background: #152744; }
+          &:disabled { background: #CBD5E1; cursor: not-allowed; }
+          .spin { animation: spin 1s linear infinite; }
+        }
+      }
+
       @keyframes scaleUp {
         from { opacity: 0; transform: scale(0.96); }
         to { opacity: 1; transform: scale(1); }
@@ -1668,6 +2133,7 @@ export class TaskDetailModalComponent implements OnInit {
   private authService = inject(AuthService);
   private attachmentService = inject(AttachmentService);
   private contactCardService = inject(ContactCardService);
+  private notificationService = inject(NotificationService);
 
   @Input() set taskId(id: string | null) {
     if (id) {
@@ -1740,6 +2206,18 @@ export class TaskDetailModalComponent implements OnInit {
         this.actionSuccess.set('Đã cập nhật hạn hoàn thành thành công!');
         setTimeout(() => this.actionSuccess.set(null), 3000);
         this.taskUpdated.emit(updated || { ...t, dueDate: newDueDate });
+
+        const currentUser = this.authService.currentUser();
+        this.notificationService.emitNotification({
+          title: 'Thay đổi hạn hoàn thành',
+          content: `${currentUser?.fullName || 'Người giao việc'} đã điều chỉnh hạn hoàn thành công việc "${t.title}" sang ngày ${newDueDate}.`,
+          type: 'NHAC_VIEC',
+          taskId: t.id,
+          taskCode: t.code,
+          senderName: currentUser?.fullName,
+          senderAvatar: currentUser?.avatarUrl,
+        });
+
         this.loadTask(t.id);
       },
       error: (err) => {
@@ -1770,12 +2248,25 @@ export class TaskDetailModalComponent implements OnInit {
     if (!t) return;
 
     this.isUpdatingProgress.set(true);
-    this.taskService.updateProgress(t.id, this.tempProgress(), this.progressNote || undefined).subscribe({
+    const progVal = this.tempProgress();
+    const noteVal = this.progressNote;
+    this.taskService.updateProgress(t.id, progVal, noteVal || undefined).subscribe({
       next: (updated) => {
         this.isUpdatingProgress.set(false);
         this.progressNote = '';
         this.loadTask(t.id);
         this.taskUpdated.emit(updated);
+
+        const currentUser = this.authService.currentUser();
+        this.notificationService.emitNotification({
+          title: `Cập nhật tiến độ: ${progVal}%`,
+          content: `${currentUser?.fullName || 'Cán bộ'} đã cập nhật tiến độ công việc "${t.title}" lên ${progVal}%. ${noteVal ? 'Ghi chú: ' + noteVal : ''}`,
+          type: 'STATUS_CHANGED',
+          taskId: t.id,
+          taskCode: t.code,
+          senderName: currentUser?.fullName,
+          senderAvatar: currentUser?.avatarUrl,
+        });
       },
       error: (err) => {
         this.isUpdatingProgress.set(false);
@@ -1789,6 +2280,17 @@ export class TaskDetailModalComponent implements OnInit {
     if (t) {
       this.loadTask(t.id);
       this.taskUpdated.emit(t);
+
+      const currentUser = this.authService.currentUser();
+      this.notificationService.emitNotification({
+        title: 'Minh chứng mới được tải lên',
+        content: `${currentUser?.fullName || 'Cán bộ'} đã tải lên hồ sơ/ảnh minh chứng cho công việc "${t.title}".`,
+        type: 'STATUS_CHANGED',
+        taskId: t.id,
+        taskCode: t.code,
+        senderName: currentUser?.fullName,
+        senderAvatar: currentUser?.avatarUrl,
+      });
     }
   }
 
@@ -1805,6 +2307,79 @@ export class TaskDetailModalComponent implements OnInit {
         alert(err.error?.message || 'Không thể xóa tệp.');
       },
     });
+  }
+
+  // Permission checks
+  canEditDueDate(): boolean {
+    const t = this.task();
+    if (!t) return false;
+    const currentUserId = this.authService.currentUser()?.id;
+    const isBGH = this.authService.isBGH() || this.authService.isAdmin() || this.authService.isHieuTruong();
+    const isCreator = t.createdById === currentUserId;
+    return isCreator || isBGH;
+  }
+
+  canAssigneeAct(): boolean {
+    const t = this.task();
+    if (!t) return false;
+    if (t.status === 'HOAN_THANH' || t.status === 'XAC_NHAN' || t.status === 'DONG') return false;
+    const currentUserId = this.authService.currentUser()?.id;
+    const isBGH = this.authService.isBGH() || this.authService.isAdmin();
+    const isCreator = t.createdById === currentUserId;
+    const isAssigned = t.assignments?.some(a => a.userId === currentUserId && (a.role === 'CHU_TRI' || a.role === 'PHOI_HOP'));
+    return isAssigned || isCreator || isBGH;
+  }
+
+  isInspectorOrBGH(): boolean {
+    const t = this.task();
+    if (!t) return false;
+    const currentUserId = this.authService.currentUser()?.id;
+    const isBGH = this.authService.isBGH() || this.authService.isAdmin() || this.authService.isHieuTruong();
+    const isInspector = t.assignments?.some(a => a.userId === currentUserId && (a.role === 'KIEM_TRA' || a.role === 'PHE_DUYET'));
+    const isCreator = t.createdById === currentUserId;
+    return isBGH || isInspector || isCreator;
+  }
+
+  canPerformAnyAction(): boolean {
+    return this.canAssigneeAct() || this.isInspectorOrBGH();
+  }
+
+  canCloseOrReopen(): boolean {
+    const t = this.task();
+    if (!t) return false;
+    const currentUserId = this.authService.currentUser()?.id;
+    const isBGH = this.authService.isBGH() || this.authService.isAdmin() || this.authService.isHieuTruong();
+    const isCreator = t.createdById === currentUserId;
+    return isBGH || isCreator;
+  }
+
+  canDeleteAttachment(file: TaskAttachmentItem): boolean {
+    const t = this.task();
+    if (!t) return false;
+    if (t.status === 'DONG') return false;
+    const currentUserId = this.authService.currentUser()?.id;
+    const isUploader = file.uploadedById === currentUserId;
+    const isBGH = this.authService.isBGH() || this.authService.isAdmin();
+    const isCreator = t.createdById === currentUserId;
+    return isUploader || isCreator || isBGH;
+  }
+
+  setTempProgress(val: number) {
+    this.tempProgress.set(val);
+  }
+
+  submitForReview() {
+    const t = this.task();
+    if (!t) return;
+    if (t.requireAttachment && (!t.attachments || t.attachments.length === 0)) {
+      alert('Công việc này yêu cầu bắt buộc phải có tệp hoặc ảnh chụp minh chứng kết quả trước khi gửi nghiệm thu.');
+      return;
+    }
+    this.performStatusChange('CHO_KIEM_TRA', 'Đã hoàn tất công việc, gửi yêu cầu kiểm tra nghiệm thu');
+  }
+
+  approveCompleted() {
+    this.performStatusChange('HOAN_THANH', 'Nghiệm thu đạt yêu cầu, hoàn thành công việc');
   }
 
   // Workflow logic
@@ -1868,6 +2443,27 @@ export class TaskDetailModalComponent implements OnInit {
         this.loadTask(t.id);
         this.taskUpdated.emit(updated);
         setTimeout(() => this.actionSuccess.set(null), 3000);
+
+        const currentUser = this.authService.currentUser();
+        const statusNames: any = {
+          DA_TIEP_NHAN: 'Đã tiếp nhận',
+          DANG_THUC_HIEN: 'Bắt đầu thực hiện',
+          CHO_KIEM_TRA: 'Chờ kiểm tra / nghiệm thu',
+          BO_SUNG: 'Yêu cầu bổ sung',
+          HOAN_THANH: 'Đã hoàn thành',
+          DONG: 'Đã đóng hồ sơ',
+        };
+        const sName = statusNames[status] || status;
+
+        this.notificationService.emitNotification({
+          title: `Chuyển trạng thái: ${sName}`,
+          content: `${currentUser?.fullName || 'Cán bộ'} đã chuyển việc "${t.title}" sang trạng thái [${sName}]. ${note ? 'Ghi chú: ' + note : ''}`,
+          type: status === 'BO_SUNG' ? 'CAN_BO_SUNG' : status === 'HOAN_THANH' ? 'DA_HOAN_THANH' : 'STATUS_CHANGED',
+          taskId: t.id,
+          taskCode: t.code,
+          senderName: currentUser?.fullName,
+          senderAvatar: currentUser?.avatarUrl,
+        });
       },
       error: (err) => {
         this.actionError.set(err.error?.message || 'Không thể chuyển trạng thái.');
@@ -1943,6 +2539,16 @@ export class TaskDetailModalComponent implements OnInit {
         };
         this.task.set({ ...t, comments: [...currentComments, commentObj] });
         this.loadTask(t.id);
+
+        this.notificationService.emitNotification({
+          title: `Trao đổi mới trong ${t.code || 'công việc'}`,
+          content: `${userObj?.fullName || 'Cán bộ'}: "${content.length > 80 ? content.slice(0, 80) + '...' : content}"`,
+          type: 'GENERAL',
+          taskId: t.id,
+          taskCode: t.code,
+          senderName: userObj?.fullName,
+          senderAvatar: userObj?.avatarUrl,
+        });
       },
       error: (err) => {
         this.isSubmittingComment.set(false);
@@ -2057,9 +2663,11 @@ export class TaskDetailModalComponent implements OnInit {
     const t = this.task();
     if (!t) return;
     this.isSubmittingEval.set(true);
+    const rating = this.selectedRating();
+    const comment = this.evalCommentText;
     this.taskService.evaluateTask(t.id, {
-      rating: this.selectedRating(),
-      comment: this.evalCommentText,
+      rating,
+      comment,
     }).subscribe({
       next: (updated) => {
         this.isSubmittingEval.set(false);
@@ -2067,6 +2675,18 @@ export class TaskDetailModalComponent implements OnInit {
         this.evalCommentText = '';
         this.loadTask(t.id);
         this.taskUpdated.emit(updated);
+
+        const currentUser = this.authService.currentUser();
+        const ratingName = rating === 'XUAT_SAC' ? 'Xuất sắc' : rating === 'TOT' ? 'Tốt' : rating === 'HOAN_THANH' ? 'Hoàn thành' : 'Chưa đạt';
+        this.notificationService.emitNotification({
+          title: `Kết quả nghiệm thu: [${ratingName}]`,
+          content: `${currentUser?.fullName || 'Ban Giám hiệu'} đã đánh giá xếp loại công việc "${t.title}". ${comment ? 'Nhận xét: ' + comment : ''}`,
+          type: rating === 'CHUA_DAT' ? 'CAN_BO_SUNG' : 'TASK_APPROVED',
+          taskId: t.id,
+          taskCode: t.code,
+          senderName: currentUser?.fullName,
+          senderAvatar: currentUser?.avatarUrl,
+        });
       },
       error: (err) => {
         this.isSubmittingEval.set(false);

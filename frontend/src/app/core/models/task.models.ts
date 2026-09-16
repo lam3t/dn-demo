@@ -135,6 +135,17 @@ export interface TaskItem {
   proposalNote?: string | null;
   proposedBy?: { id: string; fullName: string; title?: string | null } | null;
 
+  // Flexible KPI Fields
+  periodId?: string | null;
+  primaryAxisId?: string | null;
+  taskSubtype?: string | null;
+  weightScore?: number | null;
+  evidenceFiles?: any;
+  warningFlags?: string[] | null;
+  period?: { id: string; name: string; schoolYear: string } | null;
+  primaryAxis?: { id: string; code: string; name: string; displayOrder: number } | null;
+  secondaryAxisTags?: Array<{ axisId: string; axis: { id: string; code: string; name: string } }>;
+
   plan?: { id: string; title: string; level: string } | null;
   location?: { id: string; name: string; code: string; phone?: string } | null;
   orgUnit?: { id: string; name: string; code: string } | null;

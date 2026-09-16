@@ -15,15 +15,27 @@ export type NotificationType =
 
 export interface NotificationItem {
   id: string;
-  userId: string;
+  userId?: string;
   taskId?: string | null;
+  taskCode?: string | null;
   planId?: string | null;
   link?: string | null;
   type: NotificationType;
   title: string;
   content: string;
   isRead: boolean;
+  readAt?: string | null;
+  senderName?: string | null;
+  senderAvatar?: string | null;
   createdAt: string;
+}
+
+export interface NotificationFilterParams {
+  unreadOnly?: boolean;
+  search?: string;
+  type?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface NotificationListResponse {

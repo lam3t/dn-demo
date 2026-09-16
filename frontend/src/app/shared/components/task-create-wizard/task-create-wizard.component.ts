@@ -14,19 +14,14 @@ import { Router } from '@angular/router';
 import { TaskService } from '../../../core/services/task.service';
 import { UserService } from '../../../core/services/user.service';
 import { PlanService } from '../../../core/services/plan.service';
+import { KpiFlexibleService } from '../../../core/services/kpi-flexible.service';
+import { KpiAxis, EvaluationPeriod } from '../../../core/models/kpi-flexible.models';
 import { PeoplePickerComponent } from '../people-picker/people-picker.component';
 import { UserPickerItem, LocationItem } from '../../../core/models/user.models';
 import { PlanItem } from '../../../core/models/plan.models';
 import { TaskPriority, TaskAssignmentRole, TaskItem } from '../../../core/models/task.models';
-
-interface TaskTemplate {
-  name: string;
-  icon: string;
-  title: string;
-  description: string;
-  priority: TaskPriority;
-  requireAttachment: boolean;
-}
+import { AuthService } from '../../../core/services/auth.service';
+import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
   selector: 'app-task-create-wizard',
@@ -140,21 +135,6 @@ interface TaskTemplate {
               <!-- BƯỚC 1: THÔNG TIN CÔNG VIỆC -->
               @if (currentStep() === 1) {
                 <div class="step-content">
-                  <!-- QUICK TEMPLATES SELECTION -->
-                  @if (!isFromPlan && !taskTitle) {
-                    <div class="templates-section">
-                      <span class="section-hint">⚡ Chọn nhanh từ mẫu công việc phổ biến:</span>
-                      <div class="templates-grid">
-                        @for (tpl of quickTemplates; track tpl.name) {
-                          <button type="button" class="template-pill tap-target" (click)="applyTemplate(tpl)">
-                            <span class="material-symbols-outlined">{{ tpl.icon }}</span>
-                            <span>{{ tpl.name }}</span>
-                          </button>
-                        }
-                      </div>
-                    </div>
-                  }
-
                   <!-- TÊN CÔNG VIỆC -->
                   <div class="form-group">
                     <label class="form-label" for="taskTitle">
@@ -274,6 +254,112 @@ interface TaskTemplate {
                       </div>
                     </label>
                   </div>
+
+                  <!-- GẮN TRỤC KẾT QUẢ KPI (THANG 70 ĐIỂM SỞ GD&ĐT) -->
+                  <div class="kpi-axis-card">
+                    <div class="kpi-card-header">
+                      <div class="kpi-header-left">
+                        <span class="material-symbols-outlined icon-kpi">hub</span>
+                        <div>
+                          <strong>Gắn Trục Kết Quả KPI (Sở GD&ĐT)</strong>
+                          <span class="kpi-sub-text">Xác định công việc này có tính điểm vào 70 điểm KPI của người phụ trách hay không</span>
+                        </div>
+                      </div>
+                      <label class="kpi-toggle-wrap">
+                        <input type="checkbox" [(ngModel)]="isKpiIncluded" />
+                        <span class="kpi-toggle-text">{{ isKpiIncluded ? 'Tính KPI' : 'Không tính KPI' }}</span>
+                      </label>
+                    </div>
+
+                    @if (isKpiIncluded) {
+                      <div class="kpi-fields-body">
+                        <div class="form-row-2">
+                          <div class="form-group">
+                            <label class="form-label">
+                              <span>Kỳ đánh giá KPI</span>
+                              <span class="auto-tag">Tự động tính theo ngày</span>
+                            </label>
+                            <div class="kpi-period-readonly-box">
+                              <div class="period-left-icon">
+                                <span class="material-symbols-outlined">event_note</span>
+                              </div>
+                              <div class="period-text-info">
+                                <div class="period-title-row">
+                                  <strong class="period-title">{{ currentQuarterLabel() }}</strong>
+                                  <span class="period-year-badge">Năm học {{ currentSchoolYearLabel() }}</span>
+                                </div>
+                                <span class="period-sub">Khung thời gian: {{ currentQuarterDateRange() }}</span>
+                              </div>
+                              <div class="lock-indicator" title="Kỳ đánh giá được hệ thống tự động khóa cố định theo thời gian thực tế">
+                                <span class="material-symbols-outlined">lock</span>
+                                <span>Cố định</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="form-group">
+                            <label class="form-label">
+                              <span>Trọng số điểm (Thang 70)</span>
+                              <span class="required">*</span>
+                            </label>
+                            <input
+                              type="number"
+                              min="0.5"
+                              max="70"
+                              step="0.5"
+                              class="text-input tap-target"
+                              [(ngModel)]="kpiWeightScore"
+                              placeholder="vd: 10"
+                            />
+                          </div>
+                        </div>
+
+                        <div class="form-group">
+                          <label class="form-label">
+                            <span>Trục kết quả chính (Gắn đánh giá KPI)</span>
+                            <span class="required">*</span>
+                          </label>
+                          <select class="select-input tap-target primary-axis-select" [(ngModel)]="kpiPrimaryAxisId">
+                            <option value="">-- Chọn Trục kết quả --</option>
+                            @for (a of allowedAxes(); track a.id) {
+                              <option [value]="a.id">{{ a.displayOrder }}. {{ a.name }}</option>
+                            }
+                          </select>
+                        </div>
+
+                        @if (selectedAxisIsChuyenMon()) {
+                          <div class="form-group subtype-selection-box">
+                            <label class="form-label">
+                              <span>Phân loại nhiệm vụ Chuyên môn (Bắt buộc cho Giáo viên)</span>
+                              <span class="required">*</span>
+                            </label>
+                            <div class="subtype-radio-grid">
+                              <label class="sub-radio-card" [class.selected]="kpiTaskSubtype === 'gv_bo_mon'">
+                                <input type="radio" name="wizardSubtype" value="gv_bo_mon" [(ngModel)]="kpiTaskSubtype" />
+                                <div class="sub-radio-content">
+                                  <strong>Giáo viên bộ môn</strong>
+                                  <span>Giảng dạy, ra đề, chấm bài, bồi dưỡng học sinh</span>
+                                </div>
+                              </label>
+
+                              <label class="sub-radio-card" [class.selected]="kpiTaskSubtype === 'gvcn'">
+                                <input type="radio" name="wizardSubtype" value="gvcn" [(ngModel)]="kpiTaskSubtype" />
+                                <div class="sub-radio-content">
+                                  <strong>Giáo viên chủ nhiệm (GVCN)</strong>
+                                  <span>Quản lý nề nếp lớp, họp CMHS, hoạt động trải nghiệm</span>
+                                </div>
+                              </label>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    } @else {
+                      <div class="non-kpi-banner">
+                        <span class="material-symbols-outlined info-icon">info</span>
+                        <span>Công việc này được lưu dưới dạng <strong>Việc sự vụ / Ban Giám hiệu phân công (Bán trú, dạy thêm...) / Thường kỳ</strong> và <strong>không tính điểm KPI cá nhân</strong>.</span>
+                      </div>
+                    }
+                  </div>
                 </div>
               }
 
@@ -377,6 +463,24 @@ interface TaskTemplate {
                         <p class="val-desc">{{ taskDescription }}</p>
                       </div>
                     }
+
+                    <!-- KPI SUMMARY -->
+                    <div class="sum-kpi-box" [class.kpi-active]="isKpiIncluded">
+                      <div class="kpi-sum-header">
+                        <span class="material-symbols-outlined icon-mini">{{ isKpiIncluded ? 'stars' : 'info' }}</span>
+                        <strong>{{ isKpiIncluded ? 'GẮN VÀO ĐÁNH GIÁ KPI THEO TRỤC KẾT QUẢ' : 'CÔNG VIỆC THƯỜNG KỲ (KHÔNG TÍNH KPI)' }}</strong>
+                      </div>
+                      @if (isKpiIncluded) {
+                        <div class="kpi-sum-row">
+                          <span><strong>Kỳ đánh giá:</strong> {{ currentQuarterLabel() }} (Năm học {{ currentSchoolYearLabel() }})</span>
+                          <span><strong>Trục kết quả:</strong> {{ getPrimaryAxisName() }}</span>
+                          <span><strong>Trọng số:</strong> {{ kpiWeightScore }} điểm (thang 70)</span>
+                          @if (selectedAxisIsChuyenMon()) {
+                            <span><strong>Nhánh:</strong> {{ kpiTaskSubtype === 'gv_bo_mon' ? 'Giáo viên bộ môn' : 'Giáo viên chủ nhiệm (GVCN)' }}</span>
+                          }
+                        </div>
+                      }
+                    </div>
 
                     <!-- RACI SUMMARY -->
                     <div class="summary-raci-section">
@@ -634,52 +738,6 @@ interface TaskTemplate {
         gap: 16px;
       }
 
-      /* TEMPLATES */
-      .templates-section {
-        background: #EEF4FC;
-        border: 1px solid #BFDBFE;
-        border-radius: 12px;
-        padding: 12px 14px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-
-        .section-hint {
-          font-size: 0.78rem;
-          font-weight: 700;
-          color: #1E40AF;
-        }
-
-        .templates-grid {
-          display: flex;
-          gap: 6px;
-          flex-wrap: wrap;
-
-          .template-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 5px 10px;
-            background: #FFFFFF;
-            border: 1px solid #BFDBFE;
-            border-radius: 9999px;
-            font-size: 0.76rem;
-            font-weight: 600;
-            color: #1F3864;
-            cursor: pointer;
-
-            .material-symbols-outlined {
-              font-size: 14px;
-            }
-
-            &:hover {
-              background: #1F3864;
-              color: #FFFFFF;
-            }
-          }
-        }
-      }
-
       .form-group {
         display: flex;
         flex-direction: column;
@@ -812,6 +870,251 @@ interface TaskTemplate {
             color: #64748B;
             margin-top: 2px;
           }
+        }
+      }
+
+      /* KPI AXIS SECTION */
+      .kpi-axis-card {
+        background: #F8FAFC;
+        border: 1.5px solid #CBD5E1;
+        border-radius: 12px;
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+
+        .kpi-card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+
+          .kpi-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+
+            .icon-kpi {
+              font-size: 26px;
+              color: #0284C7;
+            }
+
+            strong {
+              display: block;
+              font-size: 0.92rem;
+              color: #0F172A;
+            }
+
+            .kpi-sub-text {
+              font-size: 0.76rem;
+              color: #64748B;
+            }
+          }
+
+          .kpi-toggle-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #0284C7;
+            cursor: pointer;
+            background: #E0F2FE;
+            padding: 6px 12px;
+            border-radius: 20px;
+
+            input[type='checkbox'] {
+              accent-color: #0284C7;
+              width: 16px;
+              height: 16px;
+            }
+          }
+        }
+
+        .kpi-fields-body {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          padding-top: 10px;
+          border-top: 1px dashed #CBD5E1;
+        }
+
+        .kpi-period-readonly-box {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 12px;
+          background: #F0FDF4;
+          border: 1.5px solid #86EFAC;
+          border-radius: 8px;
+          color: #166534;
+
+          .period-left-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: #DCFCE7;
+            color: #15803D;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+
+            .material-symbols-outlined {
+              font-size: 18px;
+            }
+          }
+
+          .period-text-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+
+            .period-title-row {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              flex-wrap: wrap;
+
+              .period-title {
+                font-size: 0.88rem;
+                font-weight: 800;
+                color: #14532D;
+              }
+
+              .period-year-badge {
+                font-size: 0.7rem;
+                font-weight: 700;
+                background: #DCFCE7;
+                color: #166534;
+                padding: 1px 6px;
+                border-radius: 4px;
+                border: 1px solid #BBF7D0;
+              }
+            }
+
+            .period-sub {
+              font-size: 0.72rem;
+              color: #4B5563;
+            }
+          }
+
+          .lock-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 6px;
+            background: #E2E8F0;
+            border-radius: 4px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: #475569;
+            flex-shrink: 0;
+
+            .material-symbols-outlined {
+              font-size: 12px;
+            }
+          }
+        }
+
+        .auto-tag {
+          font-size: 0.68rem;
+          font-weight: 700;
+          color: #059669;
+          background: #ECFDF5;
+          padding: 1px 6px;
+          border-radius: 4px;
+          margin-left: auto;
+        }
+
+        .subtype-selection-box {
+          background: #EEF2FF;
+          border: 1px solid #C7D2FE;
+          border-radius: 10px;
+          padding: 10px 12px;
+
+          .subtype-radio-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 6px;
+
+            @media (max-width: 600px) {
+              grid-template-columns: 1fr;
+            }
+
+            .sub-radio-card {
+              display: flex;
+              align-items: flex-start;
+              gap: 8px;
+              background: #FFFFFF;
+              border: 1.5px solid #E2E8F0;
+              border-radius: 8px;
+              padding: 8px 10px;
+              cursor: pointer;
+
+              &.selected {
+                border-color: #4F46E5;
+                background: #F5F3FF;
+              }
+
+              .sub-radio-content {
+                display: flex;
+                flex-direction: column;
+                font-size: 0.82rem;
+
+                strong { color: #1E1B4B; }
+                span { font-size: 0.74rem; color: #64748B; }
+              }
+            }
+          }
+        }
+
+        .non-kpi-banner {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 0.82rem;
+          color: #475569;
+          background: #F1F5F9;
+          padding: 8px 12px;
+          border-radius: 8px;
+
+          .info-icon {
+            font-size: 18px;
+            color: #64748B;
+            flex-shrink: 0;
+          }
+        }
+      }
+
+      .sum-kpi-box {
+        background: #F1F5F9;
+        border: 1px solid #E2E8F0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 0.85rem;
+
+        &.kpi-active {
+          background: #E0F2FE;
+          border-color: #BAE6FD;
+          color: #0369A1;
+        }
+
+        .kpi-sum-header {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.82rem;
+        }
+
+        .kpi-sum-row {
+          display: flex;
+          gap: 16px;
+          margin-top: 6px;
+          font-size: 0.82rem;
+          flex-wrap: wrap;
         }
       }
 
@@ -1157,6 +1460,9 @@ export class TaskCreateWizardComponent implements OnInit {
   private taskService = inject(TaskService);
   private userService = inject(UserService);
   private planService = inject(PlanService);
+  private kpiService = inject(KpiFlexibleService);
+  private authService = inject(AuthService);
+  private notificationService = inject(NotificationService);
   private router = inject(Router);
 
   @Input() set visible(val: boolean) {
@@ -1184,6 +1490,8 @@ export class TaskCreateWizardComponent implements OnInit {
 
   locations = signal<LocationItem[]>([]);
   availablePlans = signal<PlanItem[]>([]);
+  periods = signal<EvaluationPeriod[]>([]);
+  allowedAxes = signal<KpiAxis[]>([]);
 
   // Form Fields - Step 1
   taskTitle = '';
@@ -1193,6 +1501,13 @@ export class TaskCreateWizardComponent implements OnInit {
   taskLocationId = '';
   taskPriority: TaskPriority = 'TRUNG_BINH';
   taskRequireAttachment = false;
+
+  // Form Fields - Step 1 (KPI Axis)
+  isKpiIncluded = true;
+  kpiPeriodId = '';
+  kpiPrimaryAxisId = '';
+  kpiTaskSubtype: 'gv_bo_mon' | 'gvcn' | '' = 'gv_bo_mon';
+  kpiWeightScore: number = 10;
 
   // Form Fields - Step 2 (RACI)
   selectedChuTriId: string | null = null;
@@ -1205,41 +1520,6 @@ export class TaskCreateWizardComponent implements OnInit {
   kiemTraUser = signal<UserPickerItem | null>(null);
 
   isFromPlan = false;
-
-  quickTemplates: TaskTemplate[] = [
-    {
-      name: 'Họp giao ban điểm trường',
-      icon: 'groups',
-      title: 'Họp giao ban định kỳ BGH và các Phân hiệu',
-      description: 'Đánh giá tiến độ tuần qua, rà soát cơ sở vật chất và phân công nhiệm vụ tuần mới.',
-      priority: 'TRUNG_BINH',
-      requireAttachment: true,
-    },
-    {
-      name: 'Kiểm tra CSVC & PCCC',
-      icon: 'local_fire_department',
-      title: 'Kiểm tra an toàn hệ thống PCCC và thiết bị điện',
-      description: 'Khảo sát định kỳ bình chữa cháy, lối thoát hiểm và tủ điện tại các phân hiệu.',
-      priority: 'CAO',
-      requireAttachment: true,
-    },
-    {
-      name: 'Khảo sát thiết bị dạy học',
-      icon: 'biotech',
-      title: 'Kiểm kê và đề xuất mua sắm thiết bị thực hành môn KHTN',
-      description: 'Lập danh mục thiết bị thực hành còn thiếu hoặc hư hỏng sau sáp nhập.',
-      priority: 'TRUNG_BINH',
-      requireAttachment: false,
-    },
-    {
-      name: 'Sinh hoạt chuyên môn',
-      icon: 'school',
-      title: 'Sinh hoạt chuyên môn cụm tổ Toán - Tin học',
-      description: 'Trao đổi phương pháp giảng dạy liên phân hiệu và thống nhất đề kiểm tra giữa kỳ.',
-      priority: 'TRUNG_BINH',
-      requireAttachment: true,
-    },
-  ];
 
   ngOnInit() {
     this.loadDataOptions();
@@ -1272,18 +1552,128 @@ export class TaskCreateWizardComponent implements OnInit {
       next: (plans) => this.availablePlans.set(plans),
       error: () => {},
     });
+
+    this.kpiService.getPeriods().subscribe({
+      next: (pList) => {
+        this.periods.set(pList);
+        this.autoAssignCurrentKpiPeriod(pList);
+      },
+      error: () => {},
+    });
+
+    this.kpiService.getAllowedAxes().subscribe({
+      next: (axes) => {
+        this.allowedAxes.set(axes);
+        if (axes.length > 0 && !this.kpiPrimaryAxisId) {
+          const chuyenMon = axes.find((a) => a.code === 'chuyen_mon') || axes[0];
+          this.kpiPrimaryAxisId = chuyenMon.id;
+        }
+      },
+      error: () => {},
+    });
   }
 
-  applyTemplate(tpl: TaskTemplate) {
-    this.taskTitle = tpl.title;
-    this.taskDescription = tpl.description;
-    this.taskPriority = tpl.priority;
-    this.taskRequireAttachment = tpl.requireAttachment;
+  calculateCurrentKpiPeriod() {
+    const now = new Date();
+    const month = now.getMonth() + 1; // 1 - 12
+    const year = now.getFullYear();
 
-    // Mặc định ngày mai
-    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    this.taskDueDate = tomorrow.toISOString().slice(0, 10);
+    let quarterIndex = 1;
+    let quarterName = '';
+    let quarterCode = '';
+    let schoolYear = '';
+    let dateRange = '';
+
+    if (month >= 1 && month <= 3) {
+      quarterIndex = 1;
+      quarterName = `Quý I/${year}`;
+      quarterCode = `QUY_1_${year}`;
+      schoolYear = `${year - 1}-${year}`;
+      dateRange = `01/01/${year} - 31/03/${year}`;
+    } else if (month >= 4 && month <= 6) {
+      quarterIndex = 2;
+      quarterName = `Quý II/${year}`;
+      quarterCode = `QUY_2_${year}`;
+      schoolYear = `${year - 1}-${year}`;
+      dateRange = `01/04/${year} - 30/06/${year}`;
+    } else if (month >= 7 && month <= 9) {
+      quarterIndex = 3;
+      quarterName = `Quý III/${year}`;
+      quarterCode = `QUY_3_${year}`;
+      schoolYear = `${year}-${year + 1}`;
+      dateRange = `01/07/${year} - 30/09/${year}`;
+    } else {
+      quarterIndex = 4;
+      quarterName = `Quý IV/${year}`;
+      quarterCode = `QUY_4_${year}`;
+      schoolYear = `${year}-${year + 1}`;
+      dateRange = `01/10/${year} - 31/12/${year}`;
+    }
+
+    return { quarterIndex, quarterName, quarterCode, schoolYear, dateRange };
   }
+
+  currentQuarterInfo = computed(() => {
+    return this.calculateCurrentKpiPeriod();
+  });
+
+  currentQuarterLabel = computed(() => {
+    return this.currentQuarterInfo().quarterName;
+  });
+
+  currentSchoolYearLabel = computed(() => {
+    return this.currentQuarterInfo().schoolYear;
+  });
+
+  currentQuarterDateRange = computed(() => {
+    return this.currentQuarterInfo().dateRange;
+  });
+
+  private autoAssignCurrentKpiPeriod(pList?: EvaluationPeriod[]) {
+    const list = pList || this.periods();
+    const info = this.currentQuarterInfo();
+
+    // 1. Match by code (e.g. QUY_3_2026)
+    let matching = list.find((p) => p.code === info.quarterCode);
+
+    // 2. Match by name and schoolYear
+    if (!matching) {
+      matching = list.find((p) => p.name === info.quarterName && p.schoolYear === info.schoolYear);
+    }
+
+    // 3. Match by date range covering today
+    if (!matching) {
+      const now = new Date();
+      matching = list.find((p) => {
+        const start = new Date(p.startDate);
+        const end = new Date(p.endDate);
+        return start <= now && end >= now;
+      });
+    }
+
+    // 4. Fallback
+    if (matching) {
+      this.kpiPeriodId = matching.id;
+    } else if (list.length > 0) {
+      const openPeriod = list.find((p) => p.status === 'open') || list[0];
+      this.kpiPeriodId = openPeriod.id;
+    } else {
+      this.kpiPeriodId = info.quarterCode;
+    }
+  }
+
+  selectedAxisIsChuyenMon(): boolean {
+    if (!this.kpiPrimaryAxisId) return false;
+    const axis = this.allowedAxes().find((a) => a.id === this.kpiPrimaryAxisId);
+    return axis?.code === 'chuyen_mon';
+  }
+
+  getPrimaryAxisName(): string {
+    if (!this.kpiPrimaryAxisId) return 'Chưa chọn trục';
+    const axis = this.allowedAxes().find((a) => a.id === this.kpiPrimaryAxisId);
+    return axis ? `${axis.displayOrder}. ${axis.name}` : 'Chưa chọn trục';
+  }
+
 
   goToStep(step: 1 | 2 | 3) {
     if (step === 2 && !this.validateStep1()) return;
@@ -1316,6 +1706,23 @@ export class TaskCreateWizardComponent implements OnInit {
     if (!this.taskDueDate) {
       this.errorMessage.set('Vui lòng chọn hạn hoàn thành công việc.');
       return false;
+    }
+    if (this.isKpiIncluded) {
+      if (!this.kpiPeriodId) {
+        this.autoAssignCurrentKpiPeriod();
+      }
+      if (!this.kpiPrimaryAxisId) {
+        this.errorMessage.set('Vui lòng chọn Trục kết quả KPI chính.');
+        return false;
+      }
+      if (!this.kpiWeightScore || this.kpiWeightScore <= 0) {
+        this.errorMessage.set('Vui lòng nhập trọng số điểm KPI hợp lệ (0.5 - 70).');
+        return false;
+      }
+      if (this.selectedAxisIsChuyenMon() && !this.kpiTaskSubtype) {
+        this.errorMessage.set('Vui lòng chọn phân loại nhiệm vụ Chuyên môn (Giáo viên bộ môn hoặc GVCN).');
+        return false;
+      }
     }
     return true;
   }
@@ -1362,7 +1769,7 @@ export class TaskCreateWizardComponent implements OnInit {
       assignments.push({ userId: this.selectedKiemTraId!, role: 'KIEM_TRA', note: 'Kiểm tra chất lượng' });
     }
 
-    const payload = {
+    const payload: any = {
       title: this.taskTitle.trim(),
       description: this.taskDescription.trim() || undefined,
       planId: this.taskPlanId || undefined,
@@ -1371,6 +1778,10 @@ export class TaskCreateWizardComponent implements OnInit {
       dueDate: this.taskDueDate,
       requireAttachment: this.taskRequireAttachment,
       assignments,
+      periodId: this.isKpiIncluded ? this.kpiPeriodId : undefined,
+      primaryAxisId: this.isKpiIncluded ? this.kpiPrimaryAxisId : undefined,
+      taskSubtype: this.isKpiIncluded && this.selectedAxisIsChuyenMon() ? this.kpiTaskSubtype : undefined,
+      weightScore: this.isKpiIncluded ? Number(this.kpiWeightScore) : undefined,
     };
 
     this.taskService.createTask(payload).subscribe({
@@ -1379,6 +1790,17 @@ export class TaskCreateWizardComponent implements OnInit {
         this.createdTask.set(created);
         this.isSuccess.set(true);
         this.taskCreated.emit(created);
+
+        const currentUser = this.authService.currentUser();
+        this.notificationService.emitNotification({
+          title: 'Giao nhiệm vụ mới',
+          content: `${currentUser?.fullName || 'Ban Giám hiệu'} đã phân công nhiệm vụ "${created.title}". Hạn: ${created.dueDate}.`,
+          type: 'GIAO_VIEC',
+          taskId: created.id,
+          taskCode: created.code,
+          senderName: currentUser?.fullName,
+          senderAvatar: currentUser?.avatarUrl,
+        });
       },
       error: (err) => {
         this.isSubmitting.set(false);
@@ -1419,6 +1841,14 @@ export class TaskCreateWizardComponent implements OnInit {
     this.taskLocationId = '';
     this.taskPriority = 'TRUNG_BINH';
     this.taskRequireAttachment = false;
+
+    // Reset KPI fields
+    this.isKpiIncluded = true;
+    this.autoAssignCurrentKpiPeriod();
+    const chuyenMon = this.allowedAxes().find((a) => a.code === 'chuyen_mon') || this.allowedAxes()[0];
+    this.kpiPrimaryAxisId = chuyenMon ? chuyenMon.id : '';
+    this.kpiTaskSubtype = 'gv_bo_mon';
+    this.kpiWeightScore = 10;
 
     this.selectedChuTriId = null;
     this.chuTriUser.set(null);

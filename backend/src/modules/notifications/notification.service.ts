@@ -38,12 +38,29 @@ export class NotificationService {
   }
 
   /**
-   * Lấy danh sách thông báo của người dùng
+   * Lấy danh sách thông báo của người dùng kèm tìm kiếm và lọc phân loại
    */
-  async getUserNotifications(userId: string, unreadOnly = false, page = 1, pageSize = 20) {
+  async getUserNotifications(
+    userId: string,
+    unreadOnly = false,
+    page = 1,
+    pageSize = 20,
+    search?: string,
+    type?: NotificationType
+  ) {
     const where: any = { userId };
     if (unreadOnly) {
       where.isRead = false;
+    }
+    if (type) {
+      where.type = type;
+    }
+    if (search && search.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { title: { contains: q, mode: 'insensitive' } },
+        { content: { contains: q, mode: 'insensitive' } },
+      ];
     }
 
     const [total, unreadCount, items] = await Promise.all([

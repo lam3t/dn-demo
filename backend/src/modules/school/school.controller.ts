@@ -7,7 +7,8 @@ export class SchoolController {
     try {
       const schoolId = req.user?.schoolId;
       const tenantId = req.user?.tenantId;
-      const info = await schoolService.getSchoolInfo(schoolId, tenantId);
+      const schoolYear = req.query.schoolYear as string | undefined;
+      const info = await schoolService.getSchoolInfo(schoolId, tenantId, schoolYear);
       res.status(200).json({ success: true, data: info });
     } catch (error) {
       next(error);

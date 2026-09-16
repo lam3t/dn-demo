@@ -36,10 +36,20 @@ export interface LocationInfo {
   address?: string;
   phone?: string;
   isMain: boolean;
+  managerId?: string | null;
+  manager?: {
+    id: string;
+    fullName: string;
+    phone?: string;
+    email?: string;
+    title?: string;
+    avatarUrl?: string;
+  } | null;
   studentCount: number;
   femaleStudentCount: number;
   classCount: number;
   userCount?: number;
+  totalTaskCount?: number;
 }
 
 export interface SchoolInfo {

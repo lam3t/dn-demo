@@ -6,6 +6,7 @@ import {
   computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NotificationService } from '../../core/services/notification.service';
 import { NotificationItem, NotificationType } from '../../core/models/notification.models';
@@ -14,58 +15,136 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
 @Component({
   selector: 'app-notifications',
   standalone: true,
-  imports: [CommonModule, PaginationComponent],
+  imports: [CommonModule, FormsModule, PaginationComponent],
   template: `
     <div class="notifications-page-container">
+      <!-- DESKTOP PUSH NOTIFICATION BANNER -->
+      @if (notifService.isBrowserSupported() && !notifService.isPermissionGranted()) {
+        <div class="push-permission-banner">
+          <div class="banner-left">
+            <span class="material-symbols-outlined banner-icon">notifications_active</span>
+            <div class="banner-text">
+              <strong>Bật thông báo đẩy trên máy tính (Desktop Push Notifications)</strong>
+              <span>Nhận cảnh báo tức thì ở góc màn hình khi có việc mới được giao, bình luận hoặc sắp tới hạn chót.</span>
+            </div>
+          </div>
+          <button type="button" class="btn-request-push tap-target" (click)="enablePushNotifications()">
+            <span class="material-symbols-outlined">add_alert</span>
+            <span>Bật thông báo ngay</span>
+          </button>
+        </div>
+      }
+
       <!-- HEADER -->
       <header class="page-header">
         <div class="header-left">
           <div class="header-badge">
             <span class="material-symbols-outlined">notifications_active</span>
-            <span>TRUNG TÂM THÔNG BÁO</span>
+            <span>TRUNG TÂM THÔNG BÁO HỆ THỐNG</span>
           </div>
           <h1 class="page-title">Thông Báo & Nhắc Việc Tự Động</h1>
           <p class="page-subtitle">
-            Cập nhật tức thì khi có việc mới được giao, sắp đến hạn, quá hạn hoặc có phản hồi nghiệm thu.
+            Cập nhật tức thì khi có việc mới được giao, sắp đến hạn, quá hạn hoặc có bình luận, phản hồi nghiệm thu.
           </p>
         </div>
 
         <div class="header-actions">
           <button
             type="button"
+            class="btn-refresh tap-target"
+            (click)="loadNotifications()"
+            [disabled]="isLoading()"
+            title="Làm mới danh sách"
+          >
+            <span class="material-symbols-outlined" [class.spin]="isLoading()">refresh</span>
+            <span>Làm mới</span>
+          </button>
+
+          <button
+            type="button"
             class="btn-mark-all-read tap-target"
             (click)="markAllRead()"
             [disabled]="unreadCount() === 0 || isMarkingAll()"
+            title="Đánh dấu tất cả thông báo là đã đọc"
           >
             <span class="material-symbols-outlined">done_all</span>
-            <span>Đánh dấu tất cả đã đọc</span>
+            <span>Đã đọc tất cả</span>
           </button>
         </div>
       </header>
 
-      <!-- FILTER TABS & STATS -->
-      <div class="filter-tabs-bar">
-        <button
-          type="button"
-          class="tab-btn"
-          [class.active]="filterUnreadOnly() === false"
-          (click)="setFilter(false)"
-        >
-          <span>Tất cả thông báo</span>
-          <span class="tab-badge">{{ totalCount() }}</span>
-        </button>
-
-        <button
-          type="button"
-          class="tab-btn"
-          [class.active]="filterUnreadOnly() === true"
-          (click)="setFilter(true)"
-        >
-          <span>Chưa đọc</span>
-          @if (unreadCount() > 0) {
-            <span class="tab-badge unread-badge">{{ unreadCount() }}</span>
+      <!-- SEARCH & FILTER TOOLBAR -->
+      <div class="notifications-toolbar">
+        <div class="search-box">
+          <span class="material-symbols-outlined search-icon">search</span>
+          <input
+            type="text"
+            class="search-input"
+            placeholder="Tìm theo tiêu đề, nội dung hoặc mã công việc..."
+            [(ngModel)]="searchKeyword"
+            (ngModelChange)="onSearchChange()"
+          />
+          @if (searchKeyword) {
+            <button type="button" class="clear-search-btn" (click)="searchKeyword = ''; onSearchChange()">
+              <span class="material-symbols-outlined">close</span>
+            </button>
           }
-        </button>
+        </div>
+
+        <!-- FILTER TABS & CHIPS -->
+        <div class="filter-tabs-bar">
+          <button
+            type="button"
+            class="tab-btn"
+            [class.active]="selectedTab() === 'ALL'"
+            (click)="setTab('ALL')"
+          >
+            <span>Tất cả</span>
+            <span class="tab-badge">{{ totalCount() }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="tab-btn"
+            [class.active]="selectedTab() === 'UNREAD'"
+            (click)="setTab('UNREAD')"
+          >
+            <span>Chưa đọc</span>
+            @if (unreadCount() > 0) {
+              <span class="tab-badge unread-badge">{{ unreadCount() }}</span>
+            }
+          </button>
+
+          <button
+            type="button"
+            class="tab-btn"
+            [class.active]="selectedTab() === 'GIAO_VIEC'"
+            (click)="setTab('GIAO_VIEC')"
+          >
+            <span class="material-symbols-outlined tab-icon">assignment_ind</span>
+            <span>Giao việc mới</span>
+          </button>
+
+          <button
+            type="button"
+            class="tab-btn"
+            [class.active]="selectedTab() === 'NHAC_VIEC'"
+            (click)="setTab('NHAC_VIEC')"
+          >
+            <span class="material-symbols-outlined tab-icon">alarm</span>
+            <span>Hạn chót & Quá hạn</span>
+          </button>
+
+          <button
+            type="button"
+            class="tab-btn"
+            [class.active]="selectedTab() === 'BO_SUNG_HOAN_THANH'"
+            (click)="setTab('BO_SUNG_HOAN_THANH')"
+          >
+            <span class="material-symbols-outlined tab-icon">verified</span>
+            <span>Nghiệm thu & Bổ sung</span>
+          </button>
+        </div>
       </div>
 
       <!-- NOTIFICATIONS LIST -->
@@ -74,7 +153,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
           <div class="notif-cards-list">
             @for (item of [1, 2, 3, 4]; track item) {
               <div class="skeleton-card" style="flex-direction: row; align-items: center; gap: 14px;">
-                <div class="skeleton-avatar" style="border-radius: 12px; width: 42px; height: 42px;"></div>
+                <div class="skeleton-avatar" style="border-radius: 12px; width: 44px; height: 44px;"></div>
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
                   <div style="display: flex; justify-content: space-between;">
                     <div class="skeleton-line w-50 h-20"></div>
@@ -85,7 +164,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
               </div>
             }
           </div>
-        } @else if (notificationsList().length === 0) {
+        } @else if (filteredNotifications().length === 0) {
           <div class="friendly-empty-state">
             <svg class="empty-svg-illustration" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="60" cy="60" r="50" fill="#EEF4FC" />
@@ -93,9 +172,11 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
               <path d="M54 76C54 79.3137 56.6863 82 60 82C63.3137 82 66 79.3137 66 76H54Z" fill="#1F3864" />
               <circle cx="78" cy="42" r="6" fill="#2E7D32" stroke="#FFFFFF" stroke-width="2" />
             </svg>
-            <h3 class="empty-state-title">{{ filterUnreadOnly() ? 'Không có thông báo chưa đọc!' : 'Chưa có thông báo nào' }}</h3>
+            <h3 class="empty-state-title">
+              {{ searchKeyword ? 'Không tìm thấy thông báo phù hợp!' : selectedTab() === 'UNREAD' ? 'Không có thông báo chưa đọc!' : 'Chưa có thông báo nào' }}
+            </h3>
             <p class="empty-state-desc">
-              {{ filterUnreadOnly() ? 'Tuyệt vời! Thầy/cô đã đọc hết tất cả thông báo và nhắc việc.' : 'Các thông báo giao việc mới, nhắc hạn và kết quả duyệt sẽ xuất hiện tại đây.' }}
+              {{ searchKeyword ? 'Thử tìm với từ khóa khác hoặc xóa bộ lọc tìm kiếm.' : selectedTab() === 'UNREAD' ? 'Tuyệt vời! Thầy/cô đã đọc hết tất cả thông báo và nhắc việc.' : 'Các thông báo giao việc mới, nhắc hạn và kết quả duyệt sẽ xuất hiện tại đây.' }}
             </p>
           </div>
         } @else {
@@ -125,12 +206,10 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                       {{ getNotifTypeLabel(notif.type) }}
                     </span>
 
-                    @if (notif.taskId) {
-                      <span class="nav-hint">
-                        <span>Bấm để xem công việc</span>
-                        <span class="material-symbols-outlined">arrow_forward</span>
-                      </span>
-                    }
+                    <span class="nav-hint">
+                      <span>Mở xem chi tiết</span>
+                      <span class="material-symbols-outlined">arrow_forward</span>
+                    </span>
                   </div>
                 </div>
 
@@ -144,7 +223,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
 
           <!-- PAGINATION -->
           <app-pagination
-            [totalItems]="notificationsList().length"
+            [totalItems]="filteredNotifications().length"
             [pageSize]="pageSize()"
             [currentPage]="currentPage()"
             [pageSizeOptions]="[10, 20, 50]"
@@ -161,8 +240,78 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
       .notifications-page-container {
         display: flex;
         flex-direction: column;
-        gap: 18px;
+        gap: 16px;
         padding-bottom: 32px;
+      }
+
+      /* PUSH PERMISSION BANNER */
+      .push-permission-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 12px 18px;
+        background: linear-gradient(135deg, #EFF6FF, #DBEAFE);
+        border: 1.5px solid #93C5FD;
+        border-radius: 12px;
+        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.08);
+
+        .banner-left {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+
+          .banner-icon {
+            font-size: 28px;
+            color: #2563EB;
+            background: #FFFFFF;
+            padding: 6px;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+          }
+
+          .banner-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+
+            strong {
+              font-size: 0.88rem;
+              color: #1E3A8A;
+            }
+
+            span {
+              font-size: 0.78rem;
+              color: #3B82F6;
+            }
+          }
+        }
+
+        .btn-request-push {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          background: #2563EB;
+          color: #FFFFFF;
+          border: none;
+          border-radius: 8px;
+          font-size: 0.82rem;
+          font-weight: 700;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: background 0.15s ease, transform 0.1s ease;
+          box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+
+          &:hover {
+            background: #1D4ED8;
+            transform: translateY(-1px);
+          }
+
+          .material-symbols-outlined {
+            font-size: 16px;
+          }
+        }
       }
 
       /* HEADER */
@@ -201,21 +350,25 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
 
           .page-subtitle {
             margin: 4px 0 0 0;
-            font-size: 0.9rem;
+            font-size: 0.88rem;
             color: #64748B;
           }
         }
 
         .header-actions {
-          .btn-mark-all-read {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+
+          .btn-refresh, .btn-mark-all-read {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 9px 16px;
+            padding: 8px 14px;
             background: #FFFFFF;
             border: 1.5px solid #CBD5E1;
-            border-radius: 10px;
-            font-size: 0.88rem;
+            border-radius: 8px;
+            font-size: 0.82rem;
             font-weight: 700;
             color: #1F3864;
             cursor: pointer;
@@ -231,62 +384,125 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
               cursor: not-allowed;
             }
           }
+
+          .btn-mark-all-read {
+            background: #EEF4FC;
+            border-color: #BFDBFE;
+            color: #1E40AF;
+
+            &:hover:not(:disabled) {
+              background: #DBEAFE;
+              border-color: #93C5FD;
+            }
+          }
         }
       }
 
-      /* FILTER TABS */
-      .filter-tabs-bar {
+      /* TOOLBAR */
+      .notifications-toolbar {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 12px 16px;
         display: flex;
-        gap: 8px;
-        border-bottom: 2px solid #E2E8F0;
-        padding-bottom: 2px;
+        flex-direction: column;
+        gap: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 
-        .tab-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 16px;
-          background: transparent;
-          border: none;
-          border-radius: 8px 8px 0 0;
-          font-size: 0.9rem;
-          font-weight: 700;
-          color: #64748B;
-          cursor: pointer;
+        .search-box {
           position: relative;
-          transition: all 0.15s ease;
+          display: flex;
+          align-items: center;
 
-          .tab-badge {
-            padding: 1px 7px;
-            border-radius: 9999px;
-            background: #F1F5F9;
-            font-size: 0.75rem;
-            color: #475569;
+          .search-icon {
+            position: absolute;
+            left: 12px;
+            font-size: 20px;
+            color: #94A3B8;
+            pointer-events: none;
+          }
 
-            &.unread-badge {
-              background: #DC2626;
-              color: #FFFFFF;
+          .search-input {
+            width: 100%;
+            padding: 9px 36px 9px 38px;
+            border: 1.5px solid #E2E8F0;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            color: #0F172A;
+            background: #F8FAFC;
+            transition: all 0.15s ease;
+
+            &:focus {
+              background: #FFFFFF;
+              border-color: #3B82F6;
+              box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+              outline: none;
             }
           }
 
-          &:hover {
-            color: #1F3864;
-            background: #F8FAFC;
+          .clear-search-btn {
+            position: absolute;
+            right: 10px;
+            background: transparent;
+            border: none;
+            color: #94A3B8;
+            cursor: pointer;
+            padding: 2px;
+            display: flex;
+
+            &:hover {
+              color: #0F172A;
+            }
           }
+        }
 
-          &.active {
-            color: #1F3864;
-            background: #FFFFFF;
+        .filter-tabs-bar {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
 
-            &::after {
-              content: '';
-              position: absolute;
-              bottom: -2px;
-              left: 0;
-              right: 0;
-              height: 3px;
-              background: #1F3864;
-              border-radius: 3px 3px 0 0;
+          .tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #F1F5F9;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #64748B;
+            cursor: pointer;
+            transition: all 0.15s ease;
+
+            .tab-icon {
+              font-size: 16px;
+            }
+
+            .tab-badge {
+              padding: 1px 6px;
+              border-radius: 9999px;
+              background: #E2E8F0;
+              font-size: 0.7rem;
+              color: #475569;
+
+              &.unread-badge {
+                background: #DC2626;
+                color: #FFFFFF;
+              }
+            }
+
+            &:hover {
+              background: #E2E8F0;
+              color: #1E293B;
+            }
+
+            &.active {
+              background: #EEF4FC;
+              color: #1F3864;
+              border-color: #BFDBFE;
             }
           }
         }
@@ -312,7 +528,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
         padding: 16px;
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
-        border-radius: 14px;
+        border-radius: 12px;
         cursor: pointer;
         position: relative;
         transition: all 0.15s ease;
@@ -335,9 +551,9 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
         }
 
         .notif-icon-circle {
-          width: 42px;
-          height: 42px;
-          border-radius: 12px;
+          width: 44px;
+          height: 44px;
+          border-radius: 10px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -433,8 +649,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
         }
       }
 
-      .loading-state,
-      .empty-notif-box {
+      .friendly-empty-state {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -445,17 +660,29 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
         border: 1px dashed #CBD5E1;
         text-align: center;
         color: #64748B;
-      }
 
-      .empty-notif-box {
-        .empty-icon {
-          font-size: 48px;
-          color: #CBD5E1;
-          margin-bottom: 8px;
+        .empty-svg-illustration {
+          width: 72px;
+          height: 72px;
+          margin-bottom: 12px;
         }
 
-        h3 { margin: 0; font-size: 1.1rem; color: #1E293B; }
-        p { margin: 4px 0 0 0; font-size: 0.88rem; }
+        .empty-state-title {
+          margin: 0;
+          font-size: 1.1rem;
+          color: #1E293B;
+          font-weight: 700;
+        }
+
+        .empty-state-desc {
+          margin: 6px 0 0 0;
+          font-size: 0.85rem;
+          max-width: 420px;
+        }
+      }
+
+      .spin {
+        animation: spin 1s linear infinite;
       }
 
       @keyframes spin {
@@ -466,11 +693,12 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
   ],
 })
 export class NotificationsComponent implements OnInit {
-  private notifService = inject(NotificationService);
+  notifService = inject(NotificationService);
   private router = inject(Router);
 
   isLoading = signal(false);
-  filterUnreadOnly = signal(false);
+  selectedTab = signal<string>('ALL');
+  searchKeyword = '';
   isMarkingAll = signal(false);
 
   notificationsList = signal<NotificationItem[]>([]);
@@ -481,21 +709,38 @@ export class NotificationsComponent implements OnInit {
   currentPage = signal<number>(1);
   pageSize = signal<number>(10);
 
-  pagedNotifications = computed(() => {
+  filteredNotifications = computed(() => {
     const list = this.notificationsList();
+    const tab = this.selectedTab();
+    const query = this.searchKeyword.trim().toLowerCase();
+
+    return list.filter((item) => {
+      // 1. Tab filter
+      if (tab === 'UNREAD' && item.isRead) return false;
+      if (tab === 'GIAO_VIEC' && item.type !== 'GIAO_VIEC' && item.type !== 'TASK_ASSIGNED') return false;
+      if (tab === 'NHAC_VIEC' && item.type !== 'NHAC_VIEC' && item.type !== 'HET_HAN' && item.type !== 'TASK_DUE_SOON' && item.type !== 'TASK_OVERDUE') return false;
+      if (tab === 'BO_SUNG_HOAN_THANH' && item.type !== 'CAN_BO_SUNG' && item.type !== 'DA_HOAN_THANH' && item.type !== 'TASK_REJECTED' && item.type !== 'TASK_APPROVED') return false;
+
+      // 2. Keyword search
+      if (query) {
+        const title = (item.title || '').toLowerCase();
+        const content = (item.content || '').toLowerCase();
+        const code = (item.taskCode || '').toLowerCase();
+        if (!title.includes(query) && !content.includes(query) && !code.includes(query)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  });
+
+  pagedNotifications = computed(() => {
+    const list = this.filteredNotifications();
     const page = this.currentPage();
     const size = this.pageSize();
     return list.slice((page - 1) * size, page * size);
   });
-
-  onPageChange(page: number) {
-    this.currentPage.set(page);
-  }
-
-  onPageSizeChange(size: number) {
-    this.pageSize.set(size);
-    this.currentPage.set(1);
-  }
 
   ngOnInit() {
     this.loadNotifications();
@@ -503,9 +748,8 @@ export class NotificationsComponent implements OnInit {
 
   loadNotifications() {
     this.isLoading.set(true);
-    this.currentPage.set(1);
     this.notifService
-      .getNotifications({ unreadOnly: this.filterUnreadOnly() ? true : undefined, pageSize: 50 })
+      .getNotifications({ pageSize: 100 })
       .subscribe({
         next: (res) => {
           this.notificationsList.set(res.items || []);
@@ -519,10 +763,17 @@ export class NotificationsComponent implements OnInit {
       });
   }
 
-  setFilter(unreadOnly: boolean) {
-    this.filterUnreadOnly.set(unreadOnly);
+  onSearchChange() {
     this.currentPage.set(1);
-    this.loadNotifications();
+  }
+
+  setTab(tab: string) {
+    this.selectedTab.set(tab);
+    this.currentPage.set(1);
+  }
+
+  enablePushNotifications() {
+    this.notifService.requestBrowserPermission();
   }
 
   markAllRead() {
@@ -559,8 +810,17 @@ export class NotificationsComponent implements OnInit {
     if (notif.taskId) {
       this.router.navigate(['/tasks'], { queryParams: { taskId: notif.taskId } });
     } else if (notif.planId) {
-      this.router.navigate(['/plans']);
+      this.router.navigate(['/plans'], { queryParams: { planId: notif.planId } });
     }
+  }
+
+  onPageChange(page: number) {
+    this.currentPage.set(page);
+  }
+
+  onPageSizeChange(size: number) {
+    this.pageSize.set(size);
+    this.currentPage.set(1);
   }
 
   getNotifTypeClass(type: NotificationType): string {
@@ -643,3 +903,4 @@ export class NotificationsComponent implements OnInit {
     return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
   }
 }
+

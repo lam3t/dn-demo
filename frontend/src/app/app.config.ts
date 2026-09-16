@@ -4,12 +4,13 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
+import { academicYearInterceptor } from './core/interceptors/academic-year.interceptor';
 import { demoMockInterceptor } from './core/interceptors/demo-mock.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideRouter(routes, withComponentInputBinding(), withViewTransitions()),
-    provideHttpClient(withInterceptors([authInterceptor, demoMockInterceptor])),
+    provideHttpClient(withInterceptors([authInterceptor, academicYearInterceptor, demoMockInterceptor])),
     provideAnimationsAsync(),
   ],
 };

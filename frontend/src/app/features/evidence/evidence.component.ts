@@ -1,10 +1,12 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { AttachmentService } from '../../core/services/attachment.service';
 import { UserService } from '../../core/services/user.service';
 import { AuthService } from '../../core/services/auth.service';
+import { AcademicYearService } from '../../core/services/academic-year.service';
 import { LocationItem, OrgUnitItem } from '../../core/models/user.models';
 import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
 
@@ -20,10 +22,11 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
           <div class="header-tag">
             <span class="material-symbols-outlined tag-icon">folder_shared</span>
             <span>Kho Minh Chứng Số</span>
+            <span class="year-badge">Năm học: {{ academicYearService.currentAcademicYear() }}</span>
           </div>
-          <h1 class="page-title">Kho Minh Chứng & Tài Liệu Hoạt Động</h1>
+          <h1 class="page-title">Kho Minh Chứng & Tài Liệu Hoạt Động ({{ academicYearService.currentAcademicYear() }})</h1>
           <p class="page-subtitle">
-            Trung tâm lưu trữ, tra cứu và khai thác tập trung các tài liệu, biên bản, hình ảnh, minh chứng kết quả công việc và KPI toàn trường.
+            Trung tâm lưu trữ, tra cứu và khai thác tập trung các tài liệu, biên bản, hình ảnh, minh chứng kết quả công việc và KPI toàn trường năm học {{ academicYearService.currentAcademicYear() }}.
           </p>
         </div>
       </div>
@@ -217,6 +220,15 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
       font-size: 13px;
       font-weight: 600;
       margin-bottom: 8px;
+    }
+    .year-badge {
+      background: #dbeafe;
+      color: #1e40af;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-left: 6px;
     }
     .tag-icon { font-size: 16px; }
     .page-title {
@@ -526,10 +538,12 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
     .btn-action span.material-symbols-outlined { font-size: 18px; }
   `]
 })
-export class EvidenceComponent implements OnInit {
+export class EvidenceComponent implements OnInit, OnDestroy {
   private attachmentService = inject(AttachmentService);
   private userService = inject(UserService);
   public authService = inject(AuthService);
+  public academicYearService = inject(AcademicYearService);
+  private yearSub?: Subscription;
 
   // Signals
   isLoading = signal<boolean>(false);
@@ -551,6 +565,17 @@ export class EvidenceComponent implements OnInit {
   ngOnInit() {
     this.loadMetadata();
     this.loadEvidence();
+
+    this.yearSub = this.academicYearService.yearChanged$.subscribe(() => {
+      this.currentPage.set(1);
+      this.loadEvidence();
+    });
+  }
+
+  ngOnDestroy() {
+    if (this.yearSub) {
+      this.yearSub.unsubscribe();
+    }
   }
 
   loadMetadata() {

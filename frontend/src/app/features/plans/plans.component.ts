@@ -13,6 +13,7 @@ import { Subscription } from 'rxjs';
 import { PlanService } from '../../core/services/plan.service';
 import { UserService } from '../../core/services/user.service';
 import { AuthService } from '../../core/services/auth.service';
+import { AcademicYearService } from '../../core/services/academic-year.service';
 import { PlanTreeNode, PlanItem, PlanLevel } from '../../core/models/plan.models';
 import { PlanTreeComponent } from '../../shared/components/plan-tree/plan-tree.component';
 import { TaskCreateWizardComponent } from '../../shared/components/task-create-wizard/task-create-wizard.component';
@@ -1682,6 +1683,7 @@ export class PlansComponent implements OnInit, OnDestroy {
   planService = inject(PlanService);
   userService = inject(UserService);
   authService = inject(AuthService);
+  academicYearService = inject(AcademicYearService);
 
   @ViewChild('treeComponent') treeComponent?: PlanTreeComponent;
   @ViewChild('taskWizard') taskWizard?: TaskCreateWizardComponent;
@@ -1704,7 +1706,7 @@ export class PlansComponent implements OnInit, OnDestroy {
   totalTasksCount = signal(0);
   totalCompletedTasks = signal(0);
   averageProgress = signal(0);
-  activeSchoolYearTitle = signal('Năm học 2026-2027');
+  activeSchoolYearTitle = signal('Năm học ' + this.academicYearService.formattedCurrentYear());
 
   // Storage key for paper table persistence
   private readonly STORAGE_KEY = 'tn_edu_paper_rows';
@@ -1737,8 +1739,10 @@ export class PlansComponent implements OnInit, OnDestroy {
   duplicateModalError = signal<string | null>(null);
 
   private accountSub?: Subscription;
+  private yearSub?: Subscription;
 
   ngOnInit() {
+    this.activeSchoolYearTitle.set('Năm học ' + this.academicYearService.formattedCurrentYear());
     this.paperRows.set(this.loadPaperRowsFromStorage());
     this.loadAllPlans();
     this.loadTree();
@@ -1747,10 +1751,17 @@ export class PlansComponent implements OnInit, OnDestroy {
       this.loadAllPlans();
       this.loadTree();
     });
+
+    this.yearSub = this.academicYearService.yearChanged$.subscribe(() => {
+      this.activeSchoolYearTitle.set('Năm học ' + this.academicYearService.formattedCurrentYear());
+      this.loadAllPlans();
+      this.loadTree();
+    });
   }
 
   ngOnDestroy() {
     this.accountSub?.unsubscribe();
+    this.yearSub?.unsubscribe();
     if (this.toastTimer) clearTimeout(this.toastTimer);
   }
 
@@ -2044,8 +2055,11 @@ export class PlansComponent implements OnInit, OnDestroy {
     this.planFormTitle = '';
     this.planFormLevel = 'THANG';
     this.planFormParentId = this.selectedRootPlanId || null;
-    this.planFormStartDate = new Date().toISOString().slice(0, 10);
-    this.planFormEndDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const range = this.academicYearService.selectedDateRange();
+    this.planFormStartDate = range.startStr || new Date().toISOString().slice(0, 10);
+    const startDt = new Date(this.planFormStartDate);
+    const endDt = new Date(startDt.getTime() + 30 * 24 * 60 * 60 * 1000);
+    this.planFormEndDate = endDt.toISOString().slice(0, 10);
     this.planFormDescription = '';
     this.planModalError.set(null);
     this.showPlanModal.set(true);

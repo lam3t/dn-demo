@@ -1597,6 +1597,289 @@ async function main() {
 
   console.log('✓ Đã tạo Tenant 2: THCS Nguyễn Huệ (Gói Standard, 4 Nhân sự, 2 Điểm trường, 3 Tổ, 2 Task)');
 
+  // 7. SEED MODULE ĐÁNH GIÁ KPI THEO TRỤC KẾT QUẢ LINH HOẠT (SỞ GD&ĐT TP.HCM)
+  console.log('🌱 Seeding Module KPI theo Trục kết quả linh hoạt (9 trục, Quý III/2026)...');
+
+  // 7.1 Seed 9 trục mặc định cho Tenant 1 & Tenant 2
+  const defaultAxesData = [
+    { code: 'dang', name: 'Xây dựng Đảng', displayOrder: 1, roleScope: 'ALL' as const, requiresSubtype: false, description: 'Công tác phát triển Đảng, học tập chỉ thị, sinh hoạt chính trị tư tưởng' },
+    {
+      code: 'chuyen_mon',
+      name: 'Chuyên môn',
+      displayOrder: 2,
+      roleScope: 'GV_ONLY' as const,
+      requiresSubtype: true,
+      subtypeOptions: [
+        { code: 'gv_bo_mon', name: 'Giáo viên bộ môn' },
+        { code: 'gvcn', name: 'Giáo viên chủ nhiệm (GVCN)' },
+      ],
+      description: 'Hoạt động giảng dạy bộ môn, công tác chủ nhiệm lớp, dự giờ, hội giảng',
+    },
+    { code: 'phong_trao', name: 'Phong trào', displayOrder: 3, roleScope: 'ALL' as const, requiresSubtype: false, description: 'Hội thi giáo viên, thi đua ngành, công đoàn, đoàn thanh niên, văn thể mỹ' },
+    { code: 'hanh_chinh', name: 'Hành chính', displayOrder: 4, roleScope: 'ALL' as const, requiresSubtype: false, description: 'Văn thư - Lưu trữ, CSVC - Thiết bị, Thư viện, hỗ trợ hành chính văn phòng' },
+    { code: 'chuyen_doi_so', name: 'Chuyển đổi số', displayOrder: 5, roleScope: 'ALL' as const, requiresSubtype: false, description: 'Ứng dụng CNTT, quản lý học bạ điện tử, bài giảng số STEM, website nhà trường' },
+    { code: 'antt', name: 'ANTT', displayOrder: 6, roleScope: 'ALL' as const, requiresSubtype: false, description: 'An ninh trật tự trường học, cổng trường an toàn giao thông, PCCC, bảo vệ' },
+    { code: 'y_te', name: 'Y tế', displayOrder: 7, roleScope: 'ALL' as const, requiresSubtype: false, description: 'Y tế học đường, khám sức khỏe định kỳ, phòng dịch, an toàn thực phẩm' },
+    { code: 'kttc', name: 'KTTC (Kế toán tài chính)', displayOrder: 8, roleScope: 'RESTRICTED' as const, restrictedPositionCodes: ['ke_toan', 'thu_quy'], requiresSubtype: false, description: 'Công tác tài chính ngân sách, chế độ tiền lương, kiểm toán nội bộ (RESTRICTED)' },
+    { code: 'khac', name: 'Khác', displayOrder: 9, roleScope: 'ALL' as const, requiresSubtype: false, warnOveruseThresholdPct: 20.0, description: 'Nhiệm vụ đột xuất ngoài 8 trục chính trên' },
+  ];
+
+  const axisMapT1: Record<string, any> = {};
+  for (const item of defaultAxesData) {
+    const axis = await prisma.kpiAxis.create({
+      data: {
+        tenantId: tenant1.id,
+        code: item.code,
+        name: item.name,
+        description: item.description,
+        displayOrder: item.displayOrder,
+        roleScope: item.roleScope,
+        restrictedPositionCodes: (item.restrictedPositionCodes as any) || undefined,
+        requiresSubtype: item.requiresSubtype,
+        subtypeOptions: (item.subtypeOptions as any) || undefined,
+        warnOveruseThresholdPct: item.warnOveruseThresholdPct || null,
+        isActive: true,
+      },
+    });
+    axisMapT1[item.code] = axis;
+  }
+
+  // 7.2 Tạo Kỳ đánh giá Quý III/2026
+  const periodQ3T1 = await prisma.evaluationPeriod.create({
+    data: {
+      tenantId: tenant1.id,
+      name: 'Quý III/2026',
+      code: 'QUY_3_2026',
+      startDate: new Date('2026-07-01'),
+      endDate: new Date('2026-09-30'),
+      submissionDeadline: new Date('2026-09-25'),
+      status: 'open',
+      schoolYear: '2026-2027',
+      createdById: uHieuTruong.id,
+    },
+  });
+  console.log('✓ Đã tạo Kỳ đánh giá: Quý III/2026 & 9 Trục kết quả linh hoạt');
+
+  // 7.3 Cập nhật vị trí chức danh cho các nhân sự mẫu
+  await prisma.user.update({
+    where: { id: createdTeachers[0].id }, // Nguyễn Văn Bình (GV Toán)
+    data: { positionGroup: 'GV', positionCode: 'gv_bo_mon' },
+  });
+  await prisma.user.update({
+    where: { id: createdTeachers[2].id }, // Lê Thị Cẩm Tú (GV Văn kiêm GVCN)
+    data: { positionGroup: 'GV', positionCode: 'gv_bo_mon', isConcurrent: true, secondaryPositionCodes: ['gvcn'] },
+  });
+  await prisma.user.update({
+    where: { id: uTTVanPhong.id }, // Lâm Tuyết Mai (Kế toán trưởng)
+    data: { positionGroup: 'NV', positionCode: 'ke_toan' },
+  });
+  await prisma.user.update({
+    where: { id: createdTeachers[28].id }, // Đỗ Thị Minh Châu (Thủ quỹ)
+    data: { positionGroup: 'NV', positionCode: 'thu_quy' },
+  });
+  await prisma.user.update({
+    where: { id: createdTeachers[18].id }, // Trần Văn Kiên (Y tế)
+    data: { positionGroup: 'NV', positionCode: 'y_te', positionGroup: 'NV' },
+  });
+  await prisma.user.update({
+    where: { id: createdTeachers[29].id }, // Trần Quốc Bảo (Bảo vệ)
+    data: { positionGroup: 'NV', positionCode: 'bao_ve' },
+  });
+
+  // 7.4 Tạo Tasks phân bổ theo 9 trục cho Giáo viên và Nhân viên
+  const gvBinh = createdTeachers[0];
+  const gvTu = createdTeachers[2];
+
+  // Task GV 1: GV bộ môn
+  const taskGVBinh1 = await prisma.task.create({
+    data: {
+      tenantId: tenant1.id,
+      schoolId: school.id,
+      title: 'Giảng dạy phân phối chương trình môn Toán 9 (3 lớp) và bồi dưỡng HSG',
+      periodId: periodQ3T1.id,
+      primaryAxisId: axisMapT1['chuyen_mon'].id,
+      taskSubtype: 'gv_bo_mon',
+      weightScore: 35,
+      priority: TaskPriority.CAO,
+      status: TaskStatus.HOAN_THANH,
+      progressPercent: 100,
+      evaluationRating: TaskEvaluationRating.XUAT_SAC,
+      evidenceFiles: [{ fileName: 'so_diem_toan9.xlsx', fileUrl: '/uploads/demo.xlsx', fileSize: 102400 }],
+      startDate: new Date('2026-07-15'),
+      dueDate: new Date('2026-09-20'),
+      completedAt: new Date('2026-09-18'),
+      createdById: gvBinh.id,
+      orgUnitId: orgToanTin.id,
+      assignments: { create: { tenantId: tenant1.id, userId: gvBinh.id, role: TaskAssignmentRole.CHU_TRI } },
+    },
+  });
+
+  // Task GV 2: Chuyển đổi số
+  const taskGVBinh2 = await prisma.task.create({
+    data: {
+      tenantId: tenant1.id,
+      schoolId: school.id,
+      title: 'Xây dựng ngân hàng đề kiểm tra trực tuyến trên nền tảng K12Online',
+      periodId: periodQ3T1.id,
+      primaryAxisId: axisMapT1['chuyen_doi_so'].id,
+      weightScore: 25,
+      priority: TaskPriority.TRUNG_BINH,
+      status: TaskStatus.HOAN_THANH,
+      progressPercent: 100,
+      evaluationRating: TaskEvaluationRating.XUAT_SAC,
+      evidenceFiles: [{ fileName: 'ngan_hang_de_toan.pdf', fileUrl: '/uploads/demo.pdf', fileSize: 204800 }],
+      startDate: new Date('2026-08-01'),
+      dueDate: new Date('2026-09-15'),
+      completedAt: new Date('2026-09-10'),
+      createdById: gvBinh.id,
+      orgUnitId: orgToanTin.id,
+      assignments: { create: { tenantId: tenant1.id, userId: gvBinh.id, role: TaskAssignmentRole.CHU_TRI } },
+    },
+  });
+
+  // Task GV 3: Phong trào
+  const taskGVBinh3 = await prisma.task.create({
+    data: {
+      tenantId: tenant1.id,
+      schoolId: school.id,
+      title: 'Huấn luyện đội tuyển cờ vua học sinh tham gia Hội khỏe Phù Đổng cấp trường',
+      periodId: periodQ3T1.id,
+      primaryAxisId: axisMapT1['phong_trao'].id,
+      weightScore: 10,
+      priority: TaskPriority.TRUNG_BINH,
+      status: TaskStatus.HOAN_THANH,
+      progressPercent: 100,
+      evaluationRating: TaskEvaluationRating.TOT,
+      startDate: new Date('2026-08-15'),
+      dueDate: new Date('2026-09-22'),
+      completedAt: new Date('2026-09-20'),
+      createdById: gvBinh.id,
+      orgUnitId: orgToanTin.id,
+      assignments: { create: { tenantId: tenant1.id, userId: gvBinh.id, role: TaskAssignmentRole.CHU_TRI } },
+    },
+  });
+
+  // Đề xuất thưởng cho GV Bình
+  await prisma.kpiBonusProposal.create({
+    data: {
+      tenantId: tenant1.id,
+      taskId: taskGVBinh1.id,
+      periodId: periodQ3T1.id,
+      proposedById: gvBinh.id,
+      reasonType: 'tien_do_vuot',
+      reasonDescription: 'Hoàn thành trước hạn và có 2 học sinh đạt giải Nhất giao lưu Toán cấp Thành phố',
+      proposedBonusPct: 10,
+      calculatedBonusScore: 3.5,
+      status: 'approved',
+      approvedById: uHieuTruong.id,
+      approvedAt: new Date('2026-09-22'),
+      reviewNote: 'Đồng ý duyệt thưởng thành tích xuất sắc',
+    },
+  });
+
+  // Task GV Tú: Vừa dạy bộ môn vừa làm GVCN
+  await prisma.task.create({
+    data: {
+      tenantId: tenant1.id,
+      schoolId: school.id,
+      title: 'Giảng dạy bộ môn Ngữ văn lớp 8A1, 8A2 và phụ đạo học sinh yếu',
+      periodId: periodQ3T1.id,
+      primaryAxisId: axisMapT1['chuyen_mon'].id,
+      taskSubtype: 'gv_bo_mon',
+      weightScore: 35,
+      priority: TaskPriority.CAO,
+      status: TaskStatus.HOAN_THANH,
+      progressPercent: 100,
+      evaluationRating: TaskEvaluationRating.TOT,
+      createdById: gvTu.id,
+      orgUnitId: orgVanSuDia.id,
+      assignments: { create: { tenantId: tenant1.id, userId: gvTu.id, role: TaskAssignmentRole.CHU_TRI } },
+    },
+  });
+
+  await prisma.task.create({
+    data: {
+      tenantId: tenant1.id,
+      schoolId: school.id,
+      title: 'Công tác chủ nhiệm lớp 8A1: Quản lý sĩ số, nề nếp và họp phụ huynh đầu năm',
+      periodId: periodQ3T1.id,
+      primaryAxisId: axisMapT1['chuyen_mon'].id,
+      taskSubtype: 'gvcn',
+      weightScore: 35,
+      priority: TaskPriority.CAO,
+      status: TaskStatus.HOAN_THANH,
+      progressPercent: 100,
+      evaluationRating: TaskEvaluationRating.XUAT_SAC,
+      createdById: gvTu.id,
+      orgUnitId: orgVanSuDia.id,
+      assignments: { create: { tenantId: tenant1.id, userId: gvTu.id, role: TaskAssignmentRole.CHU_TRI } },
+    },
+  });
+
+  // Task Kế toán: Trục KTTC
+  await prisma.task.create({
+    data: {
+      tenantId: tenant1.id,
+      schoolId: school.id,
+      title: 'Lập bảng đối chiếu thanh quyết toán ngân sách quý III/2026 và chi trả phụ cấp giáo viên',
+      periodId: periodQ3T1.id,
+      primaryAxisId: axisMapT1['kttc'].id,
+      weightScore: 40,
+      priority: TaskPriority.CAO,
+      status: TaskStatus.HOAN_THANH,
+      progressPercent: 100,
+      evaluationRating: TaskEvaluationRating.XUAT_SAC,
+      createdById: uTTVanPhong.id,
+      orgUnitId: orgVanPhong.id,
+      assignments: { create: { tenantId: tenant1.id, userId: uTTVanPhong.id, role: TaskAssignmentRole.CHU_TRI } },
+    },
+  });
+
+  // 7.5 Tạo Bản ghi "Giao việc" của Hiệu trưởng (Quản lý bán trú, không tính điểm KPI cá nhân)
+  await prisma.taskAssignmentLog.create({
+    data: {
+      tenantId: tenant1.id,
+      periodId: periodQ3T1.id,
+      assignedById: uHieuTruong.id,
+      assignedToId: uPHTChuyenMon.id,
+      title: 'Chỉ đạo và giám sát tổ chức bán trú, tăng cường kỹ năng sống học kỳ 1',
+      description: 'Phân công đồng chí Phó Hiệu trưởng kiểm tra an toàn thực phẩm, phân luồng học sinh ăn trưa và quản lý nề nếp bán trú tại 3 điểm trường.',
+      relatedAxisId: axisMapT1['kttc'].id,
+      assignedDepartment: 'Ban Quản lý Bán trú',
+      note: 'Lưu vết phân công trách nhiệm của Ban Giám hiệu (Không gắn vào KPI cá nhân)',
+    },
+  });
+
+  await prisma.taskAssignmentLog.create({
+    data: {
+      tenantId: tenant1.id,
+      periodId: periodQ3T1.id,
+      assignedById: uHieuTruong.id,
+      assignedToId: uPHTPhanHieu1.id,
+      title: 'Điều hành kế hoạch dạy học 2 buổi/ngày và giữ trẻ ngoài giờ tại Phân hiệu 1',
+      description: 'Khảo sát nhu cầu phụ huynh và bố trí giáo viên phụ trách các lớp bán trú chiều',
+      relatedAxisId: axisMapT1['kttc'].id,
+      assignedDepartment: 'Phân hiệu 1 - Tân Lập',
+      note: 'Nhiệm vụ quản lý chung - lưu vết phân công',
+    },
+  });
+
+  // 7.6 Tạo Trường hợp đặc biệt (Special Case: Nghỉ thai sản dồn kỳ sau)
+  const nvYTe = createdTeachers[18];
+  await prisma.kpiSpecialCase.create({
+    data: {
+      tenantId: tenant1.id,
+      employeeId: nvYTe.id,
+      periodId: periodQ3T1.id,
+      caseType: 'sick_maternity_gte_2m',
+      resolution: 'carried_to_next_period',
+      note: 'Nghỉ chế độ thai sản 6 tháng theo Luật BHXH (từ tháng 06/2026 đến 12/2026). Dồn kết quả sang đánh giá năm học.',
+      approvedById: uHieuTruong.id,
+    },
+  });
+
+  console.log('✓ Đã khởi tạo hoàn chỉnh dữ liệu mẫu cho Module Đánh giá KPI theo Trục kết quả linh hoạt');
+
   console.log('🎉 Seed dữ liệu mẫu hoàn tất thành công 100%!');
 }
 

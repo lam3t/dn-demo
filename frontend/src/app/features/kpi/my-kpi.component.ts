@@ -1,2741 +1,1723 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
-import { KpiService } from '../../core/services/kpi.service';
+import { RouterModule, Router } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { KpiFlexibleService } from '../../core/services/kpi-flexible.service';
 import { AuthService } from '../../core/services/auth.service';
-import { KpiRowItem, KpiSummaryScores, KpiEvaluationSheet, KpiPeriod } from '../../core/models/kpi.models';
-
-export type KpiViewTab = 'CA_NHAN' | 'TO_BO_PHAN' | 'TOAN_TRUONG';
+import { AcademicYearService } from '../../core/services/academic-year.service';
+import {
+  EvaluationPeriod,
+  ScoreCalculationSheet,
+  AxisBreakdownItem,
+  KpiBonusProposalItem,
+  AnnualRollupResult,
+} from '../../core/models/kpi-flexible.models';
+import { KpiTaskDialogComponent } from './kpi-task-dialog.component';
 
 @Component({
   selector: 'app-my-kpi',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, KpiTaskDialogComponent],
   template: `
     <div class="my-kpi-container">
       <!-- 1. PAGE HEADER -->
       <div class="page-header hide-on-print">
         <div class="header-left">
           <div class="breadcrumb-row">
-            <span class="material-symbols-outlined">monitoring</span>
-            <span>Đánh Giá Hiệu Suất & KPI Đa Cấp</span>
+            <span class="material-symbols-outlined">analytics</span>
+            <span>Đánh Giá KPI Theo Trục Kết Quả Linh Hoạt (Sở GD&ĐT TP.HCM)</span>
           </div>
-          <h1 class="page-title">Hệ Thống Đánh Giá & Tính Điểm KPI</h1>
+          <h1 class="page-title">Bảng Điểm KPI Cá Nhân & Phân Bổ Trục Kết Quả</h1>
           <p class="page-subtitle">
-            Tính điểm KPI tự động theo công thức đa tiêu chí (Số lượng, Chất lượng, Tiến độ, Lãnh đạo điều hành) & Xuất Excel chuẩn Bộ GD&ĐT
+            Theo dõi điểm đánh giá định kỳ 4 quý trong năm và tổng kết tích lũy xếp loại chất lượng cả năm theo quy định.
           </p>
         </div>
 
         <div class="header-right-actions">
           <button
             type="button"
-            class="btn-action btn-recompute tap-target"
-            (click)="triggerBackendRecompute()"
-            [disabled]="isLoading() || isRecomputing()"
-            title="Kích hoạt tự động quét và tính toán lại toàn bộ KPI từ Nhật ký & Tiến độ Công việc"
+            class="btn-action btn-add-task"
+            (click)="openCreateTaskDialog()"
           >
-            <span class="material-symbols-outlined" [class.spinning]="isRecomputing()">bolt</span>
-            <span>{{ isRecomputing() ? 'Đang tính toán...' : 'Tính lại KPI tự động' }}</span>
+            <span class="material-symbols-outlined">add_task</span>
+            <span>+ Tạo Nhiệm Vụ KPI</span>
           </button>
 
           <button
             type="button"
-            class="btn-action btn-sync tap-target"
-            (click)="importFromMyTasks()"
-            [disabled]="isLoading()"
-            title="Tự động đồng bộ các nhiệm vụ từ danh sách công việc được giao của bạn"
-          >
-            <span class="material-symbols-outlined">sync</span>
-            <span>Lấy từ việc được giao</span>
-          </button>
-
-          <button
-            type="button"
-            class="btn-action btn-excel tap-target"
-            (click)="exportToExcel()"
-            [disabled]="isLoading()"
-            title="Kết xuất bảng tính ra file Excel (.xlsx / .xls) chuẩn mẫu 15 cột"
-          >
-            <span class="material-symbols-outlined excel-icon">table_view</span>
-            <span>Xuất file Excel theo mẫu</span>
-          </button>
-
-          <button
-            type="button"
-            class="btn-action btn-print tap-target"
-            (click)="printReport()"
-            title="In hoặc xuất bảng điểm sang file PDF"
+            class="btn-action btn-print"
+            (click)="printScorecard()"
           >
             <span class="material-symbols-outlined">print</span>
-            <span>In bảng điểm</span>
+            <span>In Bảng Điểm</span>
           </button>
         </div>
       </div>
 
-      <!-- 2. VIEW TAB SWITCHER (CÁ NHÂN / TỔ CHUYÊN MÔN / TOÀN TRƯỜNG) -->
-      <div class="view-tabs-card hide-on-print">
-        <div class="view-tabs-list">
-          <button
-            type="button"
-            class="tab-btn"
-            [class.active]="activeTab() === 'CA_NHAN'"
-            (click)="switchTab('CA_NHAN')"
-          >
-            <span class="material-symbols-outlined">person</span>
-            <span>KPI Cá Nhân Của Tôi</span>
-          </button>
-
-          @if (canViewOrgUnit()) {
-            <button
-              type="button"
-              class="tab-btn"
-              [class.active]="activeTab() === 'TO_BO_PHAN'"
-              (click)="switchTab('TO_BO_PHAN')"
-            >
-              <span class="material-symbols-outlined">group_work</span>
-              <span>KPI Tổ Chuyên Môn / Bộ Phận</span>
-              <span class="tab-badge">{{ currentOrgUnitName() }}</span>
-            </button>
-          }
-
-          @if (canViewSchool()) {
-            <button
-              type="button"
-              class="tab-btn"
-              [class.active]="activeTab() === 'TOAN_TRUONG'"
-              (click)="switchTab('TOAN_TRUONG')"
-            >
-              <span class="material-symbols-outlined">domain</span>
-              <span>KPI Toàn Trường</span>
-              <span class="tab-badge highlight">Ban Giám Hiệu</span>
-            </button>
-          }
-        </div>
-
-        <div class="tab-period-picker">
-          <label class="period-label">
-            <span class="material-symbols-outlined icon-sm">event</span>
-            Kỳ đánh giá:
+      <!-- 2. PERIOD & STATUS BAR -->
+      <div class="period-toolbar hide-on-print">
+        <div class="period-picker">
+          <label>
+            <span class="material-symbols-outlined">event_note</span>
+            <span>Kỳ / Năm đánh giá:</span>
           </label>
           <select
             class="form-select period-select"
-            [ngModel]="selectedPeriod()"
+            [ngModel]="selectedPeriodId()"
             (ngModelChange)="onPeriodChange($event)"
           >
-            <option value="QUY_1">Quý I (Tháng 1 - 3)</option>
-            <option value="QUY_2">Quý II (Tháng 4 - 6)</option>
-            <option value="QUY_3">Quý III (Tháng 7 - 9)</option>
-            <option value="QUY_4">Quý IV (Tháng 10 - 12)</option>
-            <option value="HOC_KY_1">Học kỳ I (2026 - 2027)</option>
-            <option value="HOC_KY_2">Học kỳ II (2026 - 2027)</option>
-            <option value="NAM_HOC">Cả Năm học 2026 - 2027</option>
+            <optgroup [label]="'Đánh Giá 4 Quý Trong Năm Học ' + academicYearService.currentAcademicYear()">
+              @for (p of (periods() || []); track p.id) {
+                <option [value]="p.id">{{ p.name }} ({{ p.startDate | date: 'dd/MM' }} - {{ p.endDate | date: 'dd/MM/yyyy' }})</option>
+              }
+            </optgroup>
+            <optgroup label="Đánh Giá Tổng Kết Cuối Năm">
+              <option value="annual_rollup">📊 [TỔNG KẾT] Đánh Giá & Xếp Loại Cả Năm ({{ academicYearService.currentAcademicYear() }})</option>
+            </optgroup>
           </select>
+        </div>
+
+        <div class="user-kpi-badge">
+          <span class="material-symbols-outlined">account_circle</span>
+          <div class="user-meta">
+            <strong>{{ authService.currentUser()?.fullName || 'Viên chức' }}</strong>
+            <span class="role-desc">{{ authService.currentUser()?.title || 'Giáo viên' }} • {{ authService.currentUser()?.primaryOrgUnitName || 'Tổ Chuyên môn' }}</span>
+          </div>
         </div>
       </div>
 
-      <!-- ================= TAB 1: KPI CÁ NHÂN ================= -->
-      @if (activeTab() === 'CA_NHAN') {
-        <!-- 3. AUTOMATED BACKEND KPI SCAN SUMMARY BANNER -->
-        @if (backendKpiSummary()) {
-          <div class="auto-kpi-banner hide-on-print">
-            <div class="banner-icon-box">
-              <span class="material-symbols-outlined">auto_awesome</span>
+      <!-- ========================================================================= -->
+      <!-- A. ANNUAL ROLLUP VIEW (KHI CHỌN TỔNG KẾT CẢ NĂM) -->
+      <!-- ========================================================================= -->
+      @if (selectedPeriodId() === 'annual_rollup') {
+        @if (isLoadingAnnual()) {
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Đang tổng hợp dữ liệu tích lũy 4 quý trong năm học...</p>
+          </div>
+        } @else {
+          <!-- 1. 4 QUARTERS PROGRESS CARDS -->
+          <div class="annual-quarters-grid">
+            @for (q of (annualRollupData()?.quarters || []); track q.periodId) {
+              <div class="quarter-card" [class.evaluated]="q.hasEvaluatedScore">
+                <div class="q-top">
+                  <span class="q-badge">QUÝ {{ q.quarterIndex }}</span>
+                  <span class="q-status-tag" [ngClass]="getQuarterStatusClass(q.status)">
+                    {{ q.status === 'closed' ? 'Đã chốt' : (q.status === 'open' ? 'Đang mở' : 'Dự thảo') }}
+                  </span>
+                </div>
+                <h4 class="q-title">{{ q.periodName }}</h4>
+                <span class="q-date-sub">{{ q.startDate | date: 'dd/MM' }} - {{ q.endDate | date: 'dd/MM/yyyy' }}</span>
+
+                <div class="q-score-row">
+                  <span class="q-score-num">{{ q.scoreFinal }} <small>/100đ</small></span>
+                  <span class="classification-pill-sm" [ngClass]="getClassificationBadgeClass(q.classification)">
+                    {{ getClassificationLabel(q.classification) }}
+                  </span>
+                </div>
+
+                <div class="q-parts-row">
+                  <span>Phần A: <strong>{{ q.scoreGeneral }}đ</strong></span>
+                  <span class="sep">•</span>
+                  <span>Phần B: <strong>{{ q.scoreTask }}đ</strong></span>
+                  @if (q.scoreBonus > 0) {
+                    <span class="sep">•</span>
+                    <span class="text-emerald-700">Thưởng: <strong>+{{ q.scoreBonus }}đ</strong></span>
+                  }
+                </div>
+
+                <div class="q-tasks-info">
+                  <span class="material-symbols-outlined icon-tasks">task_alt</span>
+                  <span>{{ q.completedTasks }} / {{ q.totalTasks }} việc hoàn thành</span>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- 2. ANNUAL RESULT CARD -->
+          <div class="annual-result-card">
+            <div class="annual-main-stats">
+              <div class="annual-stat-box">
+                <span class="stat-label">ĐIỂM TRUNG BÌNH CẢ NĂM</span>
+                <span class="stat-score-val">{{ annualRollupData()?.avgScore || 0 }} <small>/ 100đ</small></span>
+                <span class="stat-formula">Điểm TB tích lũy các quý trong năm học</span>
+              </div>
+
+              <div class="annual-classification-box">
+                <span class="stat-label">XẾP LOẠI CHẤT LƯỢNG CUỐI NĂM ĐỀ XUẤT</span>
+                <div
+                  class="yearly-class-badge"
+                  [style.background-color]="(annualRollupData()?.yearlyClassificationColor || '#2563eb') + '20'"
+                  [style.color]="annualRollupData()?.yearlyClassificationColor || '#2563eb'"
+                  [style.border-color]="annualRollupData()?.yearlyClassificationColor || '#2563eb'"
+                >
+                  <span class="material-symbols-outlined">military_tech</span>
+                  <strong>{{ annualRollupData()?.yearlyClassificationLabel || 'Chưa đánh giá' }}</strong>
+                </div>
+                <span class="stat-desc">Căn cứ theo Nghị định 90/2020/NĐ-CP & Quy định Sở GD&ĐT</span>
+              </div>
             </div>
-            <div class="banner-content">
-              <div class="banner-title">
-                Kết Quả Quét Tự Động Từ Tiến Độ Công Việc
-                <span class="badge-source">Dữ liệu nguồn tự động 100%</span>
+
+            @if (annualRollupData()?.warningMessage) {
+              <div class="annual-warning-banner" [class.danger]="annualRollupData()?.requiresReplacementWarning">
+                <span class="material-symbols-outlined">warning</span>
+                <span>{{ annualRollupData()?.warningMessage }}</span>
               </div>
-              <div class="banner-stats-row">
-                <div class="stat-pill pill-total">
-                  <span class="pill-label">Tổng việc:</span>
-                  <strong>{{ backendKpiSummary()?.totalTasks || 0 }}</strong>
-                </div>
-                <div class="stat-pill pill-before">
-                  <span class="pill-label">Sớm hạn:</span>
-                  <strong>{{ backendKpiSummary()?.completedBeforeDeadline || 0 }}</strong>
-                </div>
-                <div class="stat-pill pill-ontime">
-                  <span class="pill-label">Đúng hạn:</span>
-                  <strong>{{ backendKpiSummary()?.completedOnTime || 0 }}</strong>
-                </div>
-                <div class="stat-pill pill-late">
-                  <span class="pill-label">Trễ hạn:</span>
-                  <strong>{{ backendKpiSummary()?.completedLate || 0 }}</strong>
-                </div>
-                <div class="stat-pill pill-uncompleted">
-                  <span class="pill-label">Chưa xong:</span>
-                  <strong>{{ backendKpiSummary()?.uncompletedTasks || 0 }}</strong>
-                </div>
-                <div class="stat-pill pill-grade" [style.color]="getGradeBadgeColor(backendKpiSummary()?.finalGrade)">
-                  <span class="pill-label">Xếp loại tự động:</span>
-                  <strong>{{ getGradeLabel(backendKpiSummary()?.finalGrade) }}</strong>
+            }
+          </div>
+
+          <!-- 3. DETAILED QUARTERS TABLE -->
+          <div class="section-card">
+            <div class="section-header">
+              <div class="header-left">
+                <span class="material-symbols-outlined header-icon">table_chart</span>
+                <div>
+                  <h3 class="section-title">Bảng Tổng Hợp Điểm Tích Lũy 4 Quý Trong Năm Học {{ annualRollupData()?.schoolYear }}</h3>
+                  <span class="section-subtitle">Tổng hợp chi tiết thành phần điểm và kết quả phân loại từng quý làm cơ sở xếp loại cuối năm</span>
                 </div>
               </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="quarter-table">
+                <thead>
+                  <tr>
+                    <th>Kỳ Đánh Giá</th>
+                    <th>Khoảng Thời Gian</th>
+                    <th class="text-center">Phần A: Tiêu Chuẩn Chung (30đ)</th>
+                    <th class="text-center">Phần B: Nhiệm Vụ Theo Trục (70đ)</th>
+                    <th class="text-center">Điểm Thưởng (+5%)</th>
+                    <th class="text-center">Tổng Điểm Quý</th>
+                    <th class="text-center">Xếp Loại Quý</th>
+                    <th class="text-center">Khối Lượng Việc</th>
+                    <th class="text-center">Trạng Thái</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (q of (annualRollupData()?.quarters || []); track q.periodId) {
+                    <tr>
+                      <td><strong>{{ q.periodName }}</strong></td>
+                      <td class="text-slate-600 font-mono">{{ q.startDate | date: 'dd/MM/yyyy' }} - {{ q.endDate | date: 'dd/MM/yyyy' }}</td>
+                      <td class="text-center font-bold text-blue-700">{{ q.scoreGeneral }}đ</td>
+                      <td class="text-center font-bold text-slate-800">{{ q.scoreTask }}đ</td>
+                      <td class="text-center font-bold text-emerald-700">+{{ q.scoreBonus }}đ</td>
+                      <td class="text-center">
+                        <span class="score-badge-q">{{ q.scoreFinal }} <small>/100đ</small></span>
+                      </td>
+                      <td class="text-center">
+                        <span class="classification-pill-sm" [ngClass]="getClassificationBadgeClass(q.classification)">
+                          {{ getClassificationLabel(q.classification) }}
+                        </span>
+                      </td>
+                      <td class="text-center text-slate-700">{{ q.completedTasks }}/{{ q.totalTasks }} việc</td>
+                      <td class="text-center">
+                        <span class="q-status-badge" [ngClass]="getQuarterStatusClass(q.status)">
+                          {{ q.status === 'closed' ? 'Đã chốt' : (q.status === 'open' ? 'Đang mở' : 'Dự thảo') }}
+                        </span>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+      } @else {
+        <!-- ========================================================================= -->
+        <!-- B. QUARTERLY SCORECARD VIEW (KHI CHỌN QUÝ CỤ THỂ) -->
+        <!-- ========================================================================= -->
+
+        <!-- 3. SCORECARD HIGHLIGHT CARDS (100-POINT SYSTEM) -->
+        <div class="scorecard-grid">
+          <!-- CRITERIA A: GENERAL (30 PTS) -->
+          <div class="score-summary-card card-general">
+            <div class="card-top">
+              <span class="section-tag">PHẦN A (30 ĐIỂM)</span>
+              <span class="material-symbols-outlined card-icon">verified_user</span>
+            </div>
+
+            @if (isEditingGeneralScore) {
+              <div class="score-input-inline">
+                <input
+                  type="number"
+                  min="0"
+                  max="30"
+                  class="input-general-score"
+                  [(ngModel)]="inputGeneralScore"
+                  (keyup.enter)="saveGeneralScore()"
+                  placeholder="0-30"
+                />
+                <span class="score-max">/ 30đ</span>
+                <button
+                  type="button"
+                  class="btn-save-general"
+                  (click)="saveGeneralScore()"
+                  [disabled]="isSavingGeneral"
+                  title="Lưu điểm Phần A"
+                >
+                  <span class="material-symbols-outlined">check</span>
+                </button>
+                <button
+                  type="button"
+                  class="btn-cancel-general"
+                  (click)="cancelEditGeneralScore()"
+                  title="Hủy"
+                >
+                  <span class="material-symbols-outlined">close</span>
+                </button>
+              </div>
+            } @else {
+              <div class="score-display">
+                <span class="score-number">{{ generalScore() }}</span>
+                <span class="score-max">/ 30đ</span>
+                <button
+                  type="button"
+                  class="btn-edit-general"
+                  (click)="startEditGeneralScore()"
+                  title="Bấm để nhập/sửa điểm Tiêu chuẩn chung"
+                >
+                  <span class="material-symbols-outlined">edit_note</span>
+                  <span>Nhập điểm</span>
+                </button>
+              </div>
+            }
+
+            <span class="score-label">Tiêu Chuẩn Chung</span>
+            <p class="score-desc">Ý thức kỷ luật, đạo đức nhà giáo, thực hiện quy chế, đổi mới sáng tạo</p>
+            <div class="card-progress">
+              <div class="progress-bar-fill" [style.width.%]="(generalScore() / 30) * 100"></div>
+            </div>
+          </div>
+
+          <!-- CRITERIA B: 9-AXES TASK RESULTS (70 PTS) -->
+          <div class="score-summary-card card-task">
+            <div class="card-top">
+              <span class="section-tag">PHẦN B (70 ĐIỂM)</span>
+              <span class="material-symbols-outlined card-icon">hub</span>
+            </div>
+            <div class="score-display">
+              <span class="score-number text-blue">{{ taskScore() }}</span>
+              <span class="score-max">/ 70đ</span>
+            </div>
+            <span class="score-label">Kết Quả Thực Hiện Theo Trục</span>
+            <p class="score-desc">{{ tasksCount() }} nhiệm vụ đã giao kết nối theo các trục kết quả</p>
+            <div class="card-progress">
+              <div class="progress-bar-fill bg-blue" [style.width.%]="(taskScore() / 70) * 100"></div>
+            </div>
+          </div>
+
+          <!-- CRITERIA C: BONUS POINTS (+5%, CAPPED AT 7 PTS / 10%) -->
+          <div class="score-summary-card card-bonus">
+            <div class="card-top">
+              <span class="section-tag">ĐIỂM THƯỞNG (+5%)</span>
+              <span class="material-symbols-outlined card-icon">stars</span>
+            </div>
+            <div class="score-display">
+              <span class="score-number text-emerald">+{{ bonusScore() }}</span>
+              <span class="score-max">/ 7đ</span>
+              @if (scoreSheet()?.bonusDetails && (scoreSheet()?.bonusDetails)!.length > 0) {
+                <span class="bonus-auto-pill" [title]="'Tự động cộng thưởng từ ' + (scoreSheet()?.bonusDetails)!.length + ' nhiệm vụ đủ điều kiện'">
+                  {{ (scoreSheet()?.bonusDetails)!.length }} việc +5%
+                </span>
+              }
+            </div>
+            <span class="score-label">Tự Động Tính Từ Nhiệm Vụ</span>
+            <p class="score-desc">Tự động cộng +5% từ các công việc hoàn thành trước hạn, có minh chứng hoặc đánh giá xuất sắc (Trần 7đ & 10%)</p>
+            <div class="card-progress">
+              <div class="progress-bar-fill bg-emerald" [style.width.%]="(bonusScore() / 7) * 100"></div>
+            </div>
+          </div>
+
+          <!-- FINAL CLASSIFICATION -->
+          <div class="score-summary-card card-final">
+            <div class="card-top">
+              <span class="section-tag">TỔNG ĐIỂM CHỐT</span>
+              <span class="material-symbols-outlined card-icon">military_tech</span>
+            </div>
+            <div class="score-display">
+              <span class="score-number highlight">{{ finalScore() }}</span>
+              <span class="score-max">/ 100đ</span>
+            </div>
+            <div class="classification-box">
+              <span
+                class="classification-badge"
+                [style.background-color]="classificationColor() + '20'"
+                [style.color]="classificationColor()"
+                [style.border-color]="classificationColor()"
+              >
+                {{ classificationLabel() }}
+              </span>
+            </div>
+            <p class="score-desc">{{ classificationSubText() }}</p>
+          </div>
+        </div>
+
+        <!-- 4. ANTI-FRAUD / HEURISTIC DIAGNOSTIC NOTICES -->
+        @if (diagnosticWarnings().length > 0) {
+          <div class="alert-notice-card alert-warning">
+            <span class="material-symbols-outlined notice-icon">security</span>
+            <div class="notice-content">
+              <strong>Lưu ý kiểm soát & chống nhiệm vụ hình thức (Quy tắc Sở GD&ĐT):</strong>
+              <ul>
+                @for (w of (diagnosticWarnings() || []); track w) {
+                  <li>{{ w }}</li>
+                }
+              </ul>
             </div>
           </div>
         }
 
-        <!-- 4. HIGHLIGHT KPI SCORE CARDS -->
-        <div class="kpi-scores-grid">
-          <div class="kpi-score-card card-quantity">
-            <div class="score-card-top">
-              <span class="score-code">A</span>
-              <span class="material-symbols-outlined score-icon">format_list_numbered</span>
+        <!-- 5. 9-AXES LOAD DISTRIBUTION & BREAKDOWN -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="header-left">
+              <span class="material-symbols-outlined header-icon">bar_chart</span>
+              <div>
+                <h3 class="section-title">Phân Bổ Điểm Theo Trục Kết Quả (Thang 70 Điểm)</h3>
+                <span class="section-subtitle">Không bắt buộc phủ kín tất cả các trục — Trục không phát sinh việc không chấm điểm</span>
+              </div>
             </div>
-            <div class="score-label">KPI (Số lượng)</div>
-            <div class="score-value">{{ summary().scoreA_Quantity }}<span class="unit">%</span></div>
-            <div class="score-desc">Quy đổi: {{ summary().totalActualQuantityWeighted }} / {{ summary().totalTargetWeighted }}</div>
           </div>
 
-          <div class="kpi-score-card card-quality">
-            <div class="score-card-top">
-              <span class="score-code">B</span>
-              <span class="material-symbols-outlined score-icon">verified</span>
-            </div>
-            <div class="score-label">KPI (Chất lượng)</div>
-            <div class="score-value">{{ summary().scoreB_Quality }}<span class="unit">%</span></div>
-            <div class="score-desc">Tổng điểm: {{ summary().totalQualityWeighted }} / {{ summary().totalTargetWeighted }}</div>
-          </div>
+          <div class="axis-bars-grid">
+            @for (axis of (scoreSheet()?.axisBreakdown || []); track axis.axisId) {
+              <div class="axis-card" [class.has-tasks]="axis.totalTasks > 0">
+                <div class="axis-card-top">
+                  <div class="axis-title-box">
+                    <span class="axis-dot" [style.background-color]="getAxisColor(axis.axisCode)"></span>
+                    <strong>{{ axis.axisName }}</strong>
+                  </div>
+                  <span class="axis-points-badge">{{ axis.achievedScore }} / {{ axis.totalWeightScore }}đ</span>
+                </div>
 
-          <div class="kpi-score-card card-timeline">
-            <div class="score-card-top">
-              <span class="score-code">C</span>
-              <span class="material-symbols-outlined score-icon">schedule</span>
-            </div>
-            <div class="score-label">KPI (Tiến độ)</div>
-            <div class="score-value">{{ summary().scoreC_Timeline }}<span class="unit">%</span></div>
-            <div class="score-desc">Tổng điểm: {{ summary().totalTimelineWeighted }} / {{ summary().totalTargetWeighted }}</div>
-          </div>
+                <div class="axis-progress-track">
+                  <div
+                    class="axis-progress-bar"
+                    [style.width.%]="axis.percentageOfTaskScore"
+                    [style.background-color]="getAxisColor(axis.axisCode)"
+                  ></div>
+                </div>
 
-          <div class="kpi-score-card card-leadership">
-            <div class="score-card-top">
-              <span class="score-code">D</span>
-              <span class="material-symbols-outlined score-icon">diversity_3</span>
-            </div>
-            <div class="score-label">KPI (Điều hành / Phối hợp)</div>
-            <div class="score-value">{{ summary().scoreD_Leadership }}<span class="unit">%</span></div>
-            <div class="score-desc">Tổng điểm: {{ summary().totalLeadershipWeighted }} / {{ summary().totalTargetWeighted }}</div>
-          </div>
+                <div class="axis-card-footer">
+                  <span class="task-count">{{ axis.completedTasks }}/{{ axis.totalTasks }} việc hoàn thành</span>
+                  <span class="pct-share">{{ axis.percentageOfTaskScore }}% điểm phần B</span>
+                </div>
 
-          <div class="kpi-score-card card-final-total">
-            <div class="score-card-top">
-              <span class="score-code-final">KPI NV1</span>
-              <span class="badge-final-rating" [style.background-color]="summary().ratingColor + '20'" [style.color]="summary().ratingColor">
-                {{ getRatingBadgeText() }}
-              </span>
-            </div>
-            <div class="score-label-final">ĐIỂM KPI TỔNG HỢP = (A+B+C+D)/4</div>
-            <div class="score-value-final">{{ summary().finalScore }}<span class="unit-final">/100</span></div>
-            <div class="score-desc-final">{{ summary().ratingCategory }}</div>
+                <!-- CHUYEN MON SUBTYPE BREAKDOWN FOR TEACHERS -->
+                @if (axis.axisCode === 'chuyen_mon' && axis.subtypes) {
+                  <div class="chuyen-mon-subtypes">
+                    <div class="sub-item">
+                      <span class="sub-label">↳ GV Bộ môn:</span>
+                      <span class="sub-score">{{ axis.subtypes.gv_bo_mon?.achievedScore || 0 }}đ ({{ axis.subtypes.gv_bo_mon?.totalTasks || 0 }} việc)</span>
+                    </div>
+                    <div class="sub-item">
+                      <span class="sub-label">↳ GVCN:</span>
+                      <span class="sub-score">{{ axis.subtypes.gvcn?.achievedScore || 0 }}đ ({{ axis.subtypes.gvcn?.totalTasks || 0 }} việc)</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
           </div>
         </div>
 
-        <!-- 5. MAIN 15-COLUMN KPI EVALUATION TABLE -->
-        <div class="kpi-table-section">
-          <div class="table-header-bar hide-on-print">
-            <div class="table-header-title">
-              <span class="material-symbols-outlined icon-navy">table_chart</span>
-              <h2>Bảng Chi Tiết Nhiệm Vụ & Điểm Quy Đổi</h2>
-              <span class="badge-row-count">{{ rows().length }} nhiệm vụ</span>
+        <!-- 6. TASK LIST TABLE IN EVALUATION PERIOD -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="header-left">
+              <span class="material-symbols-outlined header-icon">checklist</span>
+              <div>
+                <h3 class="section-title">Danh Mục Nhiệm Vụ KPI Trong Kỳ</h3>
+                <span class="section-subtitle">Chấm điểm dựa trên Trục chính, minh chứng hoàn thành & xét duyệt điểm thưởng</span>
+              </div>
             </div>
-            <div class="table-actions-right">
-              <button type="button" class="btn-tool btn-add-row" (click)="addNewRow()">
-                <span class="material-symbols-outlined">add</span>
-                <span>Thêm nhiệm vụ</span>
-              </button>
-              <button type="button" class="btn-tool btn-save" (click)="saveSheet()">
-                <span class="material-symbols-outlined">save</span>
-                <span>Lưu bảng tính</span>
-              </button>
-            </div>
+            <button type="button" class="btn-action btn-add-sm" (click)="openCreateTaskDialog()">
+              <span class="material-symbols-outlined">add</span>
+              <span>Thêm việc mới</span>
+            </button>
           </div>
 
-          <div class="table-responsive-wrapper">
-            <table class="kpi-data-table">
+          <div class="table-responsive">
+            <table class="kpi-task-table">
               <thead>
-                <!-- LEVEL 1 HEADERS -->
                 <tr>
-                  <th rowspan="2" class="col-stt">STT</th>
-                  <th rowspan="2" class="col-task">Nhiệm vụ theo quý / kỳ</th>
-                  <th rowspan="2" class="col-deliverable">Sản phẩm</th>
-                  <th rowspan="2" class="col-num col-qty">Số lượng<br/>(N)</th>
-                  <th rowspan="2" class="col-timeline">Tiến độ</th>
-                  <th rowspan="2" class="col-num col-weight">Hệ số<br/>quy đổi (W)</th>
-                  <th rowspan="2" class="col-num col-weighted-qty grp-border-right">Số lượng<br/>quy đổi</th>
-                  
-                  <th colspan="2" class="col-group-header header-grp-qty">KPI (Số lượng)</th>
-                  <th colspan="2" class="col-group-header header-grp-quality">KPI (Chất lượng)</th>
-                  <th colspan="2" class="col-group-header header-grp-timeline">KPI (Tiến độ)</th>
-                  <th colspan="2" class="col-group-header header-grp-leadership">KPI (Lãnh đạo, chỉ đạo, điều hành)</th>
-                  
-                  <th rowspan="2" class="col-actions hide-on-print">Thao tác</th>
-                </tr>
-
-                <!-- LEVEL 2 HEADERS -->
-                <tr>
-                  <th class="sub-header col-num">Thực tế<br/>hoàn thành</th>
-                  <th class="sub-header col-num col-calc grp-border-right">Quy đổi</th>
-
-                  <th class="sub-header col-quality-text">Thực tế hoàn thành</th>
-                  <th class="sub-header col-num col-calc grp-border-right">Quy đổi</th>
-
-                  <th class="sub-header col-timeline-text">Thực tế hoàn thành</th>
-                  <th class="sub-header col-num col-calc grp-border-right">Quy đổi</th>
-
-                  <th class="sub-header col-leadership-text">Thực tế hoàn thành</th>
-                  <th class="sub-header col-num col-calc grp-border-right">Quy đổi</th>
+                  <th>STT</th>
+                  <th>Tên Nhiệm Vụ & Sản Phẩm Đầu Ra</th>
+                  <th>Trục Chính</th>
+                  <th class="text-center">Trọng Số (70đ)</th>
+                  <th class="text-center">Tiến Độ</th>
+                  <th class="text-center">Minh Chứng</th>
+                  <th class="text-center">Điểm Đạt</th>
+                  <th class="text-center">Cảnh Báo</th>
+                  <th class="text-center">Thao Tác</th>
                 </tr>
               </thead>
-
               <tbody>
-                @for (row of rows(); track row.id; let idx = $index) {
-                  <tr class="kpi-row-item">
-                    <!-- STT -->
-                    <td class="text-center font-bold cell-stt">{{ idx + 1 }}</td>
-
-                    <!-- Nhiệm vụ -->
-                    <td class="cell-task">
-                      <textarea
-                        class="inline-textarea task-textarea"
-                        rows="2"
-                        [(ngModel)]="row.taskTitle"
-                        (ngModelChange)="onDataChanged()"
-                        placeholder="Nhập tên nhiệm vụ cụ thể..."
-                      ></textarea>
-                      @if (row.taskCode) {
-                        <span class="task-code-tag">{{ row.taskCode }}</span>
+                @for (task of (scoreSheet()?.tasksBreakdown || []); track task.id; let idx = $index) {
+                  <tr>
+                    <td class="text-center">{{ idx + 1 }}</td>
+                    <td>
+                      <div class="task-title-cell">
+                        <strong>{{ task.title }}</strong>
+                        @if (task.description) {
+                          <span class="task-desc-line">{{ task.description }}</span>
+                        }
+                        @if (task.taskSubtype) {
+                          <span class="subtype-tag">
+                            {{ task.taskSubtype === 'gv_bo_mon' ? 'Giáo viên bộ môn' : 'Giáo viên chủ nhiệm' }}
+                          </span>
+                        }
+                      </div>
+                    </td>
+                    <td>
+                      <span class="axis-pill" [style.border-color]="getAxisColor(task.primaryAxis?.code || '')">
+                        {{ task.primaryAxis?.name || 'Chưa gán' }}
+                      </span>
+                    </td>
+                    <td class="text-center font-bold">{{ task.weightScore || 0 }}đ</td>
+                    <td class="text-center">
+                      <div class="progress-cell">
+                        <div class="mini-progress-track">
+                          <div class="mini-progress-fill" [style.width.%]="task.progressPercent"></div>
+                        </div>
+                        <span class="progress-pct">{{ task.progressPercent }}%</span>
+                      </div>
+                    </td>
+                    <td class="text-center">
+                      @if (task.evidenceCount > 0) {
+                        <span class="badge-evidence" title="Đã đính kèm minh chứng">
+                          <span class="material-symbols-outlined">attachment</span> {{ task.evidenceCount }}
+                        </span>
+                      } @else {
+                        <span class="text-muted">—</span>
                       }
                     </td>
-
-                    <!-- Sản phẩm -->
-                    <td class="cell-deliverable">
-                      <input
-                        type="text"
-                        class="inline-input text-center deliverable-input"
-                        [(ngModel)]="row.deliverable"
-                        (ngModelChange)="onDataChanged()"
-                        placeholder="Báo cáo/Kế hoạch"
-                      />
+                    <td class="text-center font-bold text-blue">{{ task.achievedScore || 0 }}đ</td>
+                    <td class="text-center">
+                      @if (task.warningFlags && task.warningFlags.length > 0) {
+                        <span class="warn-chip" [title]="task.warningFlags.join('; ')">
+                          <span class="material-symbols-outlined">warning</span> Cảnh báo
+                        </span>
+                      } @else {
+                        <span class="text-green font-bold">✓ Chuẩn</span>
+                      }
                     </td>
-
-                    <!-- Số lượng (N) -->
-                    <td class="cell-qty text-center">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        class="inline-input num-input font-bold"
-                        [(ngModel)]="row.targetQuantity"
-                        (ngModelChange)="onDataChanged()"
-                      />
-                    </td>
-
-                    <!-- Tiến độ -->
-                    <td class="cell-timeline text-center">
-                      <input
-                        type="text"
-                        class="inline-input text-center timeline-input"
-                        [(ngModel)]="row.timeline"
-                        (ngModelChange)="onDataChanged()"
-                        placeholder="Hàng tháng/Quý"
-                      />
-                    </td>
-
-                    <!-- Hệ số quy đổi (W) -->
-                    <td class="cell-weight text-center">
-                      <input
-                        type="number"
-                        min="0.5"
-                        max="5"
-                        step="0.5"
-                        class="inline-input num-input font-bold highlight-coeff"
-                        [(ngModel)]="row.weightCoefficient"
-                        (ngModelChange)="onDataChanged()"
-                      />
-                    </td>
-
-                    <!-- Số lượng quy đổi (N * W) -->
-                    <td class="text-center font-bold cell-calc-result grp-border-right">
-                      {{ row.targetWeightedQuantity }}
-                    </td>
-
-                    <!-- 1. KPI Số lượng -->
-                    <td class="cell-input-num text-center">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        class="inline-input num-input"
-                        [(ngModel)]="row.actualQuantityVal"
-                        (ngModelChange)="onActualQuantityValChanged(row)"
-                      />
-                    </td>
-                    <td class="cell-calc-result text-center font-bold grp-border-right">
-                      {{ row.actualWeightedQuantity }}
-                    </td>
-
-                    <!-- 2. KPI Chất lượng -->
-                    <td class="cell-quality-note">
-                      <input
-                        type="text"
-                        class="inline-input quality-text-input"
-                        [(ngModel)]="row.qualityNote"
-                        (ngModelChange)="onDataChanged()"
-                        placeholder="Đạt chuẩn / Phải sửa đổi..."
-                      />
-                    </td>
-                    <td class="cell-score-num text-center grp-border-right">
-                      <input
-                        type="number"
-                        step="0.5"
-                        class="inline-input num-input font-bold score-input"
-                        [(ngModel)]="row.qualityWeightedScore"
-                        (ngModelChange)="onDataChanged()"
-                      />
-                    </td>
-
-                    <!-- 3. KPI Tiến độ -->
-                    <td class="cell-timeline-note text-center">
-                      <input
-                        type="text"
-                        class="inline-input text-center timeline-text-input"
-                        [(ngModel)]="row.timelineNote"
-                        (ngModelChange)="onDataChanged()"
-                        placeholder="Đúng hạn"
-                      />
-                    </td>
-                    <td class="cell-score-num text-center grp-border-right">
-                      <input
-                        type="number"
-                        step="0.5"
-                        class="inline-input num-input font-bold score-input"
-                        [(ngModel)]="row.timelineWeightedScore"
-                        (ngModelChange)="onDataChanged()"
-                      />
-                    </td>
-
-                    <!-- 4. KPI Lãnh đạo điều hành / Phối hợp -->
-                    <td class="cell-leadership-note text-center">
-                      <input
-                        type="text"
-                        class="inline-input text-center leadership-text-input"
-                        [(ngModel)]="row.leadershipNote"
-                        (ngModelChange)="onDataChanged()"
-                        placeholder="Chủ động"
-                      />
-                    </td>
-                    <td class="cell-score-num text-center grp-border-right">
-                      <input
-                        type="number"
-                        step="0.5"
-                        class="inline-input num-input font-bold score-input"
-                        [(ngModel)]="row.leadershipWeightedScore"
-                        (ngModelChange)="onDataChanged()"
-                      />
-                    </td>
-
-                    <!-- Actions -->
-                    <td class="cell-actions text-center hide-on-print">
-                      <div class="row-action-buttons">
+                    <td class="text-center">
+                      <div class="table-actions">
                         <button
                           type="button"
-                          class="btn-row-action btn-dup"
-                          (click)="duplicateRow(idx)"
-                          title="Nhân bản dòng này"
+                          class="btn-table-action"
+                          (click)="openTask(task.id)"
+                          title="Xem chi tiết công việc"
                         >
-                          <span class="material-symbols-outlined">content_copy</span>
-                        </button>
-                        <button
-                          type="button"
-                          class="btn-row-action btn-del"
-                          (click)="deleteRow(idx)"
-                          title="Xóa nhiệm vụ này"
-                        >
-                          <span class="material-symbols-outlined">delete</span>
+                          <span class="material-symbols-outlined">visibility</span>
                         </button>
                       </div>
                     </td>
                   </tr>
                 }
-
-                <!-- DÒNG TỔNG CỘNG CHÂN TRANG (RED HIGHLIGHTED SUM) -->
-                <tr class="kpi-footer-sum-row">
-                  <td colspan="6" class="text-center font-bold footer-label">TỔNG CỘNG</td>
-                  <td class="text-center font-bold sum-target-red grp-border-right">{{ summary().totalTargetWeighted }}</td>
-                  <td class="text-center text-muted">-</td>
-                  <td class="text-center font-bold sum-val grp-border-right">{{ summary().totalActualQuantityWeighted }}</td>
-                  <td class="text-center text-muted">-</td>
-                  <td class="text-center font-bold sum-val grp-border-right">{{ summary().totalQualityWeighted }}</td>
-                  <td class="text-center text-muted">-</td>
-                  <td class="text-center font-bold sum-val grp-border-right">{{ summary().totalTimelineWeighted }}</td>
-                  <td class="text-center text-muted">-</td>
-                  <td class="text-center font-bold sum-val grp-border-right">{{ summary().totalLeadershipWeighted }}</td>
-                  <td class="hide-on-print"></td>
-                </tr>
               </tbody>
             </table>
           </div>
         </div>
-
-        <!-- 6. SUMMARY SCORES TABLE & SIGNATURES -->
-        <div class="summary-bottom-section">
-          <!-- LEFT: KPI FORMULA & RESULTS TABLE -->
-          <div class="summary-box-card">
-            <h3 class="summary-card-title">
-              <span class="material-symbols-outlined">calculate</span>
-              Bảng Tổng Hợp Điểm KPI & Công Thức Tính
-            </h3>
-
-            <table class="summary-results-table">
-              <tbody>
-                <tr>
-                  <td class="col-metric-name font-bold">KPI (SỐ LƯỢNG)</td>
-                  <td class="col-metric-code text-center font-bold">A</td>
-                  <td class="col-metric-val text-right font-bold">{{ summary().scoreA_Quantity }}</td>
-                </tr>
-                <tr>
-                  <td class="col-metric-name font-bold">KPI (CHẤT LƯỢNG)</td>
-                  <td class="col-metric-code text-center font-bold">B</td>
-                  <td class="col-metric-val text-right font-bold">{{ summary().scoreB_Quality }}</td>
-                </tr>
-                <tr>
-                  <td class="col-metric-name font-bold">KPI (TIẾN ĐỘ)</td>
-                  <td class="col-metric-code text-center font-bold">C</td>
-                  <td class="col-metric-val text-right font-bold">{{ summary().scoreC_Timeline }}</td>
-                </tr>
-                <tr>
-                  <td class="col-metric-name font-bold">KPI LÃNH ĐẠO ĐIỀU HÀNH</td>
-                  <td class="col-metric-code text-center font-bold">D</td>
-                  <td class="col-metric-val text-right font-bold">{{ summary().scoreD_Leadership }}</td>
-                </tr>
-                <tr class="row-final-kpi">
-                  <td class="col-metric-name font-bold highlight-kpi-text">KPI TỔNG HỢP (KPI NV1)</td>
-                  <td class="col-metric-code text-center font-bold highlight-kpi-text">KPI NV1</td>
-                  <td class="col-metric-val text-right font-bold highlight-kpi-text font-lg">{{ summary().finalScore }}</td>
-                </tr>
-                <tr class="row-rating-cat">
-                  <td colspan="2" class="col-metric-name font-bold">XẾP LOẠI HOÀN THÀNH</td>
-                  <td class="col-metric-val text-right font-bold" [style.color]="summary().ratingColor">
-                    {{ summary().ratingCategory }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div class="formula-instruction-box">
-              <span class="material-symbols-outlined info-icon">info</span>
-              <span class="formula-text"><strong>Công thức tính điểm KPI theo hướng dẫn:</strong> (A + B + C + D) / 4</span>
-            </div>
-          </div>
-
-          <!-- RIGHT: SIGNATURES BLOCK -->
-          <div class="signatures-box-card">
-            <div class="sign-column">
-              <div class="sign-title">NGƯỜI TỰ ĐÁNH GIÁ</div>
-              <div class="sign-subtitle">(Ký và ghi rõ họ tên)</div>
-              <div class="sign-space"></div>
-              <div class="sign-name"><strong>{{ sheet()?.userName }}</strong></div>
-              <div class="sign-role">{{ sheet()?.userTitle }}</div>
-            </div>
-
-            <div class="sign-column">
-              <div class="sign-title">T/M BAN THƯỜNG VỤ / THỦ TRƯỞNG ĐƠN VỊ</div>
-              <div class="sign-subtitle">(Ký, đóng dấu và ghi rõ họ tên)</div>
-              <div class="sign-space"></div>
-              <div class="sign-name"><strong>Cô Phạm Thị Nam</strong></div>
-              <div class="sign-role">Hiệu trưởng</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 7. MANUAL SCORES & OTHER KPI DEFINITIONS (TT 120) -->
-        <div class="manual-kpi-card hide-on-print">
-          <div class="manual-kpi-header">
-            <div class="manual-header-title">
-              <span class="material-symbols-outlined manual-icon">military_tech</span>
-              <div>
-                <h3 class="manual-title">Tự Đánh Giá & Cập Nhật Chỉ Số KPI Khác (TT 120)</h3>
-                <p class="manual-subtitle">Cán bộ tự đánh giá hoặc cập nhật các tiêu chí KPI ngoài luồng công việc: NCKH, phong trào, khen thưởng, sáng kiến kinh nghiệm.</p>
-              </div>
-            </div>
-            <button type="button" class="btn-open-manual-form tap-target" (click)="openManualScoreModal()">
-              <span class="material-symbols-outlined">add_task</span>
-              <span>Cập nhật điểm KPI khác</span>
-            </button>
-          </div>
-
-          @if (manualScoresList().length > 0) {
-            <div class="manual-scores-grid">
-              @for (item of manualScoresList(); track item.kpiCode) {
-                <div class="manual-score-item">
-                  <div class="manual-item-top">
-                    <span class="manual-code">{{ item.kpiCode }}</span>
-                    <strong class="manual-score-val">{{ item.score }}/100</strong>
-                  </div>
-                  <div class="manual-name">{{ item.name || item.kpiCode }}</div>
-                  @if (item.note) {
-                    <div class="manual-note">📝 {{ item.note }}</div>
-                  }
-                  @if (item.updatedAt) {
-                    <div class="manual-date">🕒 {{ item.updatedAt | date:'HH:mm - dd/MM/yyyy' }}</div>
-                  }
-                </div>
-              }
-            </div>
-          } @else {
-            <div class="manual-empty-state">
-              <span class="material-symbols-outlined">assignment_turned_in</span>
-              <span>Chưa có chỉ số KPI tự đánh giá bổ sung cho kỳ này. Bấm "Cập nhật điểm KPI khác" để tự đánh giá tiêu chí ngoài luồng.</span>
-            </div>
-          }
-        </div>
       }
 
-      <!-- ================= TAB 2: KPI TỔ CHUYÊN MÔN / BỘ PHẬN ================= -->
-      @if (activeTab() === 'TO_BO_PHAN') {
-        <div class="department-kpi-section">
-          <!-- ORG UNIT SUMMARY CARDS -->
-          <div class="dept-summary-cards">
-            <div class="dept-card">
-              <div class="dept-card-icon bg-blue">
-                <span class="material-symbols-outlined">group</span>
-              </div>
-              <div class="dept-card-info">
-                <div class="dept-card-label">Tổng số thành viên</div>
-                <div class="dept-card-val">{{ orgSummary()?.totalMembers || 0 }} <span class="unit-sub">cán bộ</span></div>
-              </div>
-            </div>
-
-            <div class="dept-card">
-              <div class="dept-card-icon bg-emerald">
-                <span class="material-symbols-outlined">grade</span>
-              </div>
-              <div class="dept-card-info">
-                <div class="dept-card-label">Điểm TB Tổ chuyên môn</div>
-                <div class="dept-card-val">{{ orgSummary()?.averageScore || 0 }} <span class="unit-sub">/100</span></div>
-              </div>
-            </div>
-
-            <div class="dept-card">
-              <div class="dept-card-icon bg-indigo">
-                <span class="material-symbols-outlined">military_tech</span>
-              </div>
-              <div class="dept-card-info">
-                <div class="dept-card-label">Xuất sắc & Tốt</div>
-                <div class="dept-card-val">
-                  {{ (orgSummary()?.distribution?.xuatSac || 0) + (orgSummary()?.distribution?.tot || 0) }}
-                  <span class="unit-sub">thành viên</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="dept-card">
-              <div class="dept-card-icon bg-amber">
-                <span class="material-symbols-outlined">pending_actions</span>
-              </div>
-              <div class="dept-card-info">
-                <div class="dept-card-label">Cần đôn đốc / Chưa đạt</div>
-                <div class="dept-card-val">{{ orgSummary()?.distribution?.chuaDat || 0 }} <span class="unit-sub">thành viên</span></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- MEMBERS KPI SCORECARD TABLE -->
-          <div class="dept-members-table-card">
-            <div class="table-header-bar">
-              <div class="table-header-title">
-                <span class="material-symbols-outlined icon-navy">badge</span>
-                <h2>Bảng Điểm KPI Thành Viên — {{ orgSummary()?.orgUnit?.name || currentOrgUnitName() }}</h2>
-                <span class="badge-row-count">{{ orgSummary()?.members?.length || 0 }} cán bộ</span>
-              </div>
-            </div>
-
-            <div class="table-responsive-wrapper">
-              <table class="dept-members-table">
-                <thead>
-                  <tr>
-                    <th class="col-stt">STT</th>
-                    <th>Họ và tên</th>
-                    <th>Chức vụ</th>
-                    <th class="text-center">A (Số lượng)</th>
-                    <th class="text-center">B (Chất lượng)</th>
-                    <th class="text-center">C (Tiến độ)</th>
-                    <th class="text-center">D (Điều hành)</th>
-                    <th class="text-center font-bold">Điểm KPI (NV1)</th>
-                    <th class="text-center">Xếp loại</th>
-                    <th class="text-center hide-on-print">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (mem of orgSummary()?.members; track mem.user.id; let idx = $index) {
-                    <tr>
-                      <td class="text-center font-bold">{{ idx + 1 }}</td>
-                      <td>
-                        <div class="member-user-cell">
-                          <img [src]="mem.user.avatar || 'https://ui-avatars.com/api/?name=' + mem.user.fullName" class="user-avatar-sm" alt="Avatar" />
-                          <div>
-                            <strong>{{ mem.user.fullName }}</strong>
-                            <div class="member-phone">{{ mem.user.phone || mem.user.email }}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td>{{ mem.user.title || 'Giáo viên' }}</td>
-                      <td class="text-center font-bold">{{ mem.kpi?.scoreA ?? '-' }}</td>
-                      <td class="text-center font-bold">{{ mem.kpi?.scoreB ?? '-' }}</td>
-                      <td class="text-center font-bold">{{ mem.kpi?.scoreC ?? '-' }}</td>
-                      <td class="text-center font-bold">{{ mem.kpi?.scoreD ?? '-' }}</td>
-                      <td class="text-center font-bold score-final-cell">{{ mem.kpi?.finalScore ?? '-' }}</td>
-                      <td class="text-center">
-                        <span class="badge-grade" [style.background-color]="getGradeBadgeColor(mem.kpi?.finalGrade) + '20'" [style.color]="getGradeBadgeColor(mem.kpi?.finalGrade)">
-                          {{ getGradeLabel(mem.kpi?.finalGrade) }}
-                        </span>
-                      </td>
-                      <td class="text-center hide-on-print">
-                        <button type="button" class="btn-table-action" (click)="viewMemberKpi(mem.user)" title="Xem chi tiết bảng tính của cán bộ này">
-                          <span class="material-symbols-outlined">visibility</span>
-                        </button>
-                      </td>
-                    </tr>
-                  }
-                  @if (!orgSummary()?.members?.length) {
-                    <tr>
-                      <td colspan="10" class="empty-row">Chưa có dữ liệu tính điểm KPI của tổ trong kỳ này. Nhấn nút <strong>"Tính lại KPI tự động"</strong> để quét ngay.</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      }
-
-      <!-- ================= TAB 3: KPI TOÀN TRƯỜNG ================= -->
-      @if (activeTab() === 'TOAN_TRUONG') {
-        <div class="school-kpi-section">
-          <!-- SCHOOL SUMMARY TOP STATS -->
-          <div class="school-top-stats-grid">
-            <div class="school-stat-card">
-              <div class="stat-icon-wrap bg-blue">
-                <span class="material-symbols-outlined">school</span>
-              </div>
-              <div class="stat-meta">
-                <div class="stat-title">Tổng số Cán bộ & Giáo viên</div>
-                <div class="stat-num">{{ schoolSummary()?.totalStaff || 0 }} <span class="unit">nhân sự</span></div>
-              </div>
-            </div>
-
-            <div class="school-stat-card">
-              <div class="stat-icon-wrap bg-emerald">
-                <span class="material-symbols-outlined">trending_up</span>
-              </div>
-              <div class="stat-meta">
-                <div class="stat-title">Điểm Trung Bình Toàn Trường</div>
-                <div class="stat-num">{{ schoolSummary()?.averageScore || 0 }} <span class="unit">/100</span></div>
-              </div>
-            </div>
-
-            <div class="school-stat-card">
-              <div class="stat-icon-wrap bg-indigo">
-                <span class="material-symbols-outlined">workspace_premium</span>
-              </div>
-              <div class="stat-meta">
-                <div class="stat-title">Tỷ Lệ Đạt Xuất Sắc & Tốt</div>
-                <div class="stat-num">
-                  {{ calculateHighPerformanceRate() }}%
-                </div>
-              </div>
-            </div>
-
-            <div class="school-stat-card">
-              <div class="stat-icon-wrap bg-purple">
-                <span class="material-symbols-outlined">hub</span>
-              </div>
-              <div class="stat-meta">
-                <div class="stat-title">Số Tổ Chuyên Môn / Bộ Phận</div>
-                <div class="stat-num">{{ schoolSummary()?.departmentBreakdown?.length || 0 }} <span class="unit">tổ/bộ phận</span></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- DEPARTMENT BREAKDOWN RANKING -->
-          <div class="school-dept-breakdown-card">
-            <div class="table-header-bar">
-              <div class="table-header-title">
-                <span class="material-symbols-outlined icon-navy">equalizer</span>
-                <h2>Xếp Hạng & Thống Kê KPI Theo Tổ Chuyên Môn / Bộ Phận</h2>
-              </div>
-            </div>
-
-            <div class="table-responsive-wrapper">
-              <table class="school-dept-table">
-                <thead>
-                  <tr>
-                    <th class="col-stt">Hạng</th>
-                    <th>Tổ chuyên môn / Bộ phận</th>
-                    <th class="text-center">Số CBGV</th>
-                    <th class="text-center">Điểm TB</th>
-                    <th class="text-center">Xuất sắc</th>
-                    <th class="text-center">Tốt</th>
-                    <th class="text-center">Hoàn thành</th>
-                    <th class="text-center">Chưa đạt</th>
-                    <th class="text-center">Tỷ lệ hoàn thành</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (dept of schoolSummary()?.departmentBreakdown; track dept.id; let idx = $index) {
-                    <tr>
-                      <td class="text-center font-bold">
-                        <span class="rank-badge" [class.rank-1]="idx === 0" [class.rank-2]="idx === 1" [class.rank-3]="idx === 2">{{ idx + 1 }}</span>
-                      </td>
-                      <td>
-                        <strong>{{ dept.name }}</strong>
-                        <span class="dept-code-tag">{{ dept.code }}</span>
-                      </td>
-                      <td class="text-center font-bold">{{ dept.memberCount }}</td>
-                      <td class="text-center font-bold text-navy">{{ dept.averageScore }}</td>
-                      <td class="text-center text-emerald font-bold">{{ dept.distribution?.xuatSac || 0 }}</td>
-                      <td class="text-center text-blue font-bold">{{ dept.distribution?.tot || 0 }}</td>
-                      <td class="text-center text-amber font-bold">{{ dept.distribution?.hoanThanh || 0 }}</td>
-                      <td class="text-center text-rose font-bold">{{ dept.distribution?.chuaDat || 0 }}</td>
-                      <td class="text-center">
-                        <div class="progress-bar-wrap">
-                          <div class="progress-fill" [style.width.%]="dept.averageScore"></div>
-                          <span class="progress-text">{{ dept.averageScore }}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      }
-
-      <!-- MODAL CẬP NHẬT KPI KHÁC (TT 120) -->
-      @if (isManualScoreModalOpen()) {
-        <div class="modal-backdrop" (click)="closeManualScoreModal()">
-          <div class="modal-dialog-manual" (click)="$event.stopPropagation()">
-            <div class="modal-header-manual">
-              <div class="modal-title-box">
-                <span class="material-symbols-outlined modal-icon">military_tech</span>
-                <h3>Cập Nhật Điểm Chỉ Số KPI Khác</h3>
-              </div>
-              <button type="button" class="btn-close-modal" (click)="closeManualScoreModal()">
-                <span class="material-symbols-outlined">close</span>
-              </button>
-            </div>
-
-            <div class="modal-body-manual">
-              @if (manualScoreSuccess()) {
-                <div class="alert-box alert-success">
-                  <span class="material-symbols-outlined">check_circle</span>
-                  <span>{{ manualScoreSuccess() }}</span>
-                </div>
-              }
-              @if (manualScoreError()) {
-                <div class="alert-box alert-error">
-                  <span class="material-symbols-outlined">error</span>
-                  <span>{{ manualScoreError() }}</span>
-                </div>
-              }
-
-              <div class="form-field-group">
-                <label class="field-label">Mã / Tiêu chí KPI <span class="req">*</span></label>
-                <select class="field-select" [(ngModel)]="selectedManualKpiCode">
-                  <option value="">-- Chọn tiêu chí KPI hoặc danh mục --</option>
-                  @for (def of kpiDefinitions(); track def.id) {
-                    <option [value]="def.code">[{{ def.code }}] {{ def.name }} (Trọng số: {{ def.weight }})</option>
-                  }
-                  <option value="KPI_NCKH">KPI_NCKH - Nghiên cứu khoa học & Sáng kiến kinh nghiệm</option>
-                  <option value="KPI_PHONG_TRAO">KPI_PHONG_TRAO - Hoạt động ngoại khóa & Phong trào đoàn thể</option>
-                  <option value="KPI_KHEN_THUONG">KPI_KHEN_THUONG - Thành tích & Khen thưởng đột xuất</option>
-                  <option value="KPI_CUSTOM">KPI_CUSTOM - Tiêu chí chuyên biệt khác</option>
-                </select>
-              </div>
-
-              <div class="form-field-group">
-                <label class="field-label">Điểm số tự đánh giá (0 - 100) <span class="req">*</span></label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  class="field-input"
-                  placeholder="VD: 90"
-                  [(ngModel)]="manualScoreValue"
-                  [disabled]="isSavingManualScore()"
-                />
-              </div>
-
-              <div class="form-field-group">
-                <label class="field-label">Minh chứng & Ghi chú giải trình</label>
-                <textarea
-                  class="field-textarea"
-                  rows="3"
-                  placeholder="Mô tả kết quả đạt được, quyết định công nhận hoặc đường dẫn minh chứng đính kèm..."
-                  [(ngModel)]="manualScoreNote"
-                  [disabled]="isSavingManualScore()"
-                ></textarea>
-              </div>
-            </div>
-
-            <div class="modal-footer-manual">
-              <button type="button" class="btn-cancel" (click)="closeManualScoreModal()" [disabled]="isSavingManualScore()">
-                Hủy
-              </button>
-              <button
-                type="button"
-                class="btn-save"
-                (click)="submitManualScore()"
-                [disabled]="isSavingManualScore() || !selectedManualKpiCode || manualScoreValue === null"
-              >
-                @if (isSavingManualScore()) {
-                  <span class="material-symbols-outlined spin">progress_activity</span>
-                  <span>Đang lưu...</span>
-                } @else {
-                  <span class="material-symbols-outlined">save</span>
-                  <span>Lưu điểm KPI</span>
-                }
-              </button>
-            </div>
-          </div>
-        </div>
+      <!-- DIALOG TẠO/SỬA NHIỆM VỤ KPI -->
+      @if (isTaskDialogOpen()) {
+        <app-kpi-task-dialog
+          [task]="editingTask()"
+          [periodId]="selectedPeriodId() === 'annual_rollup' ? (periods()[0]?.id || '') : selectedPeriodId()"
+          (saved)="onTaskSaved($event)"
+          (cancelled)="onTaskDialogCancelled()"
+        ></app-kpi-task-dialog>
       }
     </div>
   `,
   styles: [
     `
       .my-kpi-container {
-        padding: 24px;
-        background: #F8FAFC;
-        min-height: calc(100vh - 64px);
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        color: #1E293B;
-
-        @media (max-width: 768px) {
-          padding: 14px;
-        }
+        padding: 1.25rem 1.5rem 3rem;
+        max-width: 1440px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
       }
 
-      /* 1. PAGE HEADER */
+      /* Page Header */
       .page-header {
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        gap: 20px;
-        margin-bottom: 20px;
+        gap: 1.5rem;
         flex-wrap: wrap;
 
-        .header-left {
-          flex: 1;
-          min-width: 280px;
+        .breadcrumb-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: #0284c7;
+          text-transform: uppercase;
+          margin-bottom: 4px;
+        }
 
-          .breadcrumb-row {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.82rem;
-            font-weight: 700;
-            color: #1F3864;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
+        .page-title {
+          font-size: 1.5rem;
+          font-weight: 800;
+          color: #0f172a;
+          margin: 0 0 6px;
+        }
 
-            .material-symbols-outlined {
-              font-size: 18px;
-              color: #2563EB;
-            }
-          }
-
-          .page-title {
-            font-size: 1.6rem;
-            font-weight: 800;
-            color: #1F3864;
-            margin: 0 0 6px 0;
-            letter-spacing: -0.02em;
-          }
-
-          .page-subtitle {
-            font-size: 0.9rem;
-            color: #64748B;
-            margin: 0;
-            line-height: 1.45;
-          }
+        .page-subtitle {
+          font-size: 0.86rem;
+          color: #64748b;
+          margin: 0;
+          max-width: 780px;
         }
 
         .header-right-actions {
           display: flex;
-          align-items: center;
           gap: 10px;
-          flex-wrap: wrap;
-
-          .btn-action {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 9px 16px;
-            border-radius: 10px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            border: none;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-
-            .material-symbols-outlined {
-              font-size: 19px;
-            }
-
-            &.btn-recompute {
-              background: linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%);
-              color: #FFFFFF;
-              box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
-
-              &:hover:not(:disabled) {
-                transform: translateY(-1px);
-                box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
-              }
-            }
-
-            &.btn-sync {
-              background: #EEF4FC;
-              color: #1F3864;
-              border: 1px solid #BFDBFE;
-
-              &:hover:not(:disabled) {
-                background: #DBEAFE;
-              }
-            }
-
-            &.btn-print {
-              background: #F1F5F9;
-              color: #334155;
-              border: 1px solid #CBD5E1;
-
-              &:hover {
-                background: #E2E8F0;
-              }
-            }
-
-            &.btn-excel {
-              background: #107C41;
-              color: #FFFFFF;
-
-              &:hover:not(:disabled) {
-                background: #0E6B37;
-              }
-            }
-
-            &:disabled {
-              opacity: 0.6;
-              cursor: not-allowed;
-            }
-          }
         }
       }
 
-      .spinning {
-        animation: spin 1s linear infinite;
-      }
-      @keyframes spin {
-        100% { transform: rotate(360deg); }
+      .btn-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid transparent;
+
+        &.btn-add-task {
+          background: #0284c7;
+          color: #ffffff;
+          &:hover { background: #0369a1; }
+        }
+
+        &.btn-print {
+          background: #ffffff;
+          border-color: #cbd5e1;
+          color: #475569;
+          &:hover { background: #f1f5f9; }
+        }
+
+        &.btn-add-sm {
+          background: #eff6ff;
+          color: #1d4ed8;
+          border-color: #bfdbfe;
+          padding: 5px 10px;
+          font-size: 0.76rem;
+          &:hover { background: #dbeafe; }
+        }
       }
 
-      /* 2. VIEW TAB SWITCHER */
-      .view-tabs-card {
-        background: #FFFFFF;
-        border: 1.5px solid #E2E8F0;
-        border-radius: 14px;
-        padding: 8px 16px;
-        margin-bottom: 20px;
+      /* Period Toolbar */
+      .period-toolbar {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 16px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 12px 18px;
         flex-wrap: wrap;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        gap: 12px;
 
-        .view-tabs-list {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          flex-wrap: wrap;
-
-          .tab-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            border-radius: 10px;
-            font-size: 0.88rem;
-            font-weight: 700;
-            color: #64748B;
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s ease;
-
-            .material-symbols-outlined {
-              font-size: 20px;
-            }
-
-            .tab-badge {
-              font-size: 0.72rem;
-              padding: 2px 8px;
-              border-radius: 9999px;
-              background: #E2E8F0;
-              color: #475569;
-
-              &.highlight {
-                background: #FEF3C7;
-                color: #92400E;
-              }
-            }
-
-            &:hover {
-              background: #F1F5F9;
-              color: #1E293B;
-            }
-
-            &.active {
-              background: #EEF4FC;
-              color: #1F3864;
-              font-weight: 800;
-
-              .material-symbols-outlined {
-                color: #2563EB;
-              }
-            }
-          }
-        }
-
-        .tab-period-picker {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-
-          .period-label {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: #1F3864;
-          }
-
-          .period-select {
-            padding: 6px 12px;
-            border-radius: 8px;
-            border: 1.5px solid #CBD5E1;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #1E293B;
-            background: #FFFFFF;
-            outline: none;
-            cursor: pointer;
-
-            &:focus {
-              border-color: #2563EB;
-            }
-          }
-        }
-      }
-
-      /* 3. AUTO KPI BANNER */
-      .auto-kpi-banner {
-        background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
-        border: 1.5px solid #BFDBFE;
-        border-radius: 14px;
-        padding: 14px 20px;
-        margin-bottom: 20px;
-        display: flex;
-        align-items: center;
-        gap: 16px;
-
-        .banner-icon-box {
-          width: 44px;
-          height: 44px;
-          border-radius: 12px;
-          background: #2563EB;
-          color: #FFFFFF;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-
-          .material-symbols-outlined {
-            font-size: 24px;
-          }
-        }
-
-        .banner-content {
-          flex: 1;
-
-          .banner-title {
-            font-size: 0.95rem;
-            font-weight: 800;
-            color: #1E40AF;
-            margin-bottom: 6px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-
-            .badge-source {
-              font-size: 0.72rem;
-              font-weight: 700;
-              background: #DBEAFE;
-              color: #1E40AF;
-              padding: 2px 8px;
-              border-radius: 9999px;
-              border: 1px solid #93C5FD;
-            }
-          }
-
-          .banner-stats-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-
-            .stat-pill {
-              font-size: 0.82rem;
-              background: #FFFFFF;
-              padding: 4px 10px;
-              border-radius: 8px;
-              border: 1px solid #E2E8F0;
-              display: inline-flex;
-              align-items: center;
-              gap: 4px;
-
-              .pill-label {
-                color: #64748B;
-              }
-
-              &.pill-before { border-color: #A7F3D0; color: #065F46; }
-              &.pill-ontime { border-color: #BAE6FD; color: #0369A1; }
-              &.pill-late { border-color: #FDE68A; color: #92400E; }
-              &.pill-uncompleted { border-color: #FECDD3; color: #9F1239; }
-              &.pill-grade { border-color: #C7D2FE; font-weight: 800; }
-            }
-          }
-        }
-      }
-
-      /* 4. SCORE CARDS */
-      .kpi-scores-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-        gap: 16px;
-        margin-bottom: 20px;
-
-        .kpi-score-card {
-          background: #FFFFFF;
-          border: 1.5px solid #E2E8F0;
-          border-radius: 14px;
-          padding: 18px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
-          transition: transform 0.15s ease, box-shadow 0.15s ease;
-
-          &:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
-          }
-
-          .score-card-top {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 8px;
-
-            .score-code {
-              font-size: 1.1rem;
-              font-weight: 900;
-              color: #1F3864;
-            }
-
-            .score-icon {
-              font-size: 22px;
-              color: #64748B;
-            }
-          }
-
-          .score-label {
-            font-size: 0.82rem;
-            font-weight: 700;
-            color: #64748B;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
-          }
-
-          .score-value {
-            font-size: 1.8rem;
-            font-weight: 900;
-            color: #1F3864;
-            letter-spacing: -0.02em;
-
-            .unit {
-              font-size: 1rem;
-              font-weight: 700;
-              color: #64748B;
-              margin-left: 2px;
-            }
-          }
-
-          .score-desc {
-            font-size: 0.78rem;
-            color: #64748B;
-            margin-top: 4px;
-          }
-
-          &.card-final-total {
-            background: linear-gradient(135deg, #1F3864 0%, #172554 100%);
-            border-color: #1E3A8A;
-            color: #FFFFFF;
-
-            .score-code-final {
-              font-size: 1.1rem;
-              font-weight: 900;
-              color: #FCD34D;
-            }
-
-            .badge-final-rating {
-              font-size: 0.75rem;
-              font-weight: 800;
-              padding: 2px 8px;
-              border-radius: 9999px;
-            }
-
-            .score-label-final {
-              font-size: 0.78rem;
-              font-weight: 700;
-              color: #93C5FD;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-              margin-bottom: 4px;
-            }
-
-            .score-value-final {
-              font-size: 2.1rem;
-              font-weight: 900;
-              color: #FFFFFF;
-
-              .unit-final {
-                font-size: 1rem;
-                font-weight: 700;
-                color: #93C5FD;
-              }
-            }
-
-            .score-desc-final {
-              font-size: 0.82rem;
-              color: #E2E8F0;
-              margin-top: 4px;
-            }
-          }
-        }
-      }
-
-      /* 5. KPI TABLE SECTION */
-      .kpi-table-section {
-        background: #FFFFFF;
-        border: 1.5px solid #E2E8F0;
-        border-radius: 14px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
-
-        .table-header-bar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 16px;
-          gap: 16px;
-          flex-wrap: wrap;
-
-          .table-header-title {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-
-            .icon-navy {
-              font-size: 22px;
-              color: #1F3864;
-            }
-
-            h2 {
-              font-size: 1.05rem;
-              font-weight: 800;
-              color: #1E293B;
-              margin: 0;
-            }
-
-            .badge-row-count {
-              font-size: 0.75rem;
-              font-weight: 700;
-              background: #EEF4FC;
-              color: #1E40AF;
-              padding: 2px 8px;
-              border-radius: 9999px;
-            }
-          }
-
-          .table-actions-right {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-
-            .btn-tool {
-              display: inline-flex;
-              align-items: center;
-              gap: 6px;
-              padding: 7px 14px;
-              border-radius: 8px;
-              font-size: 0.82rem;
-              font-weight: 700;
-              cursor: pointer;
-              border: none;
-              transition: all 0.15s ease;
-
-              .material-symbols-outlined {
-                font-size: 18px;
-              }
-
-              &.btn-add-row {
-                background: #EEF4FC;
-                color: #1E40AF;
-                border: 1px solid #BFDBFE;
-                &:hover { background: #DBEAFE; }
-              }
-
-              &.btn-save {
-                background: #0F172A;
-                color: #FFFFFF;
-                &:hover { background: #1E293B; }
-              }
-            }
-          }
-        }
-
-        .table-responsive-wrapper {
-          overflow-x: auto;
-          scrollbar-width: thin;
-        }
-
-        .kpi-data-table {
-          width: 100%;
-          min-width: 1280px;
-          border-collapse: collapse;
-          font-size: 0.84rem;
-
-          th, td {
-            border: 1px solid #CBD5E1;
-            padding: 6px 8px;
-            vertical-align: middle;
-          }
-
-          .grp-border-right {
-            border-right: 2px solid #94A3B8 !important;
-          }
-
-          thead th {
-            background: #F1F5F9;
-            color: #1E293B;
-            font-weight: 800;
-            text-align: center;
-            font-size: 0.78rem;
-            line-height: 1.3;
-            padding: 6px 4px;
-
-            &.col-stt { width: 40px; min-width: 40px; }
-            &.col-task { width: 34%; min-width: 360px; max-width: 500px; text-align: left; padding-left: 12px; }
-            &.col-deliverable { width: 95px; min-width: 95px; }
-            &.col-timeline { width: 90px; min-width: 90px; }
-            &.col-num { width: 52px; min-width: 52px; max-width: 56px; }
-            &.col-quality-text { min-width: 140px; }
-            &.col-timeline-text { width: 85px; min-width: 85px; }
-            &.col-leadership-text { width: 85px; min-width: 85px; }
-            &.col-actions { width: 65px; min-width: 65px; }
-
-            &.col-group-header {
-              font-size: 0.82rem;
-              padding: 6px;
-            }
-            &.header-grp-qty { background: #EEF4FC; color: #1E40AF; }
-            &.header-grp-quality { background: #ECFDF5; color: #065F46; }
-            &.header-grp-timeline { background: #FFFBEB; color: #92400E; }
-            &.header-grp-leadership { background: #F5F3FF; color: #5B21B6; }
-
-            &.sub-header {
-              font-size: 0.72rem;
-              font-weight: 700;
-              padding: 4px;
-            }
-
-            &.col-calc {
-              background: #E2E8F0;
-              color: #0F172A;
-            }
-          }
-
-          tbody tr {
-            transition: background-color 0.12s ease;
-
-            &:nth-child(even) {
-              background-color: #F8FAFC;
-            }
-
-            &:hover {
-              background-color: #EFF6FF !important;
-            }
-          }
-
-          .cell-stt { width: 40px; font-size: 0.82rem; color: #64748B; }
-          .cell-task { min-width: 360px; }
-          .cell-deliverable { width: 95px; }
-          .cell-timeline { width: 90px; }
-          .cell-qty, .cell-weight, .cell-input-num, .cell-score-num { width: 52px; min-width: 52px; max-width: 56px; }
-
-          .inline-input, .inline-textarea {
-            border: 1px solid transparent;
-            background: transparent;
-            border-radius: 6px;
-            padding: 4px 6px;
-            font-size: 0.83rem;
-            font-family: inherit;
-            color: #1E293B;
-            outline: none;
-            transition: all 0.15s ease;
-
-            &:hover {
-              border-color: #CBD5E1;
-              background: #FFFFFF;
-            }
-
-            &:focus {
-              border-color: #2563EB;
-              background: #FFFFFF;
-              box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
-            }
-          }
-
-          .task-textarea {
-            width: 100%;
-            min-height: 48px;
-            font-size: 0.86rem;
-            font-weight: 600;
-            line-height: 1.4;
-            resize: vertical;
-            padding: 6px 8px;
-          }
-
-          .num-input {
-            width: 44px;
-            max-width: 44px;
-            padding: 3px 2px;
-            text-align: center;
-            font-size: 0.82rem;
-            font-weight: 700;
-            border: 1px solid #E2E8F0;
-            border-radius: 6px;
-            background: #FFFFFF;
-            display: block;
-            margin: 0 auto;
-
-            &.highlight-coeff {
-              background: #FEF3C7;
-              color: #92400E;
-              border: 1px solid #FDE68A;
-            }
-
-            &.score-input {
-              background: #F8FAFC;
-              border: 1px solid #CBD5E1;
-              color: #1E40AF;
-            }
-          }
-
-          .deliverable-input, .timeline-input, .timeline-text-input, .leadership-text-input {
-            width: 100%;
-            font-size: 0.8rem;
-          }
-
-          .quality-text-input {
-            width: 100%;
-            font-size: 0.82rem;
-          }
-
-          .task-code-tag {
-            display: inline-block;
-            font-size: 0.68rem;
-            font-weight: 700;
-            background: #E2E8F0;
-            color: #475569;
-            padding: 1px 5px;
-            border-radius: 4px;
-            margin-top: 2px;
-          }
-
-          .cell-calc-result {
-            background: #F1F5F9;
-            color: #0F172A;
-            font-size: 0.85rem;
-            font-weight: 800;
-          }
-
-          .row-action-buttons {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 2px;
-
-            .btn-row-action {
-              background: transparent;
-              border: none;
-              cursor: pointer;
-              padding: 3px;
-              border-radius: 5px;
-              color: #64748B;
-              transition: all 0.15s ease;
-
-              .material-symbols-outlined {
-                font-size: 16px;
-              }
-
-              &.btn-dup:hover {
-                background: #EEF4FC;
-                color: #2563EB;
-              }
-
-              &.btn-del:hover {
-                background: #FEE2E2;
-                color: #DC2626;
-              }
-            }
-          }
-
-          .kpi-footer-sum-row {
-            background: #E2E8F0;
-            border-top: 2.5px solid #64748B;
-
-            td {
-              padding: 8px 6px;
-              font-size: 0.88rem;
-            }
-
-            .footer-label {
-              font-size: 0.9rem;
-              color: #1F3864;
-              letter-spacing: 0.5px;
-            }
-
-            .sum-target-red {
-              color: #DC2626 !important;
-              font-size: 1.05rem !important;
-              font-weight: 900 !important;
-              background: #FEF2F2 !important;
-            }
-
-            .sum-val {
-              color: #1F3864;
-              font-size: 0.92rem;
-              font-weight: 800;
-            }
-
-            .text-muted {
-              color: #94A3B8;
-            }
-          }
-        }
-      }
-
-      /* 6. SUMMARY RESULTS & SIGNATURES SECTION */
-      .summary-bottom-section {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-
-        @media (max-width: 900px) {
-          grid-template-columns: 1fr;
-        }
-
-        .summary-box-card {
-          background: #FFFFFF;
-          border: 1.5px solid #E2E8F0;
-          border-radius: 14px;
-          padding: 20px;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
-
-          .summary-card-title {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 1.05rem;
-            font-weight: 800;
-            color: #1F3864;
-            margin: 0 0 16px 0;
-
-            .material-symbols-outlined {
-              font-size: 22px;
-              color: #2563EB;
-            }
-          }
-
-          .summary-results-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.9rem;
-            margin-bottom: 14px;
-
-            td {
-              border: 1px solid #CBD5E1;
-              padding: 8px 12px;
-            }
-
-            .col-metric-name { color: #1E293B; }
-            .col-metric-code { width: 60px; color: #1F3864; }
-            .col-metric-val { width: 100px; color: #0F172A; }
-
-            .row-final-kpi {
-              background: #F8FAFC;
-
-              .highlight-kpi-text {
-                color: #DC2626 !important;
-                font-weight: 900;
-              }
-
-              .font-lg {
-                font-size: 1.15rem;
-              }
-            }
-
-            .row-rating-cat {
-              background: #FFFFFF;
-            }
-          }
-
-          .formula-instruction-box {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 14px;
-            background: #EEF4FC;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            color: #1F3864;
-
-            .info-icon {
-              font-size: 20px;
-              color: #2563EB;
-            }
-          }
-        }
-
-        .signatures-box-card {
-          background: #FFFFFF;
-          border: 1.5px solid #E2E8F0;
-          border-radius: 14px;
-          padding: 24px;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
-          display: flex;
-          justify-content: space-around;
-          text-align: center;
-
-          .sign-column {
-            flex: 1;
-
-            .sign-title {
-              font-size: 0.9rem;
-              font-weight: 800;
-              color: #1E293B;
-              text-transform: uppercase;
-              margin-bottom: 4px;
-            }
-
-            .sign-subtitle {
-              font-size: 0.78rem;
-              font-style: italic;
-              color: #64748B;
-            }
-
-            .sign-space {
-              height: 70px;
-            }
-
-            .sign-name {
-              font-size: 0.95rem;
-              color: #1F3864;
-            }
-
-            .sign-role {
-              font-size: 0.8rem;
-              color: #64748B;
-            }
-          }
-        }
-      }
-
-      /* 7. DEPARTMENT TAB STYLES */
-      .dept-summary-cards {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 16px;
-        margin-bottom: 20px;
-
-        .dept-card {
-          background: #FFFFFF;
-          border: 1.5px solid #E2E8F0;
-          border-radius: 14px;
-          padding: 18px;
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
-
-          .dept-card-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #FFFFFF;
-
-            .material-symbols-outlined {
-              font-size: 26px;
-            }
-
-            &.bg-blue { background: #2563EB; }
-            &.bg-emerald { background: #059669; }
-            &.bg-indigo { background: #4F46E5; }
-            &.bg-amber { background: #D97706; }
-          }
-
-          .dept-card-info {
-            .dept-card-label {
-              font-size: 0.8rem;
-              font-weight: 700;
-              color: #64748B;
-              text-transform: uppercase;
-              margin-bottom: 2px;
-            }
-            .dept-card-val {
-              font-size: 1.5rem;
-              font-weight: 900;
-              color: #1E293B;
-
-              .unit-sub {
-                font-size: 0.85rem;
-                font-weight: 600;
-                color: #64748B;
-              }
-            }
-          }
-        }
-      }
-
-      .dept-members-table-card, .school-dept-breakdown-card {
-        background: #FFFFFF;
-        border: 1.5px solid #E2E8F0;
-        border-radius: 14px;
-        padding: 20px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
-      }
-
-      .dept-members-table, .school-dept-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.88rem;
-
-        th, td {
-          border: 1px solid #E2E8F0;
-          padding: 10px 12px;
-          vertical-align: middle;
-        }
-
-        thead th {
-          background: #F8FAFC;
-          color: #1E293B;
-          font-weight: 800;
-          font-size: 0.82rem;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        tbody tr:hover {
-          background: #F8FAFC;
-        }
-
-        .member-user-cell {
+        .period-picker {
           display: flex;
           align-items: center;
           gap: 10px;
 
-          .user-avatar-sm {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            object-fit: cover;
+          label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #334155;
           }
 
-          .member-phone {
-            font-size: 0.78rem;
-            color: #64748B;
-          }
-        }
-
-        .score-final-cell {
-          font-size: 1.05rem;
-          color: #1E40AF;
-        }
-
-        .badge-grade {
-          display: inline-block;
-          font-size: 0.78rem;
-          font-weight: 800;
-          padding: 3px 10px;
-          border-radius: 9999px;
-        }
-
-        .btn-table-action {
-          background: #EEF4FC;
-          border: 1px solid #BFDBFE;
-          color: #1E40AF;
-          border-radius: 6px;
-          padding: 4px 8px;
-          cursor: pointer;
-          transition: all 0.15s ease;
-
-          &:hover {
-            background: #DBEAFE;
+          .period-select {
+            min-width: 320px;
+            height: 38px;
+            padding: 0 12px;
+            border-radius: 8px;
+            border: 1.5px solid #cbd5e1;
+            font-size: 0.86rem;
+            font-weight: 600;
+            color: #0f172a;
+            outline: none;
+            &:focus { border-color: #0284c7; }
           }
         }
 
-        .empty-row {
-          text-align: center;
-          padding: 30px !important;
-          color: #64748B;
-          font-style: italic;
+        .user-kpi-badge {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+
+          .material-symbols-outlined {
+            font-size: 30px;
+            color: #0284c7;
+          }
+
+          .user-meta {
+            display: flex;
+            flex-direction: column;
+            font-size: 0.8rem;
+            strong { color: #0f172a; font-size: 0.88rem; }
+            .role-desc { color: #64748b; font-size: 0.74rem; }
+          }
         }
       }
 
-      /* 8. SCHOOL TAB STYLES */
-      .school-top-stats-grid {
+      /* =========================================
+         ANNUAL ROLLUP STYLES
+         ========================================= */
+      .annual-quarters-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 16px;
-        margin-bottom: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 14px;
 
-        .school-stat-card {
-          background: #FFFFFF;
-          border: 1.5px solid #E2E8F0;
-          border-radius: 14px;
-          padding: 20px;
+        .quarter-card {
+          background: #ffffff;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 16px;
           display: flex;
-          align-items: center;
-          gap: 16px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+          flex-direction: column;
+          gap: 8px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 
-          .stat-icon-wrap {
-            width: 52px;
-            height: 52px;
-            border-radius: 14px;
+          &.evaluated {
+            border-color: #93c5fd;
+            background: #f8fafc;
+          }
+
+          .q-top {
             display: flex;
             align-items: center;
-            justify-content: center;
-            color: #FFFFFF;
-            flex-shrink: 0;
+            justify-content: space-between;
 
-            .material-symbols-outlined {
-              font-size: 28px;
-            }
-
-            &.bg-blue { background: #2563EB; }
-            &.bg-emerald { background: #059669; }
-            &.bg-indigo { background: #4F46E5; }
-            &.bg-purple { background: #7C3AED; }
-          }
-
-          .stat-meta {
-            .stat-title {
-              font-size: 0.8rem;
-              font-weight: 700;
-              color: #64748B;
-              text-transform: uppercase;
-              margin-bottom: 2px;
-            }
-            .stat-num {
-              font-size: 1.6rem;
-              font-weight: 900;
-              color: #1E293B;
-
-              .unit {
-                font-size: 0.85rem;
-                font-weight: 600;
-                color: #64748B;
-              }
-            }
-          }
-        }
-      }
-
-      .school-dept-table {
-        .rank-badge {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 26px;
-          height: 26px;
-          border-radius: 50%;
-          background: #E2E8F0;
-          color: #475569;
-          font-size: 0.82rem;
-
-          &.rank-1 { background: #FEF3C7; color: #B45309; font-weight: 900; }
-          &.rank-2 { background: #E2E8F0; color: #475569; font-weight: 900; }
-          &.rank-3 { background: #FFEDD5; color: #C2410C; font-weight: 900; }
-        }
-
-        .dept-code-tag {
-          font-size: 0.72rem;
-          font-weight: 700;
-          background: #F1F5F9;
-          color: #64748B;
-          padding: 1px 6px;
-          border-radius: 4px;
-          margin-left: 6px;
-        }
-
-        .progress-bar-wrap {
-          position: relative;
-          background: #E2E8F0;
-          border-radius: 9999px;
-          height: 18px;
-          min-width: 100px;
-          overflow: hidden;
-
-          .progress-fill {
-            background: linear-gradient(90deg, #3B82F6 0%, #10B981 100%);
-            height: 100%;
-            border-radius: 9999px;
-            transition: width 0.4s ease;
-          }
-
-          .progress-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 0.68rem;
-            font-weight: 800;
-            color: #0F172A;
-          }
-        }
-
-        .text-navy { color: #1E40AF; }
-        .text-emerald { color: #059669; }
-        .text-blue { color: #2563EB; }
-        .text-amber { color: #D97706; }
-        .text-rose { color: #E11D48; }
-      }
-
-      /* MANUAL KPI CARD & MODAL STYLES (TT 120) */
-      .manual-kpi-card {
-        background: #FFFFFF;
-        border-radius: 14px;
-        padding: 20px 24px;
-        margin-top: 24px;
-        border: 1px solid #E2E8F0;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-
-        .manual-kpi-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 16px;
-          flex-wrap: wrap;
-          margin-bottom: 16px;
-
-          .manual-header-title {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-
-            .manual-icon {
-              font-size: 28px;
-              color: #D97706;
-              background: #FEF3C7;
-              padding: 8px;
-              border-radius: 10px;
-            }
-
-            .manual-title {
-              font-size: 1.05rem;
+            .q-badge {
+              font-size: 0.72rem;
               font-weight: 800;
-              color: #1E293B;
-              margin: 0;
+              background: #0284c7;
+              color: #ffffff;
+              padding: 2px 8px;
+              border-radius: 4px;
             }
 
-            .manual-subtitle {
-              font-size: 0.82rem;
-              color: #64748B;
-              margin: 3px 0 0 0;
+            .q-status-tag {
+              font-size: 0.7rem;
+              font-weight: 700;
+              padding: 1px 6px;
+              border-radius: 4px;
+              &.st-open { background: #ecfdf5; color: #059669; }
+              &.st-closed { background: #f1f5f9; color: #475569; }
+              &.st-draft { background: #fffbeb; color: #b45309; }
             }
           }
 
-          .btn-open-manual-form {
-            display: inline-flex;
+          .q-title {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin: 2px 0 0;
+          }
+
+          .q-date-sub {
+            font-size: 0.72rem;
+            color: #64748b;
+          }
+
+          .q-score-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin: 4px 0 2px;
+
+            .q-score-num {
+              font-size: 1.4rem;
+              font-weight: 800;
+              color: #0284c7;
+              small { font-size: 0.75rem; color: #64748b; font-weight: 500; }
+            }
+          }
+
+          .q-parts-row {
+            display: flex;
             align-items: center;
             gap: 6px;
-            padding: 8px 16px;
-            background: #1F3864;
-            color: #FFFFFF;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.15s;
+            font-size: 0.76rem;
+            color: #475569;
+            background: #ffffff;
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
 
-            &:hover {
-              background: #152644;
-            }
+            .sep { color: #cbd5e1; }
+          }
 
-            .material-symbols-outlined {
-              font-size: 18px;
-            }
+          .q-tasks-info {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.74rem;
+            color: #059669;
+            font-weight: 600;
+            margin-top: 2px;
+
+            .icon-tasks { font-size: 15px; }
           }
         }
+      }
 
-        .manual-scores-grid {
+      .annual-result-card {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border-radius: 14px;
+        padding: 20px 24px;
+        color: #ffffff;
+        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.3);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+
+        .annual-main-stats {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-          gap: 14px;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 20px;
+          align-items: center;
 
-          .manual-score-item {
-            background: #F8FAFC;
-            border: 1px solid #E2E8F0;
-            border-radius: 10px;
-            padding: 14px;
+          .annual-stat-box {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+
+            .stat-label {
+              font-size: 0.76rem;
+              font-weight: 800;
+              letter-spacing: 0.05em;
+              color: #94a3b8;
+              text-transform: uppercase;
+            }
+
+            .stat-score-val {
+              font-size: 2.2rem;
+              font-weight: 900;
+              color: #38bdf8;
+              line-height: 1.1;
+
+              small { font-size: 1rem; color: #94a3b8; font-weight: 500; }
+            }
+
+            .stat-formula {
+              font-size: 0.76rem;
+              color: #cbd5e1;
+            }
+          }
+
+          .annual-classification-box {
             display: flex;
             flex-direction: column;
             gap: 6px;
 
-            .manual-item-top {
-              display: flex;
+            .stat-label {
+              font-size: 0.76rem;
+              font-weight: 800;
+              letter-spacing: 0.05em;
+              color: #94a3b8;
+              text-transform: uppercase;
+            }
+
+            .yearly-class-badge {
+              display: inline-flex;
               align-items: center;
-              justify-content: space-between;
+              gap: 8px;
+              padding: 8px 16px;
+              border-radius: 10px;
+              border: 1.5px solid;
+              font-size: 1.05rem;
+              font-weight: 800;
+              width: fit-content;
 
-              .manual-code {
-                font-size: 0.75rem;
-                font-weight: 800;
-                background: #EFF6FF;
-                color: #2563EB;
-                padding: 2px 8px;
-                border-radius: 6px;
-              }
-
-              .manual-score-val {
-                font-size: 1rem;
-                color: #059669;
-              }
+              .material-symbols-outlined { font-size: 24px; }
             }
 
-            .manual-name {
-              font-size: 0.88rem;
-              font-weight: 700;
-              color: #1E293B;
-            }
-
-            .manual-note {
-              font-size: 0.8rem;
-              color: #475569;
-              background: #FFFFFF;
-              padding: 6px 8px;
-              border-radius: 6px;
-              border: 1px solid #F1F5F9;
-            }
-
-            .manual-date {
-              font-size: 0.72rem;
-              color: #94A3B8;
+            .stat-desc {
+              font-size: 0.74rem;
+              color: #94a3b8;
             }
           }
         }
 
-        .manual-empty-state {
+        .annual-warning-banner {
           display: flex;
           align-items: center;
           gap: 10px;
-          padding: 14px 18px;
-          background: #F8FAFC;
+          padding: 10px 14px;
           border-radius: 8px;
-          color: #64748B;
-          font-size: 0.85rem;
+          background: rgba(217, 119, 6, 0.2);
+          border: 1px solid #d97706;
+          color: #fef3c7;
+          font-size: 0.82rem;
 
-          .material-symbols-outlined {
-            font-size: 22px;
-            color: #94A3B8;
+          &.danger {
+            background: rgba(220, 38, 38, 0.2);
+            border-color: #dc2626;
+            color: #fee2e2;
           }
+
+          .material-symbols-outlined { font-size: 20px; }
         }
       }
 
-      .modal-backdrop {
-        position: fixed;
-        inset: 0;
-        background: rgba(15, 23, 42, 0.55);
-        backdrop-filter: blur(4px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-        padding: 16px;
-      }
-
-      .modal-dialog-manual {
-        background: #FFFFFF;
-        border-radius: 14px;
+      .quarter-table {
         width: 100%;
-        max-width: 500px;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
-        border: 1px solid #E2E8F0;
-        overflow: hidden;
-      }
+        border-collapse: collapse;
+        font-size: 0.84rem;
 
-      .modal-header-manual {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 16px 20px;
-        background: #F8FAFC;
-        border-bottom: 1px solid #F1F5F9;
-
-        .modal-title-box {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-
-          .modal-icon {
-            font-size: 24px;
-            color: #D97706;
-          }
-
-          h3 {
-            font-size: 1rem;
-            font-weight: 800;
-            color: #1E293B;
-            margin: 0;
-          }
+        th {
+          background: #f8fafc;
+          color: #475569;
+          font-weight: 700;
+          font-size: 0.76rem;
+          padding: 10px 14px;
+          border-bottom: 1px solid #e2e8f0;
+          text-transform: uppercase;
         }
 
-        .btn-close-modal {
-          background: transparent;
-          border: none;
-          color: #64748B;
-          cursor: pointer;
-          padding: 4px;
+        td {
+          padding: 12px 14px;
+          border-bottom: 1px solid #f1f5f9;
+        }
+
+        .score-badge-q {
+          display: inline-block;
+          font-size: 0.92rem;
+          font-weight: 800;
+          color: #0284c7;
+          background: #f0f9ff;
+          border: 1px solid #bae6fd;
+          padding: 2px 8px;
           border-radius: 6px;
-          display: flex;
 
-          &:hover {
-            background: #E2E8F0;
-            color: #0F172A;
-          }
+          small { font-size: 0.72rem; color: #64748b; font-weight: 500; }
+        }
+
+        .q-status-badge {
+          font-size: 0.72rem;
+          font-weight: 700;
+          padding: 2px 8px;
+          border-radius: 4px;
+          &.st-open { background: #ecfdf5; color: #059669; }
+          &.st-closed { background: #f1f5f9; color: #475569; }
+          &.st-draft { background: #fffbeb; color: #b45309; }
         }
       }
 
-      .modal-body-manual {
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
+      /* =========================================
+         QUARTERLY SCORECARD STYLES
+         ========================================= */
+      .scorecard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
         gap: 14px;
 
-        .form-field-group {
+        .score-summary-card {
+          background: #ffffff;
+          border-radius: 12px;
+          border: 1px solid #e2e8f0;
+          padding: 16px 18px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+
+          &.card-general { border-left: 4px solid #2563eb; }
+          &.card-task { border-left: 4px solid #0284c7; }
+          &.card-bonus { border-left: 4px solid #059669; }
+          &.card-final { border-left: 4px solid #7c3aed; }
+
+          .card-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            .section-tag {
+              font-size: 0.72rem;
+              font-weight: 800;
+              color: #64748b;
+              letter-spacing: 0.04em;
+            }
+
+            .card-icon { font-size: 20px; color: #94a3b8; }
+          }
+
+          .score-display {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            margin: 4px 0;
+
+            .score-number {
+              font-size: 1.7rem;
+              font-weight: 900;
+              color: #0f172a;
+              line-height: 1;
+
+              &.text-blue { color: #0284c7; }
+              &.text-emerald { color: #059669; }
+              &.highlight { color: #7c3aed; }
+            }
+
+            .score-max {
+              font-size: 0.8rem;
+              color: #64748b;
+              font-weight: 600;
+            }
+
+            .bonus-auto-pill {
+              font-size: 0.7rem;
+              font-weight: 800;
+              background: #ecfdf5;
+              color: #047857;
+              border: 1px solid #a7f3d0;
+              padding: 2px 6px;
+              border-radius: 4px;
+              margin-left: auto;
+            }
+
+            .btn-edit-general {
+              margin-left: auto;
+              background: #eff6ff;
+              border: 1px solid #bfdbfe;
+              color: #1d4ed8;
+              padding: 3px 8px;
+              border-radius: 6px;
+              font-size: 0.74rem;
+              font-weight: 700;
+              cursor: pointer;
+              display: inline-flex;
+              align-items: center;
+              gap: 3px;
+
+              .material-symbols-outlined { font-size: 15px; }
+              &:hover { background: #dbeafe; }
+            }
+          }
+
+          .score-input-inline {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 4px 0;
+
+            .input-general-score {
+              width: 60px;
+              height: 32px;
+              border-radius: 6px;
+              border: 1.5px solid #0284c7;
+              text-align: center;
+              font-size: 1rem;
+              font-weight: 800;
+              color: #0f172a;
+            }
+
+            .btn-save-general {
+              width: 30px;
+              height: 30px;
+              background: #059669;
+              color: #ffffff;
+              border: none;
+              border-radius: 6px;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              .material-symbols-outlined { font-size: 18px; }
+            }
+
+            .btn-cancel-general {
+              width: 30px;
+              height: 30px;
+              background: #f1f5f9;
+              color: #64748b;
+              border: 1px solid #cbd5e1;
+              border-radius: 6px;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              .material-symbols-outlined { font-size: 18px; }
+            }
+          }
+
+          .score-label {
+            font-size: 0.86rem;
+            font-weight: 700;
+            color: #1e293b;
+          }
+
+          .score-desc {
+            font-size: 0.74rem;
+            color: #64748b;
+            margin: 0;
+            line-height: 1.35;
+          }
+
+          .card-progress {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 999px;
+            overflow: hidden;
+            margin-top: 4px;
+
+            .progress-bar-fill {
+              height: 100%;
+              background: #2563eb;
+              &.bg-blue { background: #0284c7; }
+              &.bg-emerald { background: #059669; }
+            }
+          }
+
+          .classification-box {
+            margin: 2px 0;
+
+            .classification-badge {
+              display: inline-block;
+              font-size: 0.78rem;
+              font-weight: 800;
+              padding: 3px 10px;
+              border-radius: 999px;
+              border: 1px solid;
+            }
+          }
+        }
+      }
+
+      .classification-pill-sm {
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 999px;
+        white-space: nowrap;
+
+        &.pill-xuat-sac { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+        &.pill-tot { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        &.pill-hoan-thanh { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+        &.pill-chua-dat { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+      }
+
+      /* Sections common */
+      .section-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 18px 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+
+        .section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 14px;
+
+          .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+
+            .header-icon {
+              font-size: 22px;
+              color: #0284c7;
+              background: #f0f9ff;
+              padding: 6px;
+              border-radius: 8px;
+            }
+
+            .section-title {
+              font-size: 1.05rem;
+              font-weight: 800;
+              color: #0f172a;
+              margin: 0;
+            }
+
+            .section-subtitle {
+              font-size: 0.78rem;
+              color: #64748b;
+              display: block;
+              margin-top: 2px;
+            }
+          }
+        }
+      }
+
+      .axis-bars-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 12px;
+
+        .axis-card {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          padding: 12px 14px;
           display: flex;
           flex-direction: column;
           gap: 6px;
 
-          .field-label {
-            font-size: 0.82rem;
-            font-weight: 700;
-            color: #334155;
+          &.has-tasks { background: #ffffff; border-color: #cbd5e1; }
 
-            .req {
-              color: #EF4444;
+          .axis-card-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            .axis-title-box {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              font-size: 0.82rem;
+
+              .axis-dot { width: 8px; height: 8px; border-radius: 50%; }
+            }
+
+            .axis-points-badge {
+              font-size: 0.74rem;
+              font-weight: 800;
+              background: #f1f5f9;
+              padding: 1px 6px;
+              border-radius: 4px;
             }
           }
 
-          .field-input, .field-select, .field-textarea {
-            padding: 9px 12px;
-            border-radius: 8px;
-            border: 1px solid #CBD5E1;
-            font-size: 0.85rem;
-            color: #0F172A;
-            font-family: inherit;
-            outline: none;
+          .axis-progress-track {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 999px;
+            overflow: hidden;
 
-            &:focus {
-              border-color: #2563EB;
-              box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-            }
+            .axis-progress-bar { height: 100%; border-radius: 999px; }
+          }
+
+          .axis-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.72rem;
+            color: #64748b;
+          }
+
+          .chuyen-mon-subtypes {
+            margin-top: 4px;
+            padding-top: 4px;
+            border-top: 1px dashed #e2e8f0;
+            font-size: 0.72rem;
+            color: #475569;
           }
         }
       }
 
-      .modal-footer-manual {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 10px;
-        padding: 14px 20px;
-        background: #F8FAFC;
-        border-top: 1px solid #F1F5F9;
+      .table-responsive { overflow-x: auto; }
 
-        .btn-cancel {
-          padding: 8px 16px;
-          border-radius: 8px;
-          border: 1px solid #CBD5E1;
-          background: #FFFFFF;
+      .kpi-task-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.84rem;
+
+        th {
+          background: #f8fafc;
           color: #475569;
-          font-weight: 600;
-          font-size: 0.82rem;
-          cursor: pointer;
+          font-weight: 700;
+          font-size: 0.75rem;
+          padding: 10px 14px;
+          border-bottom: 1px solid #e2e8f0;
+          text-transform: uppercase;
         }
 
-        .btn-save {
-          display: inline-flex;
+        td {
+          padding: 12px 14px;
+          border-bottom: 1px solid #f1f5f9;
+        }
+
+        .task-title-cell {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          .task-desc-line { font-size: 0.74rem; color: #64748b; }
+          .subtype-tag { font-size: 0.68rem; font-weight: 700; color: #0284c7; background: #f0f9ff; padding: 1px 5px; border-radius: 4px; width: fit-content; }
+        }
+
+        .axis-pill {
+          font-size: 0.74rem;
+          font-weight: 700;
+          background: #f8fafc;
+          border-left: 3px solid #0284c7;
+          padding: 2px 8px;
+          border-radius: 4px;
+        }
+
+        .progress-cell {
+          display: flex;
           align-items: center;
           gap: 6px;
-          padding: 8px 18px;
-          border-radius: 8px;
-          border: none;
-          background: #1F3864;
-          color: #FFFFFF;
-          font-weight: 700;
-          font-size: 0.82rem;
-          cursor: pointer;
+          .mini-progress-track { width: 50px; height: 4px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
+          .mini-progress-fill { height: 100%; background: #059669; }
+          .progress-pct { font-size: 0.76rem; font-weight: 700; }
+        }
 
-          &:disabled {
-            opacity: 0.55;
-            cursor: not-allowed;
-          }
+        .badge-evidence {
+          display: inline-flex;
+          align-items: center;
+          gap: 2px;
+          font-size: 0.74rem;
+          font-weight: 700;
+          color: #0284c7;
+          background: #f0f9ff;
+          padding: 2px 6px;
+          border-radius: 4px;
+          .material-symbols-outlined { font-size: 14px; }
+        }
+
+        .warn-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 2px;
+          font-size: 0.72rem;
+          font-weight: 700;
+          color: #b45309;
+          background: #fef3c7;
+          padding: 2px 6px;
+          border-radius: 4px;
+          .material-symbols-outlined { font-size: 14px; }
+        }
+
+        .btn-table-action {
+          background: #f1f5f9;
+          border: 1px solid #cbd5e1;
+          color: #334155;
+          padding: 4px;
+          border-radius: 6px;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          &:hover { background: #0284c7; color: #ffffff; border-color: #0284c7; }
+          .material-symbols-outlined { font-size: 16px; }
         }
       }
 
-      .alert-box {
+      .alert-notice-card {
+        background: #fffbeb;
+        border: 1px solid #fcd34d;
+        border-radius: 10px;
+        padding: 12px 16px;
         display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 14px;
-        border-radius: 8px;
+        align-items: flex-start;
+        gap: 10px;
         font-size: 0.82rem;
+        color: #92400e;
 
-        &.alert-success {
-          background: #ECFDF5;
-          color: #065F46;
-          border: 1px solid #A7F3D0;
-        }
+        .notice-icon { font-size: 20px; color: #d97706; }
+        ul { margin: 4px 0 0; padding-left: 18px; }
+      }
 
-        &.alert-error {
-          background: #FEF2F2;
-          color: #991B1B;
-          border: 1px solid #FECACA;
+      .loading-state {
+        text-align: center;
+        padding: 40px;
+        color: #64748b;
+        .spinner {
+          width: 36px;
+          height: 36px;
+          border: 3px solid #e2e8f0;
+          border-top-color: #0284c7;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+          margin: 0 auto 12px;
         }
+      }
+
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+
+      @media print {
+        .hide-on-print { display: none !important; }
       }
     `,
   ],
 })
 export class MyKpiComponent implements OnInit {
-  private kpiService = inject(KpiService);
-  private authService = inject(AuthService);
+  private kpiService = inject(KpiFlexibleService);
+  private router = inject(Router);
+  public authService = inject(AuthService);
+  public academicYearService = inject(AcademicYearService);
+  private destroyRef = inject(DestroyRef);
 
-  isLoading = signal(true);
-  isRecomputing = signal(false);
-  activeTab = signal<KpiViewTab>('CA_NHAN');
-  selectedPeriod = signal<KpiPeriod>('QUY_3');
+  periods = signal<EvaluationPeriod[]>([]);
+  selectedPeriodId = signal<string>('');
+  scoreSheet = signal<ScoreCalculationSheet | null>(null);
 
-  sheet = signal<KpiEvaluationSheet | null>(null);
-  rows = signal<KpiRowItem[]>([]);
-  backendKpiSummary = signal<any | null>(null);
+  // Annual rollup signal
+  annualRollupData = signal<AnnualRollupResult | null>(null);
+  isLoadingAnnual = signal<boolean>(false);
 
-  // Manual KPI Assessment (TT 120)
-  kpiDefinitions = signal<any[]>([]);
-  manualScoresList = signal<any[]>([]);
-  isManualScoreModalOpen = signal(false);
-  selectedManualKpiCode = '';
-  manualScoreValue: number | null = null;
-  manualScoreNote = '';
-  isSavingManualScore = signal(false);
-  manualScoreError = signal<string | null>(null);
-  manualScoreSuccess = signal<string | null>(null);
+  showBonusModal = signal<boolean>(false);
+  showSubmitScoreModal = signal<boolean>(false);
+  isTaskDialogOpen = signal<boolean>(false);
+  editingTask = signal<any>(null);
 
-  // Department & School Summaries
-  orgSummary = signal<any | null>(null);
-  schoolSummary = signal<any | null>(null);
+  isSubmittingBonus = signal<boolean>(false);
+  isSubmittingScore = signal<boolean>(false);
 
-  summary = signal<KpiSummaryScores>({
-    totalTargetWeighted: 0,
-    totalActualQuantityWeighted: 0,
-    totalQualityWeighted: 0,
-    totalTimelineWeighted: 0,
-    totalLeadershipWeighted: 0,
-    scoreA_Quantity: 0,
-    scoreB_Quality: 0,
-    scoreC_Timeline: 0,
-    scoreD_Leadership: 0,
-    finalScore: 0,
-    ratingCategory: '',
-    ratingColor: '#16A34A',
+  // Điểm phần A tự nhập
+  isEditingGeneralScore = false;
+  inputGeneralScore = 30;
+  isSavingGeneral = false;
+
+  generalScore = computed(() => {
+    return this.scoreSheet()?.scoreGeneral ?? 30;
   });
 
-  canViewOrgUnit = computed(() => {
-    return this.authService.isToTruong() || this.authService.isBGH() || this.authService.isAdmin() || this.authService.isSystemAdmin();
+  taskScore = computed(() => {
+    return this.scoreSheet()?.scoreTask || 0;
   });
 
-  canViewSchool = computed(() => {
-    return this.authService.isBGH() || this.authService.isAdmin() || this.authService.isSystemAdmin();
+  bonusScore = computed(() => {
+    return this.scoreSheet()?.scoreBonusCapped || 0;
   });
 
-  currentOrgUnitName = computed(() => {
-    const user = this.authService.currentUser();
-    return user?.primaryOrgUnitName || 'Tổ Chuyên Môn';
+  finalScore = computed(() => {
+    const s = this.scoreSheet();
+    if (!s) return 30;
+    if (typeof s.scoreFinal === 'number') return s.scoreFinal;
+    const gen = s.scoreGeneral ?? 30;
+    const task = s.scoreTask ?? 0;
+    const bonus = s.scoreBonusCapped ?? 0;
+    return Math.min(100, Math.round((gen + task + bonus) * 100) / 100);
   });
 
-  get selectedPeriodLabel(): string {
-    return this.kpiService.getPeriodLabel(this.selectedPeriod());
+  startEditGeneralScore(): void {
+    this.inputGeneralScore = this.generalScore();
+    this.isEditingGeneralScore = true;
   }
 
-  ngOnInit() {
-    this.loadAllKpiData();
+  cancelEditGeneralScore(): void {
+    this.isEditingGeneralScore = false;
   }
 
-  loadAllKpiData() {
-    this.loadSheetData();
-    this.loadBackendKpiSummary();
-    this.loadDefinitions();
-    if (this.canViewOrgUnit()) {
-      this.loadOrgSummary();
-    }
-    if (this.canViewSchool()) {
-      this.loadSchoolSummary();
-    }
-  }
+  saveGeneralScore(): void {
+    const val = Math.min(30, Math.max(0, Number(this.inputGeneralScore) || 0));
+    const periodId = this.selectedPeriodId();
+    const userId = this.authService.currentUser()?.id;
+    if (!periodId || !userId) return;
 
-  loadDefinitions() {
-    this.kpiService.getDefinitions().subscribe({
-      next: (defs) => this.kpiDefinitions.set(defs),
-      error: () => {},
-    });
-  }
-
-  switchTab(tab: KpiViewTab) {
-    this.activeTab.set(tab);
-    if (tab === 'TO_BO_PHAN' && !this.orgSummary()) {
-      this.loadOrgSummary();
-    } else if (tab === 'TOAN_TRUONG' && !this.schoolSummary()) {
-      this.loadSchoolSummary();
-    }
-  }
-
-  loadSheetData() {
-    this.isLoading.set(true);
-    this.kpiService.loadEvaluationSheet(this.selectedPeriod()).subscribe({
-      next: (data) => {
-        this.sheet.set(data);
-        this.rows.set(data.rows);
-        this.summary.set(data.summary);
-        this.isLoading.set(false);
-      },
-      error: () => this.isLoading.set(false),
-    });
-  }
-
-  loadBackendKpiSummary() {
-    this.kpiService.getMyKpi(this.selectedPeriod()).subscribe({
-      next: (res) => {
-        if (res && res.calculatedSummary) {
-          this.backendKpiSummary.set(res.calculatedSummary);
-        }
-        if (res && res.manualScores) {
-          const list = Object.entries(res.manualScores).map(([kpiCode, val]: [string, any]) => ({
-            kpiCode,
-            score: val.score,
-            note: val.note,
-            updatedAt: val.updatedAt,
-            name: this.getKpiDefinitionName(kpiCode),
-          }));
-          this.manualScoresList.set(list);
-        }
-      },
-      error: (err) => console.warn('Could not load backend KPI summary:', err),
-    });
-  }
-
-  getKpiDefinitionName(code: string): string {
-    const found = this.kpiDefinitions().find((d) => d.code === code);
-    return found ? found.name : code;
-  }
-
-  openManualScoreModal() {
-    this.selectedManualKpiCode = '';
-    this.manualScoreValue = null;
-    this.manualScoreNote = '';
-    this.manualScoreError.set(null);
-    this.manualScoreSuccess.set(null);
-    this.isManualScoreModalOpen.set(true);
-  }
-
-  closeManualScoreModal() {
-    this.isManualScoreModalOpen.set(false);
-  }
-
-  submitManualScore() {
-    if (!this.selectedManualKpiCode) {
-      this.manualScoreError.set('Vui lòng chọn hoặc nhập mã chỉ số KPI.');
-      return;
-    }
-    if (this.manualScoreValue === null || isNaN(this.manualScoreValue) || this.manualScoreValue < 0 || this.manualScoreValue > 100) {
-      this.manualScoreError.set('Điểm số phải từ 0 đến 100.');
-      return;
-    }
-
-    this.isSavingManualScore.set(true);
-    this.manualScoreError.set(null);
-    this.manualScoreSuccess.set(null);
-
+    this.isSavingGeneral = true;
     this.kpiService
-      .updateManualScore({
-        periodKey: this.selectedPeriod(),
-        kpiCode: this.selectedManualKpiCode,
-        score: Number(this.manualScoreValue),
-        note: this.manualScoreNote.trim() || undefined,
+      .updateScoreGeneral({
+        employeeId: userId,
+        periodId,
+        scoreGeneral: val,
       })
       .subscribe({
-        next: () => {
-          this.isSavingManualScore.set(false);
-          this.manualScoreSuccess.set('Cập nhật điểm KPI thành công!');
-          this.loadBackendKpiSummary();
-          setTimeout(() => {
-            this.closeManualScoreModal();
-          }, 1200);
+        next: (res) => {
+          this.isSavingGeneral = false;
+          this.isEditingGeneralScore = false;
+          if (res?.data?.calc) {
+            this.scoreSheet.set({
+              ...res.data.calc,
+              classificationEvaluation: res.data.classificationEval,
+            });
+          }
+          this.loadScoreSheet();
         },
         error: (err) => {
-          this.isSavingManualScore.set(false);
-          this.manualScoreError.set(err.error?.message || err.message || 'Lưu điểm thất bại.');
+          alert(err.error?.message || 'Có lỗi xảy ra khi cập nhật điểm');
+          this.isSavingGeneral = false;
         },
       });
   }
 
-  loadOrgSummary() {
-    const user = this.authService.currentUser();
-    const orgUnitId = user?.primaryOrgUnitId || 'org-bgh';
-    this.kpiService.getOrgUnitKpiSummary(orgUnitId, this.selectedPeriod()).subscribe({
-      next: (res) => this.orgSummary.set(res),
-      error: (err) => console.warn('Could not load org KPI summary:', err),
-    });
-  }
+  bonusForm = {
+    taskId: '',
+    reasonType: 'tien_do_vuot' as 'tien_do_vuot' | 'sang_kien_moi',
+    reasonDescription: '',
+  };
 
-  loadSchoolSummary() {
-    this.kpiService.getSchoolKpiSummary(this.selectedPeriod()).subscribe({
-      next: (res) => this.schoolSummary.set(res),
-      error: (err) => console.warn('Could not load school KPI summary:', err),
-    });
-  }
+  selfScoreForm = {
+    scoreGeneral: 30,
+    note: '',
+  };
 
-  onPeriodChange(newPeriod: KpiPeriod) {
-    this.selectedPeriod.set(newPeriod);
-    this.loadAllKpiData();
-  }
+  tasksCount = computed(() => {
+    return this.scoreSheet()?.tasksBreakdown?.length || 0;
+  });
 
-  triggerBackendRecompute() {
-    this.isRecomputing.set(true);
-    this.kpiService.recomputeKpi(this.selectedPeriod()).subscribe({
-      next: () => {
-        this.isRecomputing.set(false);
-        this.loadAllKpiData();
-        alert('Đã tính toán lại toàn bộ dữ liệu KPI tự động thành công!');
-      },
-      error: (err) => {
-        this.isRecomputing.set(false);
-        alert(err.message || 'Lỗi khi tính toán lại KPI');
-      },
-    });
-  }
+  completedTasks = computed(() => {
+    return this.scoreSheet()?.tasksBreakdown?.filter((t) => t.progressPercent >= 100) || [];
+  });
 
-  onDataChanged() {
-    const currentRows = this.rows();
-    const recalculated = this.kpiService.recalculateSheet(currentRows);
-    this.rows.set(recalculated.rows);
-    this.summary.set(recalculated.summary);
-  }
+  classificationLabel = computed(() => {
+    return this.scoreSheet()?.classificationEvaluation?.classificationLabel || 'Không hoàn thành nhiệm vụ';
+  });
 
-  onActualQuantityValChanged(row: KpiRowItem) {
-    row.actualQuantityNote = `${row.actualQuantityVal}`;
-    this.onDataChanged();
-  }
+  classificationColor = computed(() => {
+    return this.scoreSheet()?.classificationEvaluation?.classificationColor || '#dc2626';
+  });
 
-  addNewRow() {
-    const newRow: KpiRowItem = {
-      id: `kpi-row-custom-${Date.now()}`,
-      stt: this.rows().length + 1,
-      taskTitle: 'Nhiệm vụ mới',
-      deliverable: 'Báo cáo',
-      targetQuantity: 1,
-      timeline: 'Hàng tháng',
-      weightCoefficient: 1.0,
-      targetWeightedQuantity: 1.0,
-      actualQuantityNote: '1',
-      actualQuantityVal: 1,
-      actualWeightedQuantity: 1.0,
-      qualityNote: 'Đạt chuẩn',
-      qualityWeightedScore: 1.0,
-      timelineNote: 'Đúng hạn',
-      timelineWeightedScore: 1.0,
-      leadershipNote: 'Chủ động',
-      leadershipWeightedScore: 1.0,
-    };
+  classificationSubText = computed(() => {
+    const s = this.scoreSheet();
+    if (!s) return 'Chưa có dữ liệu đánh giá';
+    if (s.classificationEvaluation?.hasUncompletedTasks) {
+      return 'Có nhiệm vụ chưa hoàn thành 100% trong kỳ';
+    }
+    return 'Cần người có thẩm quyền xác nhận điều kiện bắt buộc kèm theo';
+  });
 
-    this.rows.update((r) => [...r, newRow]);
-    this.onDataChanged();
-  }
+  diagnosticWarnings = computed(() => {
+    const s = this.scoreSheet();
+    if (!s) return [];
+    const warnings: string[] = [];
 
-  duplicateRow(index: number) {
-    const target = this.rows()[index];
-    if (!target) return;
-
-    const copy: KpiRowItem = {
-      ...target,
-      id: `kpi-row-copy-${Date.now()}`,
-      taskTitle: `${target.taskTitle} (Bản sao)`,
-    };
-
-    this.rows.update((r) => {
-      const next = [...r];
-      next.splice(index + 1, 0, copy);
-      return next;
-    });
-    this.onDataChanged();
-  }
-
-  deleteRow(index: number) {
-    if (this.rows().length <= 1) {
-      alert('Bảng đánh giá cần có tối thiểu 1 nhiệm vụ.');
-      return;
+    // Check Khac overuse
+    const khacAxis = s.axisBreakdown?.find((a) => a.axisCode === 'khac');
+    if ((khacAxis?.percentageOfTaskScore || 0) > 20) {
+      warnings.push(`Trục 'Khác' chiếm ${khacAxis?.percentageOfTaskScore}% điểm (vượt ngưỡng 20%) — Đề nghị rà soát và chuyển việc sang các trục chuyên biệt.`);
     }
 
-    if (confirm('Bạn có chắc chắn muốn xóa nhiệm vụ này khỏi bảng đánh giá KPI?')) {
-      this.rows.update((r) => r.filter((_, i) => i !== index));
-      this.onDataChanged();
+    // Check suspicious tasks
+    const suspiciousCount = s.tasksBreakdown?.filter((t) => t.warningFlags && t.warningFlags.length > 0).length || 0;
+    if (suspiciousCount > 0) {
+      warnings.push(`Có ${suspiciousCount} nhiệm vụ có cảnh báo kiểm chuẩn (tạo sát hạn chốt kỳ hoặc trọng số nhỏ).`);
     }
+
+    return warnings;
+  });
+
+  ngOnInit(): void {
+    this.loadPeriods();
+
+    this.academicYearService.yearChanged$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.loadPeriods();
+      });
   }
 
-  importFromMyTasks() {
-    this.isLoading.set(true);
-    this.kpiService.importFromAssignedTasks(this.selectedPeriod()).subscribe({
-      next: (importedRows) => {
-        const recalculated = this.kpiService.recalculateSheet(importedRows);
-        this.rows.set(recalculated.rows);
-        this.summary.set(recalculated.summary);
-        this.isLoading.set(false);
-      },
-      error: () => this.isLoading.set(false),
-    });
-  }
-
-  saveSheet() {
-    const cur = this.sheet();
-    if (!cur) return;
-
-    const updatedSheet: KpiEvaluationSheet = {
-      ...cur,
-      period: this.selectedPeriod(),
-      periodLabel: this.selectedPeriodLabel,
-      rows: this.rows(),
-      summary: this.summary(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    this.kpiService.saveEvaluationSheet(updatedSheet);
-    this.sheet.set(updatedSheet);
-    alert('Đã lưu bảng tính KPI thành công!');
-  }
-
-  exportToExcel() {
-    const cur = this.sheet();
-    if (!cur) return;
-
-    // First try backend excel export (generates rich ExcelJS workbook)
-    this.kpiService.exportKpiExcelBlob(this.selectedPeriod()).subscribe({
-      next: (blob) => {
-        const filename = `Bang_Tinh_KPI_${this.selectedPeriod()}_${cur.userName.replace(/\s+/g, '_')}.xlsx`;
-        this.kpiService.downloadExcelBlob(blob, filename);
-      },
-      error: () => {
-        // Fallback to client-side HTML format
-        const fullSheet: KpiEvaluationSheet = {
-          ...cur,
-          period: this.selectedPeriod(),
-          periodLabel: this.selectedPeriodLabel,
-          rows: this.rows(),
-          summary: this.summary(),
-          updatedAt: new Date().toISOString(),
-        };
-        this.kpiService.exportToExcel(fullSheet);
-      },
-    });
-  }
-
-  viewMemberKpi(user: any) {
-    this.kpiService.getUserKpi(user.id, this.selectedPeriod()).subscribe({
-      next: (res) => {
-        if (res && res.calculatedSummary) {
-          alert(`Điểm KPI của ${user.fullName}:\n• Điểm A (Số lượng): ${res.calculatedSummary.scoreA}\n• Điểm B (Chất lượng): ${res.calculatedSummary.scoreB}\n• Điểm C (Tiến độ): ${res.calculatedSummary.scoreC}\n• Điểm D (Điều hành): ${res.calculatedSummary.scoreD}\n• Điểm tổng hợp: ${res.calculatedSummary.finalScore} (${this.getGradeLabel(res.calculatedSummary.finalGrade)})`);
+  loadPeriods(): void {
+    const selectedYear = this.academicYearService.currentAcademicYear();
+    this.kpiService.getPeriods(selectedYear).subscribe({
+      next: (periods) => {
+        this.periods.set(periods);
+        if (periods.length > 0) {
+          const current = periods.find((p) => p.status === 'open') || periods[0];
+          this.selectedPeriodId.set(current.id);
+          this.loadScoreSheet();
         }
       },
-      error: (err) => alert('Không thể lấy chi tiết KPI của cán bộ này: ' + err.message),
+      error: (err) => console.error('Failed to load periods:', err),
     });
   }
 
-  printReport() {
+  onPeriodChange(periodId: string): void {
+    this.selectedPeriodId.set(periodId);
+    if (periodId === 'annual_rollup') {
+      this.loadAnnualRollup();
+    } else {
+      this.loadScoreSheet();
+    }
+  }
+
+  loadScoreSheet(): void {
+    const periodId = this.selectedPeriodId();
+    if (!periodId || periodId === 'annual_rollup') return;
+
+    this.kpiService.getMyScoreSheet(periodId).subscribe({
+      next: (sheet) => {
+        this.scoreSheet.set(sheet);
+        if (sheet?.scoreGeneral !== undefined) {
+          this.selfScoreForm.scoreGeneral = sheet.scoreGeneral;
+        }
+      },
+      error: (err) => console.error('Failed to load score sheet:', err),
+    });
+  }
+
+  loadAnnualRollup(): void {
+    this.isLoadingAnnual.set(true);
+    const selectedYear = this.academicYearService.currentAcademicYear();
+    this.kpiService.getAnnualRollup(undefined, selectedYear).subscribe({
+      next: (data) => {
+        this.annualRollupData.set(data);
+        this.isLoadingAnnual.set(false);
+      },
+      error: (err) => {
+        console.error('Failed to load annual rollup:', err);
+        this.isLoadingAnnual.set(false);
+      },
+    });
+  }
+
+  openCreateTaskDialog(): void {
+    this.editingTask.set(null);
+    this.isTaskDialogOpen.set(true);
+  }
+
+  editTask(task: any): void {
+    this.editingTask.set(task);
+    this.isTaskDialogOpen.set(true);
+  }
+
+  onTaskSaved(savedTask: any): void {
+    this.isTaskDialogOpen.set(false);
+    if (this.selectedPeriodId() === 'annual_rollup') {
+      this.loadAnnualRollup();
+    } else {
+      this.loadScoreSheet();
+    }
+  }
+
+  onTaskDialogCancelled(): void {
+    this.isTaskDialogOpen.set(false);
+  }
+
+  openBonusModal(): void {
+    this.bonusForm = {
+      taskId: '',
+      reasonType: 'tien_do_vuot',
+      reasonDescription: '',
+    };
+    this.showBonusModal.set(true);
+  }
+
+  openBonusModalForTask(task: any): void {
+    this.bonusForm = {
+      taskId: task.id,
+      reasonType: 'tien_do_vuot',
+      reasonDescription: '',
+    };
+    this.showBonusModal.set(true);
+  }
+
+  submitBonusProposal(): void {
+    if (!this.bonusForm.taskId) return;
+    this.isSubmittingBonus.set(true);
+
+    this.kpiService
+      .proposeBonus({
+        taskId: this.bonusForm.taskId,
+        periodId: this.selectedPeriodId() === 'annual_rollup' ? (this.periods()[0]?.id || '') : this.selectedPeriodId(),
+        reasonType: this.bonusForm.reasonType,
+        reasonDescription: this.bonusForm.reasonDescription,
+      })
+      .subscribe({
+        next: () => {
+          this.isSubmittingBonus.set(false);
+          this.showBonusModal.set(false);
+          alert('Đề xuất điểm thưởng (+5%) đã được gửi lên Cấp quản lý phê duyệt!');
+          this.loadScoreSheet();
+        },
+        error: (err) => {
+          alert(err.error?.message || 'Có lỗi xảy ra khi gửi đề xuất thưởng');
+          this.isSubmittingBonus.set(false);
+        },
+      });
+  }
+
+  openSubmitScoreModal(): void {
+    this.showSubmitScoreModal.set(true);
+  }
+
+  confirmSubmitScore(): void {
+    this.isSubmittingScore.set(true);
+    this.kpiService
+      .submitKpiScore(
+        this.selectedPeriodId(),
+        this.selfScoreForm.scoreGeneral,
+        this.selfScoreForm.note
+      )
+      .subscribe({
+        next: () => {
+          this.isSubmittingScore.set(false);
+          this.showSubmitScoreModal.set(false);
+          alert('Bảng điểm tự đánh giá đã được nộp thành công!');
+          this.loadScoreSheet();
+        },
+        error: (err) => {
+          alert(err.error?.message || 'Lỗi khi nộp bảng điểm');
+          this.isSubmittingScore.set(false);
+        },
+      });
+  }
+
+  printScorecard(): void {
     window.print();
   }
 
-  getRatingBadgeText(): string {
-    const s = this.summary().finalScore;
-    if (s >= 90) return 'Loại A (Xuất sắc)';
-    if (s >= 80) return 'Loại B (Tốt)';
-    if (s >= 65) return 'Loại C (Hoàn thành)';
-    return 'Loại D';
+  openTask(taskId: string): void {
+    this.router.navigate(['/tasks', taskId]);
   }
 
-  getGradeLabel(grade?: string): string {
-    switch (grade) {
-      case 'XUAT_SAC': return 'Xuất sắc (Loại A)';
-      case 'TOT': return 'Tốt (Loại B)';
-      case 'HOAN_THANH': return 'Hoàn thành (Loại C)';
-      case 'CHUA_DAT': return 'Chưa đạt (Loại D)';
-      default: return 'Chưa xếp loại';
+  getQuarterStatusClass(status: string): string {
+    switch (status) {
+      case 'open':
+        return 'st-open';
+      case 'closed':
+        return 'st-closed';
+      default:
+        return 'st-draft';
     }
   }
 
-  getGradeBadgeColor(grade?: string): string {
-    switch (grade) {
-      case 'XUAT_SAC': return '#059669';
-      case 'TOT': return '#2563EB';
-      case 'HOAN_THANH': return '#D97706';
-      case 'CHUA_DAT': return '#E11D48';
-      default: return '#64748B';
+  getClassificationLabel(cls: string): string {
+    switch (cls) {
+      case 'xuat_sac':
+        return 'Xuất sắc';
+      case 'tot':
+        return 'Tốt';
+      case 'hoan_thanh':
+        return 'Hoàn thành';
+      case 'khong_hoan_thanh':
+        return 'Chưa đạt';
+      default:
+        return 'Chưa đánh giá';
     }
   }
 
-  calculateHighPerformanceRate(): number {
-    const dist = this.schoolSummary()?.distribution;
-    const total = this.schoolSummary()?.totalStaff;
-    if (!dist || !total || total === 0) return 0;
-    const high = (dist.xuatSac || 0) + (dist.tot || 0);
-    return Math.round((high / total) * 100);
+  getClassificationBadgeClass(cls: string): string {
+    switch (cls) {
+      case 'xuat_sac':
+        return 'pill-xuat-sac';
+      case 'tot':
+        return 'pill-tot';
+      case 'hoan_thanh':
+        return 'pill-hoan-thanh';
+      case 'khong_hoan_thanh':
+      default:
+        return 'pill-chua-dat';
+    }
+  }
+
+  getAxisColor(axisCode: string): string {
+    const colors: { [k: string]: string } = {
+      dang: '#dc2626',
+      chuyen_mon: '#2563eb',
+      phong_trao: '#d97706',
+      hanh_chinh: '#059669',
+      chuyen_doi_so: '#7c3aed',
+      antt: '#0891b2',
+      y_te: '#e11d48',
+      kttc: '#4f46e5',
+      khac: '#64748b',
+    };
+    return colors[axisCode] || '#0284c7';
   }
 }

@@ -105,6 +105,7 @@ export class PlanService {
     level?: PlanLevel;
     parentPlanId?: string | null;
     search?: string;
+    schoolYear?: string;
   }) {
     const where: any = {};
     if (params.tenantId) where.tenantId = params.tenantId;
@@ -113,6 +114,22 @@ export class PlanService {
     if (params.parentPlanId !== undefined) where.parentPlanId = params.parentPlanId;
     if (params.search) {
       where.title = { contains: params.search, mode: 'insensitive' };
+    }
+    if (params.schoolYear) {
+      const parts = params.schoolYear.split('-');
+      if (parts.length === 2) {
+        const startY = parseInt(parts[0].trim(), 10);
+        const endY = parseInt(parts[1].trim(), 10);
+        if (!isNaN(startY) && !isNaN(endY)) {
+          const startDate = new Date(Date.UTC(startY, 7, 15, 0, 0, 0));
+          const endDate = new Date(Date.UTC(endY, 7, 31, 23, 59, 59, 999));
+          where.OR = [
+            { startDate: { gte: startDate, lte: endDate } },
+            { endDate: { gte: startDate, lte: endDate } },
+            { createdAt: { gte: startDate, lte: endDate } },
+          ];
+        }
+      }
     }
 
     return prisma.plan.findMany({
@@ -134,9 +151,10 @@ export class PlanService {
   /**
    * Lấy cây kế hoạch đầy đủ lồng nhau kèm danh sách Task con ở mỗi cấp
    */
-  async getTree(rootPlanId?: string, schoolId?: string, tenantId?: string): Promise<PlanTreeNode[]> {
+  async getTree(rootPlanId?: string, schoolId?: string, tenantId?: string, schoolYear?: string): Promise<PlanTreeNode[]> {
     const scopeKey = tenantId || schoolId || 'all';
-    const cacheKey = `plans:tree:${rootPlanId || 'root'}:${scopeKey}`;
+    const yearKey = schoolYear || 'default';
+    const cacheKey = `plans:tree:${rootPlanId || 'root'}:${scopeKey}:${yearKey}`;
     const cached = appCache.get<PlanTreeNode[]>(cacheKey);
     if (cached) {
       return cached;
@@ -145,6 +163,23 @@ export class PlanService {
     let whereCondition: any = {};
     if (tenantId) whereCondition.tenantId = tenantId;
     else if (schoolId) whereCondition.schoolId = schoolId;
+
+    if (schoolYear) {
+      const parts = schoolYear.split('-');
+      if (parts.length === 2) {
+        const startY = parseInt(parts[0].trim(), 10);
+        const endY = parseInt(parts[1].trim(), 10);
+        if (!isNaN(startY) && !isNaN(endY)) {
+          const startDate = new Date(Date.UTC(startY, 7, 15, 0, 0, 0));
+          const endDate = new Date(Date.UTC(endY, 7, 31, 23, 59, 59, 999));
+          whereCondition.OR = [
+            { startDate: { gte: startDate, lte: endDate } },
+            { endDate: { gte: startDate, lte: endDate } },
+            { createdAt: { gte: startDate, lte: endDate } },
+          ];
+        }
+      }
+    }
 
     if (rootPlanId) {
       // Kiểm tra plan tồn tại

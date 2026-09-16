@@ -7,6 +7,7 @@ import { DashboardService } from '../../core/services/dashboard.service';
 import { UserService } from '../../core/services/user.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ContactCardService } from '../../core/services/contact-card.service';
+import { AcademicYearService } from '../../core/services/academic-year.service';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
 import {
@@ -90,9 +91,14 @@ import { LocationItem } from '../../core/models/user.models';
       <!-- TOP FILTER & TITLE BAR -->
       <div class="dashboard-header">
         <div class="header-title-box">
-          <h1 class="page-title">Tổng Quan Điều Hành</h1>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h1 class="page-title">Tổng Quan Điều Hành</h1>
+            <span class="badge-year-tag" [class.is-archived]="!academicYearService.isCurrentDefaultYear()">
+              📅 Năm học {{ academicYearService.formattedCurrentYear() }}
+            </span>
+          </div>
           <p class="page-subtitle">
-            Theo dõi tiến độ công việc và kế hoạch {{ authService.currentUser()?.tenantName || authService.currentUser()?.schoolName || 'nhà trường' }}
+            Theo dõi tiến độ công việc và kế hoạch Năm học {{ academicYearService.formattedCurrentYear() }} • {{ authService.currentUser()?.tenantName || authService.currentUser()?.schoolName || 'Nhà trường' }}
           </p>
         </div>
 
@@ -473,6 +479,24 @@ import { LocationItem } from '../../core/models/user.models';
             font-weight: 800;
             color: #1F3864;
             margin-bottom: 4px;
+          }
+
+          .badge-year-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: #F0FDF4;
+            color: #15803D;
+            border: 1px solid #BBF7D0;
+            font-size: 0.78rem;
+            font-weight: 700;
+
+            &.is-archived {
+              background: #FFFBEB;
+              color: #B45309;
+              border-color: #FDE68A;
+            }
           }
 
           .page-subtitle {
@@ -1342,11 +1366,12 @@ import { LocationItem } from '../../core/models/user.models';
   ],
 })
 export class DashboardComponent implements OnInit, OnDestroy {
-  dashboardService = inject(DashboardService);
-  userService = inject(UserService);
+  private dashboardService = inject(DashboardService);
+  private userService = inject(UserService);
   authService = inject(AuthService);
   private contactCardService = inject(ContactCardService);
   private router = inject(Router);
+  academicYearService = inject(AcademicYearService);
 
   Math = Math;
 
@@ -1378,6 +1403,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   private accountSub?: Subscription;
+  private yearSub?: Subscription;
 
   ngOnInit() {
     this.loadLocations();
@@ -1389,10 +1415,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.applyUserDefaultLocation();
       this.loadDashboardData();
     });
+
+    // Subscribe to academic year change
+    this.yearSub = this.academicYearService.yearChanged$.subscribe(() => {
+      this.loadDashboardData();
+    });
   }
 
   ngOnDestroy() {
     this.accountSub?.unsubscribe();
+    this.yearSub?.unsubscribe();
   }
 
   applyUserDefaultLocation() {

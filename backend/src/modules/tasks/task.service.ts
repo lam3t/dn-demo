@@ -5,6 +5,7 @@ import { planService } from '../plans/plan.service';
 import appCache from '../../utils/cache';
 import { resolveTenantId } from '../../utils/tenant.util';
 import { QueueService } from '../../services/queue.service';
+import { TaskAxisValidationService } from '../kpi/services/task-axis-validation.service';
 
 export interface TaskQueryParams {
   status?: TaskStatus;
@@ -25,6 +26,11 @@ export interface TaskQueryParams {
   pageSize?: number;
   schoolId?: string;
   tenantId?: string;
+  schoolYear?: string;
+  periodId?: string;
+  primaryAxisId?: string;
+  kpiOnly?: boolean | string;
+  nonKpiOnly?: boolean | string;
 }
 
 export interface CreateTaskDto {
@@ -45,6 +51,13 @@ export interface CreateTaskDto {
   createdById: string;
   isProposal?: boolean;
   proposalNote?: string;
+  // Flexible KPI fields
+  periodId?: string | null;
+  primaryAxisId?: string | null;
+  taskSubtype?: string | null;
+  weightScore?: number | null;
+  evidenceFiles?: any;
+  secondaryAxisIds?: string[];
   assignments?: Array<{
     userId: string;
     role: TaskAssignmentRole;
@@ -92,6 +105,25 @@ export class TaskService {
 
     if (params.planId) {
       conditions.push({ planId: params.planId });
+    }
+
+    if (params.schoolYear) {
+      const parts = params.schoolYear.split('-');
+      if (parts.length === 2) {
+        const startY = parseInt(parts[0].trim(), 10);
+        const endY = parseInt(parts[1].trim(), 10);
+        if (!isNaN(startY) && !isNaN(endY)) {
+          const startDate = new Date(Date.UTC(startY, 7, 15, 0, 0, 0));
+          const endDate = new Date(Date.UTC(endY, 7, 31, 23, 59, 59, 999));
+          conditions.push({
+            OR: [
+              { createdAt: { gte: startDate, lte: endDate } },
+              { startDate: { gte: startDate, lte: endDate } },
+              { dueDate: { gte: startDate, lte: endDate } },
+            ],
+          });
+        }
+      }
     }
 
     if (params.isProposal !== undefined) {
@@ -146,6 +178,20 @@ export class TaskService {
       });
     }
 
+    // Lọc theo Trục kết quả & Kỳ KPI
+    if (params.periodId) {
+      conditions.push({ periodId: params.periodId });
+    }
+    if (params.primaryAxisId) {
+      conditions.push({ primaryAxisId: params.primaryAxisId });
+    }
+    if (params.kpiOnly === true || params.kpiOnly === 'true') {
+      conditions.push({ primaryAxisId: { not: null } });
+    }
+    if (params.nonKpiOnly === true || params.nonKpiOnly === 'true') {
+      conditions.push({ primaryAxisId: null });
+    }
+
     const where = conditions.length > 0 ? { AND: conditions } : {};
 
     const [total, rawTasks] = await Promise.all([
@@ -182,6 +228,34 @@ export class TaskService {
               id: true,
               name: true,
               code: true,
+            },
+          },
+          primaryAxis: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              displayOrder: true,
+              requiresSubtype: true,
+            },
+          },
+          period: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              schoolYear: true,
+            },
+          },
+          secondaryAxisTags: {
+            include: {
+              axis: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true,
+                },
+              },
             },
           },
           createdBy: {
@@ -286,6 +360,41 @@ export class TaskService {
         location: true,
         orgUnit: true,
         assignedOrgUnit: true,
+        primaryAxis: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            displayOrder: true,
+            requiresSubtype: true,
+          },
+        },
+        period: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            schoolYear: true,
+          },
+        },
+        secondaryAxisTags: {
+          include: {
+            axis: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+              },
+            },
+          },
+        },
+        bonusProposals: {
+          include: {
+            approvedBy: {
+              select: { id: true, fullName: true },
+            },
+          },
+        },
         createdBy: {
           select: {
             id: true,
@@ -410,6 +519,43 @@ export class TaskService {
       }
     }
 
+    // Validate & evaluate Flexible KPI Primary Axis if provided
+    let warningFlags: string[] | null = null;
+    if (data.primaryAxisId) {
+      const targetUserId =
+        data.assignments?.find((a) => a.role === TaskAssignmentRole.CHU_TRI)?.userId ||
+        data.createdById;
+
+      // 1. Validate role scope & restricted axis rules
+      await TaskAxisValidationService.validateTaskPrimaryAxis({
+        tenantId,
+        employeeId: targetUserId,
+        orgUnitId: data.orgUnitId || undefined,
+        periodId: data.periodId || undefined,
+        primaryAxisId: data.primaryAxisId,
+        taskSubtype: data.taskSubtype || undefined,
+      });
+
+      // 2. Run anti-fraud heuristics
+      const period = data.periodId
+        ? await prisma.evaluationPeriod.findUnique({ where: { id: data.periodId } })
+        : null;
+
+      const detected = await TaskAxisValidationService.detectTaskWarningFlags({
+        tenantId,
+        employeeId: targetUserId,
+        periodId: data.periodId || undefined,
+        primaryAxisId: data.primaryAxisId,
+        weightScore: data.weightScore ?? 1.0,
+        evidenceFiles: data.evidenceFiles,
+        periodEndDate: period?.endDate,
+        taskCreatedAt: new Date(),
+      });
+      if (detected.length > 0) {
+        warningFlags = detected;
+      }
+    }
+
     const task = await prisma.task.create({
       data: {
         tenantId,
@@ -437,6 +583,20 @@ export class TaskService {
         proposalStatus: data.isProposal ? 'CHO_DUYET' : null,
         proposalNote: data.proposalNote || null,
         proposedById: data.isProposal ? data.createdById : null,
+        // Flexible KPI fields
+        periodId: data.primaryAxisId ? (data.periodId || null) : null,
+        primaryAxisId: data.primaryAxisId || null,
+        taskSubtype: data.primaryAxisId ? (data.taskSubtype || null) : null,
+        weightScore: data.primaryAxisId ? (data.weightScore ?? 1.0) : null,
+        evidenceFiles: (data.evidenceFiles as any) || undefined,
+        warningFlags: warningFlags && warningFlags.length > 0 ? (warningFlags as any) : undefined,
+        ...(data.secondaryAxisIds && data.secondaryAxisIds.length > 0
+          ? {
+              secondaryAxisTags: {
+                create: data.secondaryAxisIds.map((axisId) => ({ axisId })),
+              },
+            }
+          : {}),
         assignments: {
           create: (data.assignments || []).map((a) => ({
             tenantId,
@@ -537,6 +697,21 @@ export class TaskService {
         note: `Đánh giá kết quả: [${payload.rating}] ${payload.comment ? '— ' + payload.comment : ''}`,
       },
     });
+
+    // Gửi thông báo kết quả đánh giá cho người phụ trách
+    const taskAssignees = await prisma.taskAssignment.findMany({ where: { taskId } });
+    for (const a of taskAssignees) {
+      if (a.userId !== currentUserId) {
+        await QueueService.pushNotification({
+          tenantId: task.tenantId,
+          userId: a.userId,
+          type: NotificationType.DA_HOAN_THANH,
+          title: `Đánh giá kết quả: ${task.title}`,
+          content: `Xếp loại: [${payload.rating}] ${payload.comment ? '— Nhận xét: ' + payload.comment : ''}`,
+          link: `/tasks/${taskId}`,
+        });
+      }
+    }
 
     appCache.invalidateTags(['tasks', 'dashboard']);
     return updatedTask;
@@ -692,6 +867,30 @@ export class TaskService {
       }),
     ]);
 
+    // Bắn thông báo cập nhật phân công RACI
+    for (const a of assignments) {
+      if (a.userId !== currentUserId) {
+        const roleLabel =
+          a.role === TaskAssignmentRole.CHU_TRI
+            ? 'Chủ trì'
+            : a.role === TaskAssignmentRole.PHOI_HOP
+            ? 'Phối hợp'
+            : a.role === TaskAssignmentRole.KIEM_TRA
+            ? 'Kiểm tra'
+            : a.role === TaskAssignmentRole.PHE_DUYET
+            ? 'Phê duyệt'
+            : 'Theo dõi';
+        await QueueService.pushNotification({
+          tenantId: task.tenantId,
+          userId: a.userId,
+          type: NotificationType.GIAO_VIEC,
+          title: `Phân công nhiệm vụ: ${task.title}`,
+          content: `Bạn được phân công vai trò [${roleLabel}] trong công việc [${task.code || ''}].`,
+          link: `/tasks/${taskId}`,
+        });
+      }
+    }
+
     appCache.invalidateTags(['tasks', 'dashboard', 'users']);
     return this.getByIdFull(taskId);
   }
@@ -821,6 +1020,74 @@ export class TaskService {
       },
     });
 
+    // Gửi thông báo chuyển trạng thái phù hợp từng ngữ cảnh
+    const actor = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });
+    const actorName = actor?.fullName || 'Người xử lý';
+
+    if (targetStatus === TaskStatus.CHO_KIEM_TRA) {
+      const targets = new Set<string>();
+      task.assignments
+        .filter((a) => a.role === TaskAssignmentRole.KIEM_TRA || a.role === TaskAssignmentRole.PHE_DUYET)
+        .forEach((a) => targets.add(a.userId));
+      if (task.createdById) targets.add(task.createdById);
+      targets.delete(userId);
+
+      for (const tId of targets) {
+        await QueueService.pushNotification({
+          tenantId: task.tenantId,
+          userId: tId,
+          type: NotificationType.HE_THONG,
+          title: `Yêu cầu kiểm tra kết quả: ${task.title}`,
+          content: `${actorName} đã hoàn thành và gửi yêu cầu kiểm tra/nghiệm thu.`,
+          link: `/tasks/${task.id}`,
+        });
+      }
+    } else if (targetStatus === TaskStatus.BO_SUNG) {
+      const targets = new Set<string>();
+      task.assignments
+        .filter((a) => a.role === TaskAssignmentRole.CHU_TRI || a.role === TaskAssignmentRole.PHOI_HOP)
+        .forEach((a) => targets.add(a.userId));
+      targets.delete(userId);
+
+      for (const tId of targets) {
+        await QueueService.pushNotification({
+          tenantId: task.tenantId,
+          userId: tId,
+          type: NotificationType.CAN_BO_SUNG,
+          title: `Yêu cầu bổ sung: ${task.title}`,
+          content: `${actorName} yêu cầu bổ sung thông tin/minh chứng: ${note || 'Vui lòng kiểm tra lại kết quả.'}`,
+          link: `/tasks/${task.id}`,
+        });
+      }
+    } else if (targetStatus === TaskStatus.HOAN_THANH || targetStatus === TaskStatus.XAC_NHAN || targetStatus === TaskStatus.DONG) {
+      const targets = new Set<string>();
+      task.assignments.forEach((a) => targets.add(a.userId));
+      if (task.createdById) targets.add(task.createdById);
+      targets.delete(userId);
+
+      for (const tId of targets) {
+        await QueueService.pushNotification({
+          tenantId: task.tenantId,
+          userId: tId,
+          type: NotificationType.DA_HOAN_THANH,
+          title: `Công việc đã hoàn thành: ${task.title}`,
+          content: `${actorName} đã xác nhận nghiệm thu hoàn thành 100% công việc.`,
+          link: `/tasks/${task.id}`,
+        });
+      }
+    } else if (targetStatus === TaskStatus.DA_TIEP_NHAN || targetStatus === TaskStatus.DANG_THUC_HIEN) {
+      if (task.createdById && task.createdById !== userId) {
+        await QueueService.pushNotification({
+          tenantId: task.tenantId,
+          userId: task.createdById,
+          type: NotificationType.HE_THONG,
+          title: `Tiếp nhận công việc: ${task.title}`,
+          content: `${actorName} đã tiếp nhận và đang tiến hành thực hiện.`,
+          link: `/tasks/${task.id}`,
+        });
+      }
+    }
+
     if (task.planId) {
       await planService.recalculatePlanProgress(task.planId);
     }
@@ -833,7 +1100,10 @@ export class TaskService {
    * Cập nhật phần trăm tiến độ (% progress) + Ghi TaskLog
    */
   async updateProgress(taskId: string, progressPercent: number, userId: string, note?: string) {
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: { assignments: true },
+    });
     if (!task) {
       throw new AppError('Không tìm thấy công việc.', 404);
     }
@@ -860,6 +1130,28 @@ export class TaskService {
       },
     });
 
+    // Gửi thông báo cập nhật tiến độ cho người giao việc / kiểm tra
+    const actor = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });
+    const actorName = actor?.fullName || 'Người thực hiện';
+
+    const notifyTargets = new Set<string>();
+    if (task.createdById) notifyTargets.add(task.createdById);
+    task.assignments
+      .filter((a) => a.role === TaskAssignmentRole.KIEM_TRA || a.role === TaskAssignmentRole.PHE_DUYET)
+      .forEach((a) => notifyTargets.add(a.userId));
+    notifyTargets.delete(userId);
+
+    for (const targetUserId of notifyTargets) {
+      await QueueService.pushNotification({
+        tenantId: task.tenantId,
+        userId: targetUserId,
+        type: NotificationType.HE_THONG,
+        title: `Tiến độ [${sanitizedProgress}%]: ${task.title}`,
+        content: `${actorName} đã cập nhật tiến độ lên ${sanitizedProgress}%. ${note ? 'Ghi chú: ' + note : ''}`,
+        link: `/tasks/${taskId}`,
+      });
+    }
+
     if (task.planId) {
       await planService.recalculatePlanProgress(task.planId);
     }
@@ -884,15 +1176,59 @@ export class TaskService {
       startDate?: Date | string | null;
       dueDate?: Date | string | null;
       requireAttachment?: boolean;
+      periodId?: string | null;
+      primaryAxisId?: string | null;
+      taskSubtype?: string | null;
+      weightScore?: number | null;
+      evidenceFiles?: any;
+      secondaryAxisIds?: string[];
     },
-    tenantId?: string
+    tenantId?: string,
+    userId?: string,
+    userRoles?: Role[]
   ) {
     const where: any = { id };
     if (tenantId) where.tenantId = tenantId;
 
-    const existing = await prisma.task.findFirst({ where });
+    const existing = await prisma.task.findFirst({
+      where,
+      include: { assignments: true },
+    });
     if (!existing) {
       throw new AppError('Không tìm thấy công việc.', 404);
+    }
+
+    // Kiểm tra thẩm quyền điều chỉnh Hạn hoàn thành / Thông tin công việc
+    if (userId && data.dueDate !== undefined) {
+      const isCreator = existing.createdById === userId;
+      const isBGH = userRoles?.some((r) => r === Role.ADMIN || r === Role.HIEU_TRUONG || r === Role.PHO_HIEU_TRUONG);
+      if (!isCreator && !isBGH) {
+        throw new AppError('Chỉ Người giao việc hoặc Ban Giám hiệu mới có quyền điều chỉnh hạn hoàn thành.', 403);
+      }
+    }
+
+    if (data.primaryAxisId) {
+      const targetUserId =
+        existing.assignments?.find((a) => a.role === TaskAssignmentRole.CHU_TRI)?.userId ||
+        existing.createdById;
+
+      await TaskAxisValidationService.validateTaskPrimaryAxis({
+        tenantId: existing.tenantId,
+        employeeId: targetUserId,
+        orgUnitId: data.orgUnitId || existing.orgUnitId || undefined,
+        periodId: data.periodId || existing.periodId || undefined,
+        primaryAxisId: data.primaryAxisId,
+        taskSubtype: data.taskSubtype || existing.taskSubtype || undefined,
+      });
+    }
+
+    if (data.secondaryAxisIds) {
+      await prisma.kpiTaskAxisTag.deleteMany({ where: { taskId: id } });
+      if (data.secondaryAxisIds.length > 0) {
+        await prisma.kpiTaskAxisTag.createMany({
+          data: data.secondaryAxisIds.map((axisId) => ({ taskId: id, axisId })),
+        });
+      }
     }
 
     const result = await prisma.task.update({
@@ -908,8 +1244,35 @@ export class TaskService {
         ...(data.startDate !== undefined && { startDate: data.startDate ? new Date(data.startDate) : null }),
         ...(data.dueDate !== undefined && { dueDate: data.dueDate ? new Date(data.dueDate) : null }),
         ...(data.requireAttachment !== undefined && { requireAttachment: data.requireAttachment }),
+        ...(data.primaryAxisId !== undefined && {
+          primaryAxisId: data.primaryAxisId || null,
+          periodId: data.primaryAxisId ? (data.periodId !== undefined ? data.periodId : existing.periodId) : null,
+          taskSubtype: data.primaryAxisId ? (data.taskSubtype !== undefined ? data.taskSubtype : existing.taskSubtype) : null,
+          weightScore: data.primaryAxisId ? (data.weightScore !== undefined ? data.weightScore : existing.weightScore) : null,
+        }),
+        ...(data.evidenceFiles !== undefined && { evidenceFiles: data.evidenceFiles }),
       },
     });
+
+    // Nếu điều chỉnh hạn hoàn thành, gửi thông báo cho các bên liên quan
+    if (data.dueDate !== undefined && userId) {
+      const actor = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });
+      const actorName = actor?.fullName || 'Người quản trị';
+      const newDueDateStr = data.dueDate ? new Date(data.dueDate).toLocaleDateString('vi-VN') : 'Không giới hạn';
+
+      for (const a of existing.assignments) {
+        if (a.userId !== userId) {
+          await QueueService.pushNotification({
+            tenantId: existing.tenantId,
+            userId: a.userId,
+            type: NotificationType.NHAC_VIEC,
+            title: `Điều chỉnh hạn hoàn thành: ${existing.title}`,
+            content: `${actorName} đã điều chỉnh hạn hoàn thành công việc đến ngày ${newDueDateStr}.`,
+            link: `/tasks/${id}`,
+          });
+        }
+      }
+    }
 
     appCache.invalidateTags(['tasks', 'dashboard', 'plans']);
     return result;
@@ -927,7 +1290,7 @@ export class TaskService {
   ) {
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      include: { createdBy: true },
+      include: { createdBy: true, assignments: true },
     });
     if (!task) {
       throw new AppError('Không tìm thấy công việc.', 404);
@@ -958,20 +1321,27 @@ export class TaskService {
       },
     });
 
-    // Gửi thông báo đến những người được @mention
-    if (mentions && mentions.length > 0) {
-      for (const mentionedUserId of mentions) {
-        if (mentionedUserId !== userId) {
-          await QueueService.pushNotification({
-            tenantId: task.tenantId,
-            userId: mentionedUserId,
-            type: NotificationType.HE_THONG,
-            title: `${comment.user.fullName} đã nhắc đến bạn trong công việc [${task.title}]`,
-            content: content.slice(0, 120),
-            link: `/tasks/${taskId}`,
-          });
-        }
-      }
+    // Gửi thông báo đến tất cả thành viên liên quan và người được @mention
+    const commenterName = comment.user?.fullName || 'Thành viên';
+    const notifyUserIds = new Set<string>();
+
+    if (task.createdById) notifyUserIds.add(task.createdById);
+    (task.assignments || []).forEach((a) => notifyUserIds.add(a.userId));
+    (mentions || []).forEach((m) => notifyUserIds.add(m));
+    notifyUserIds.delete(userId); // Không gửi thông báo cho chính người bình luận
+
+    for (const targetUserId of notifyUserIds) {
+      const isMentioned = (mentions || []).includes(targetUserId);
+      await QueueService.pushNotification({
+        tenantId: task.tenantId,
+        userId: targetUserId,
+        type: NotificationType.HE_THONG,
+        title: isMentioned
+          ? `${commenterName} đã nhắc đến bạn trong [${task.title}]`
+          : `${commenterName} đã bình luận trong [${task.title}]`,
+        content: content.slice(0, 140),
+        link: `/tasks/${taskId}`,
+      });
     }
 
     appCache.invalidateTags(['tasks']);

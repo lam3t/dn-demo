@@ -1,9 +1,13 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { SchoolService } from '../../core/services/school.service';
 import { AuthService } from '../../core/services/auth.service';
-import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
+import { UserService } from '../../core/services/user.service';
+import { AcademicYearService } from '../../core/services/academic-year.service';
+import { SchoolInfo, LocationInfo } from '../../core/models/school.models';
+import { UserPickerItem } from '../../core/models/user.models';
 
 @Component({
   selector: 'app-school-info',
@@ -18,7 +22,11 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
             <span class="material-symbols-outlined icon-breadcrumb">school</span>
             <span>Hồ sơ & Quy mô Nhà trường</span>
             <span class="separator">/</span>
-            <span class="active">Năm học {{ school()?.schoolYear || '2026 - 2027' }}</span>
+            <span class="active">Năm học {{ school()?.schoolYear || academicYearService.formattedCurrentYear() }}</span>
+            <span *ngIf="!academicYearService.isCurrentDefaultYear()" class="archived-tag">
+              <span class="material-symbols-outlined mini-icon">history_toggle_off</span>
+              (Lưu trữ / Lịch sử)
+            </span>
           </div>
           <h1 class="page-title">
             {{ school()?.name || 'Chưa cập nhật tên trường' }}
@@ -34,25 +42,25 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
         </div>
 
         <div class="header-actions">
-          <button *ngIf="canEdit()" (click)="openEditModal()" class="btn-primary">
+          <button *ngIf="canEdit()" (click)="openEditModal()" class="btn-primary" id="btn-edit-school-info">
             <span class="material-symbols-outlined btn-icon">edit_note</span>
-            <span>Cập nhật thông tin</span>
+            <span>Cập nhật thông tin trường</span>
           </button>
-          <button (click)="loadSchoolData()" class="btn-secondary" title="Làm mới dữ liệu">
+          <button (click)="loadSchoolData()" class="btn-secondary" title="Làm mới dữ liệu" id="btn-refresh-school-info">
             <span class="material-symbols-outlined btn-icon" [class.spinning]="loading()">refresh</span>
             <span>Làm mới</span>
           </button>
         </div>
       </div>
 
-      <!-- Loading skeleton -->
+      <!-- Loading state -->
       <div *ngIf="loading()" class="loading-state">
         <div class="spinner"></div>
         <p>Đang tải thông tin quy mô trường học...</p>
       </div>
 
       <div *ngIf="!loading() && school()" class="content-wrapper">
-        <!-- 4 Stat Metric Cards -->
+        <!-- 4 Stat Metric Cards (Tự động tổng hợp từ các điểm trường & tài khoản) -->
         <div class="stats-grid">
           <div class="stat-card blue">
             <div class="stat-icon-wrapper">
@@ -85,7 +93,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
                 <span class="stat-unit">lớp</span>
               </div>
               <div class="stat-sub">
-                <span class="text-muted">Niên khóa {{ school()?.schoolYear || '2026-2027' }}</span>
+                <span class="text-muted">Tổng hợp từ {{ school()?.locations?.length || 1 }} điểm trường</span>
               </div>
             </div>
           </div>
@@ -101,7 +109,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
                 <span class="stat-unit">nhân sự</span>
               </div>
               <div class="stat-sub">
-                <span class="text-muted">{{ (school()?.locations?.length || 0) }} Điểm trường • {{ (school()?.totalOrgUnits || 0) }} Tổ/Phòng ban</span>
+                <span class="text-muted">Tổng hợp từ danh sách tài khoản</span>
               </div>
             </div>
           </div>
@@ -123,20 +131,33 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
           </div>
         </div>
 
-        <!-- Campus Cards Section -->
+        <!-- Campus Cards Section Header -->
         <div class="section-title-row">
-          <h2 class="section-title">
-            <span class="material-symbols-outlined title-icon">apartment</span>
-            Quy mô & Cơ sở vật chất Điểm trường (Năm học {{ school()?.schoolYear || '2026-2027' }})
-          </h2>
-          <span class="section-desc">Nguyên tắc một kế hoạch giáo dục - một chuẩn kiểm tra đánh giá - dữ liệu dùng chung</span>
+          <div class="title-with-desc">
+            <h2 class="section-title">
+              <span class="material-symbols-outlined title-icon">apartment</span>
+              Quy mô & Cơ sở vật chất Điểm trường (Năm học {{ school()?.schoolYear || academicYearService.formattedCurrentYear() }})
+            </h2>
+            <span class="section-desc">Cập nhật sĩ số học sinh và số lớp tại từng điểm trường để hệ thống tự động tổng hợp vào quy mô chung</span>
+          </div>
+          <div class="section-actions" *ngIf="canAddLocation()">
+            <button (click)="openAddLocationModal()" class="btn-add-loc" id="btn-add-new-location">
+              <span class="material-symbols-outlined btn-icon">add_location_alt</span>
+              <span>Thêm điểm trường mới</span>
+            </button>
+          </div>
         </div>
 
+        <!-- Campus Cards Grid -->
         <div class="locations-grid">
           @if (!school()?.locations || school()?.locations?.length === 0) {
             <div class="empty-loc-card">
               <span class="material-symbols-outlined text-muted">domain</span>
               <p>Chưa có thông tin phân hiệu. Trường học đang hoạt động với điểm trường chính.</p>
+              <button *ngIf="canAddLocation()" (click)="openAddLocationModal()" class="btn-primary-sm mt-2">
+                <span class="material-symbols-outlined">add</span>
+                <span>Khai báo điểm trường</span>
+              </button>
             </div>
           } @else {
             <div *ngFor="let loc of school()?.locations" class="location-card" [class.main-loc]="loc.isMain">
@@ -147,10 +168,35 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
                   </span>
                   <h3 class="loc-name">{{ loc.name }}</h3>
                 </div>
-                <div class="loc-code">{{ loc.code }}</div>
+                <div class="loc-header-right">
+                  <div class="loc-code">{{ loc.code }}</div>
+                  <div class="loc-actions-group" *ngIf="canEditLocation(loc)">
+                    <button class="icon-btn-edit" (click)="openEditLocationModal(loc)" title="Cập nhật số liệu & sĩ số điểm trường">
+                      <span class="material-symbols-outlined">edit</span>
+                    </button>
+                    <button
+                      *ngIf="canDeleteLocation() && !loc.isMain"
+                      class="icon-btn-delete"
+                      (click)="deleteLocation(loc, $event)"
+                      title="Xóa điểm trường"
+                      [disabled]="deletingLocationId() === loc.id"
+                    >
+                      <span class="material-symbols-outlined">delete</span>
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div class="loc-body">
+                <!-- Cán bộ phụ trách điểm trường -->
+                <div class="loc-manager-box" *ngIf="loc.manager">
+                  <span class="material-symbols-outlined manager-icon">supervisor_account</span>
+                  <span class="manager-label">Phụ trách:</span>
+                  <strong class="manager-name">{{ loc.manager.fullName }}</strong>
+                  <span class="manager-title" *ngIf="loc.manager.title">({{ loc.manager.title }})</span>
+                </div>
+
+                <!-- 4 Chỉ số: Lớp học, Học sinh, Học sinh Nữ, Cán bộ GV -->
                 <div class="loc-stat-row">
                   <div class="loc-stat-item">
                     <span class="num">{{ loc.classCount || 0 }}</span>
@@ -164,7 +210,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
                     <span class="num">{{ (loc.femaleStudentCount || 0) | number }}</span>
                     <span class="lbl">Học sinh Nữ</span>
                   </div>
-                  <div class="loc-stat-item">
+                  <div class="loc-stat-item highlight-staff" title="Tổng hợp tự động từ danh sách tài khoản thuộc điểm trường">
                     <span class="num">{{ loc.userCount || 0 }}</span>
                     <span class="lbl">Cán bộ GV</span>
                   </div>
@@ -193,12 +239,20 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
                     </div>
                   </div>
                 }
+
+                <!-- Action button to update stats directly on card -->
+                <div class="loc-footer-actions" *ngIf="canEditLocation(loc)">
+                  <button (click)="openEditLocationModal(loc)" class="btn-card-edit-loc">
+                    <span class="material-symbols-outlined mini-icon">edit_square</span>
+                    <span>Cập nhật số liệu điểm trường</span>
+                  </button>
+                </div>
               </div>
             </div>
           }
         </div>
 
-        <!-- Grade Matrix Table Section (Only if available) -->
+        <!-- Grade Matrix Table Section (If available) -->
         @if (school()?.gradeMatrix && school()!.gradeMatrix!.length > 0) {
           <div class="section-card">
             <div class="card-header">
@@ -275,22 +329,22 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
             </h4>
             <div class="legal-list">
               <p class="text-sm text-slate-700">
-                {{ school()?.description || 'Chưa có thông tin mô tả chi tiết về trường. Nhấn "Cập nhật thông tin" để bổ sung.' }}
+                {{ school()?.description || 'Chưa có thông tin mô tả chi tiết về trường. Nhấn "Cập nhật thông tin trường" để bổ sung.' }}
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Edit School Info Modal -->
+      <!-- MODAL 1: Cập nhật Thông tin Chung Nhà trường (KHÔNG nhập tay tổng số HS, lớp, GV) -->
       <div *ngIf="showEditModal()" class="modal-overlay" (click)="closeEditModal()">
         <div class="modal-card" (click)="$event.stopPropagation()">
           <div class="modal-header">
             <div class="modal-title-group">
               <span class="material-symbols-outlined modal-icon">edit_square</span>
               <div>
-                <h3 class="modal-title">Cập nhật Thông tin & Quy mô Trường học</h3>
-                <p class="modal-subtitle">Dữ liệu được đồng bộ trực tiếp vào hệ thống quản lý điều hành</p>
+                <h3 class="modal-title">Cập nhật Thông tin & Hồ sơ Nhà trường</h3>
+                <p class="modal-subtitle">Thông tin hành chính và liên hệ chính thức của nhà trường</p>
               </div>
             </div>
             <button class="close-btn" (click)="closeEditModal()">
@@ -299,17 +353,26 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
           </div>
 
           <form [formGroup]="editForm" (ngSubmit)="saveSchoolInfo()" class="modal-body">
+            <!-- Thông báo tự động tổng hợp -->
+            <div class="info-notice-banner">
+              <span class="material-symbols-outlined notice-icon">info</span>
+              <div class="notice-text">
+                <strong>Quy mô Học sinh, Lớp học & Cán bộ GV:</strong>
+                <span>Được hệ thống tự động tổng hợp trực tiếp từ các Điểm trường / Phân hiệu và danh sách tài khoản. Để điều chỉnh số liệu, vui lòng cập nhật tại từng Điểm trường bên dưới.</span>
+              </div>
+            </div>
+
             <div class="form-row">
               <div class="form-group full-width">
                 <label class="form-label">Tên trường <span class="req">*</span></label>
-                <input type="text" formControlName="name" class="form-input" placeholder="Ví dụ: Trường TH và THCS Phước Tân" />
+                <input type="text" formControlName="name" class="form-input" placeholder="Ví dụ: Trường THCS Nguyễn Huệ" />
               </div>
             </div>
 
             <div class="form-row two-col">
               <div class="form-group">
                 <label class="form-label">Hiệu trưởng <span class="req">*</span></label>
-                <input type="text" formControlName="principalName" class="form-input" placeholder="Ví dụ: Phạm Thị Nam" />
+                <input type="text" formControlName="principalName" class="form-input" placeholder="Ví dụ: Nguyễn Văn Hùng" />
               </div>
               <div class="form-group">
                 <label class="form-label">Năm học <span class="req">*</span></label>
@@ -317,54 +380,32 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
               </div>
             </div>
 
-            <div class="form-row three-col">
-              <div class="form-group">
-                <label class="form-label">Tổng số Học sinh <span class="req">*</span></label>
-                <input type="number" formControlName="totalStudents" class="form-input" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Số Học sinh Nữ</label>
-                <input type="number" formControlName="totalFemaleStudents" class="form-input" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Tổng số Lớp <span class="req">*</span></label>
-                <input type="number" formControlName="totalClasses" class="form-input" />
-              </div>
-            </div>
-
             <div class="form-row two-col">
-              <div class="form-group">
-                <label class="form-label">Tổng số Cán bộ - GV - NV</label>
-                <input type="number" formControlName="totalStaff" class="form-input" />
-              </div>
               <div class="form-group">
                 <label class="form-label">Số điện thoại / Hotline</label>
-                <input type="text" formControlName="phone" class="form-input" />
+                <input type="text" formControlName="phone" class="form-input" placeholder="02513999888" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email chính thức</label>
+                <input type="email" formControlName="email" class="form-input" placeholder="thcs_nguyenhue@dongnai.edu.vn" />
               </div>
             </div>
 
             <div class="form-row two-col">
               <div class="form-group">
-                <label class="form-label">Email chính thức</label>
-                <input type="email" formControlName="email" class="form-input" />
+                <label class="form-label">Website nhà trường</label>
+                <input type="url" formControlName="website" class="form-input" placeholder="https://thcsnguyenhue.dongnai.edu.vn" />
               </div>
               <div class="form-group">
-                <label class="form-label">Website nhà trường</label>
-                <input type="url" formControlName="website" class="form-input" />
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group full-width">
                 <label class="form-label">Địa chỉ trụ sở chính</label>
-                <input type="text" formControlName="address" class="form-input" />
+                <input type="text" formControlName="address" class="form-input" placeholder="Số 45 đường Hùng Vương, TP. Biên Hòa..." />
               </div>
             </div>
 
             <div class="form-row">
               <div class="form-group full-width">
                 <label class="form-label">Mô tả đặc điểm tình hình & bối cảnh</label>
-                <textarea formControlName="description" rows="3" class="form-textarea"></textarea>
+                <textarea formControlName="description" rows="3" class="form-textarea" placeholder="Nhập mô tả bối cảnh, lịch sử phát triển hoặc ghi chú nhà trường..."></textarea>
               </div>
             </div>
 
@@ -374,6 +415,115 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
                 <span class="material-symbols-outlined btn-icon" *ngIf="!saving()">save</span>
                 <span class="material-symbols-outlined btn-icon spinning" *ngIf="saving()">progress_activity</span>
                 <span>{{ saving() ? 'Đang lưu...' : 'Lưu thay đổi' }}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- MODAL 2: Cập nhật / Thêm mới Điểm trường (Sĩ số học sinh, số lớp, cán bộ phụ trách) -->
+      <div *ngIf="showLocationModal()" class="modal-overlay" (click)="closeLocationModal()">
+        <div class="modal-card loc-modal-card" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <div class="modal-title-group">
+              <span class="material-symbols-outlined modal-icon">{{ isEditingLocation() ? 'edit_location' : 'add_location_alt' }}</span>
+              <div>
+                <h3 class="modal-title">{{ isEditingLocation() ? ('Cập nhật Số liệu Điểm trường (' + (school()?.schoolYear || academicYearService.formattedCurrentYear()) + '): ' + (selectedLocation()?.name || '')) : 'Thêm mới Điểm trường / Phân hiệu' }}</h3>
+                <p class="modal-subtitle">
+                  Số lớp học, tổng học sinh và học sinh nữ cho Năm học {{ school()?.schoolYear || academicYearService.formattedCurrentYear() }} sẽ được tự động tổng hợp vào quy mô toàn trường
+                </p>
+              </div>
+            </div>
+            <button class="close-btn" (click)="closeLocationModal()">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+
+          <form [formGroup]="locationForm" (ngSubmit)="saveLocation()" class="modal-body">
+            <div class="form-row two-col">
+              <div class="form-group">
+                <label class="form-label">Tên điểm trường / Phân hiệu <span class="req">*</span></label>
+                <input type="text" formControlName="name" class="form-input" placeholder="Ví dụ: Phân hiệu Bến Cá" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Mã cơ sở <span class="req">*</span></label>
+                <input type="text" formControlName="code" class="form-input uppercase" placeholder="Ví dụ: NH_PH1" [readonly]="isEditingLocation() && selectedLocation()?.isMain" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group full-width">
+                <label class="form-label">Cán bộ phụ trách điểm trường</label>
+                <select formControlName="managerId" class="form-input form-select">
+                  <option value="">-- Chưa chỉ định cán bộ phụ trách --</option>
+                  <option *ngFor="let u of availableUsers()" [value]="u.id">
+                    {{ u.fullName }} {{ u.title ? ('- ' + u.title) : '' }} {{ u.phone ? ('(' + u.phone + ')') : '' }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Phân mục: Sĩ số học sinh & Lớp học -->
+            <div class="section-divider-title">
+              <span class="material-symbols-outlined mini-icon">bar_chart</span>
+              <span>QUY MÔ SĨ SỐ & LỚP HỌC (Tự động đồng bộ vào trường)</span>
+            </div>
+
+            <div class="form-row three-col">
+              <div class="form-group">
+                <label class="form-label">Số Lớp học <span class="req">*</span></label>
+                <input type="number" formControlName="classCount" min="0" class="form-input" placeholder="0" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Tổng số Học sinh <span class="req">*</span></label>
+                <input type="number" formControlName="studentCount" min="0" class="form-input" placeholder="0" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Số Học sinh Nữ <span class="req">*</span></label>
+                <input type="number" formControlName="femaleStudentCount" min="0" class="form-input" placeholder="0" />
+              </div>
+            </div>
+
+            <div class="auto-sync-hint-box">
+              <span class="material-symbols-outlined hint-icon">groups</span>
+              <div class="hint-text">
+                <strong>Số lượng Cán bộ GV ({{ (selectedLocation()?.userCount || 0) }} nhân sự):</strong>
+                <span>Được hệ thống tổng hợp tự động từ danh sách tài khoản đang được phân công tại điểm trường này.</span>
+              </div>
+            </div>
+
+            <!-- Phân mục: Thông tin liên hệ & Cơ sở -->
+            <div class="section-divider-title">
+              <span class="material-symbols-outlined mini-icon">contact_page</span>
+              <span>THÔNG TIN LIÊN HỆ & CƠ SỞ</span>
+            </div>
+
+            <div class="form-row two-col">
+              <div class="form-group">
+                <label class="form-label">Số điện thoại liên hệ / Hotline</label>
+                <input type="text" formControlName="phone" class="form-input" placeholder="02513999888" />
+              </div>
+              <div class="form-group checkbox-group-container" *ngIf="canAddLocation()">
+                <label class="checkbox-label">
+                  <input type="checkbox" formControlName="isMain" class="form-checkbox" />
+                  <span>Đặt làm Điểm chính (Trung tâm)</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group full-width">
+                <label class="form-label">Địa chỉ cơ sở</label>
+                <input type="text" formControlName="address" class="form-input" placeholder="Ví dụ: Số 45 đường Hùng Vương..." />
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" (click)="closeLocationModal()" class="btn-cancel">Hủy</button>
+              <button type="submit" [disabled]="locationForm.invalid || savingLocation()" class="btn-save">
+                <span class="material-symbols-outlined btn-icon" *ngIf="!savingLocation()">save</span>
+                <span class="material-symbols-outlined btn-icon spinning" *ngIf="savingLocation()">progress_activity</span>
+                <span>{{ savingLocation() ? 'Đang lưu...' : 'Lưu số liệu điểm trường' }}</span>
               </button>
             </div>
           </form>
@@ -431,6 +581,24 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
     .breadcrumb .active {
       color: #1F3864;
       font-weight: 600;
+    }
+
+    .archived-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #FFFBEB;
+      color: #B45309;
+      border: 1px solid #FDE68A;
+      padding: 1px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      margin-left: 6px;
+
+      .mini-icon {
+        font-size: 14px;
+      }
     }
 
     .page-title {
@@ -499,6 +667,23 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       box-shadow: 0 4px 6px rgba(31, 56, 100, 0.2);
     }
 
+    .btn-primary-sm {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.45rem 0.9rem;
+      background: #1F3864;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .btn-primary-sm:hover {
+      background: #16294A;
+    }
+
     .btn-secondary {
       display: inline-flex;
       align-items: center;
@@ -516,6 +701,25 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
     .btn-secondary:hover {
       background: #F1F5F9;
       border-color: #94A3B8;
+    }
+
+    .btn-add-loc {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 1rem;
+      background: #EEF2FF;
+      color: #1E40AF;
+      border: 1px solid #BFDBFE;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-add-loc:hover {
+      background: #DBEAFE;
+      border-color: #93C5FD;
     }
 
     .btn-icon {
@@ -566,18 +770,6 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       align-items: center;
       gap: 0.5rem;
       .material-symbols-outlined { font-size: 40px; color: #94A3B8; }
-    }
-
-    .loc-title-group {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .loc-body {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
     }
 
     /* Stats Grid */
@@ -705,14 +897,25 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
 
     /* Section Header */
     .section-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .title-with-desc {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
     }
 
     .section-title {
       font-size: 1.15rem;
       font-weight: 700;
       color: #1E293B;
-      margin: 0 0 0.25rem 0;
+      margin: 0;
       display: flex;
       align-items: center;
       gap: 0.5rem;
@@ -734,7 +937,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
     /* Locations Grid */
     .locations-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
       gap: 1.25rem;
       margin-bottom: 2rem;
     }
@@ -746,6 +949,9 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       padding: 1.25rem;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
       transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
     .location-card:hover {
       box-shadow: 0 4px 12px rgba(0,0,0,0.08);
@@ -760,9 +966,15 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 1rem;
+      margin-bottom: 0.85rem;
       padding-bottom: 0.75rem;
       border-bottom: 1px solid #F1F5F9;
+    }
+
+    .loc-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
     }
 
     .loc-badge {
@@ -788,6 +1000,12 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       margin: 0;
     }
 
+    .loc-header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
     .loc-code {
       font-size: 0.75rem;
       font-family: monospace;
@@ -795,6 +1013,69 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       background: #F1F5F9;
       color: #64748B;
       border-radius: 4px;
+      font-weight: 700;
+    }
+
+    .loc-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .icon-btn-edit, .icon-btn-delete {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 6px;
+      padding: 0.25rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #64748B;
+      transition: all 0.15s ease;
+      .material-symbols-outlined { font-size: 16px; }
+    }
+    .icon-btn-edit:hover {
+      background: #EFF6FF;
+      color: #2563EB;
+      border-color: #BFDBFE;
+    }
+    .icon-btn-delete:hover {
+      background: #FEF2F2;
+      color: #DC2626;
+      border-color: #FECACA;
+    }
+
+    .loc-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .loc-manager-box {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      background: #EFF6FF;
+      color: #1E40AF;
+      padding: 0.35rem 0.6rem;
+      border-radius: 6px;
+      border: 1px solid #DBEAFE;
+    }
+    .manager-icon {
+      font-size: 16px;
+      color: #2563EB;
+    }
+    .manager-label {
+      color: #64748B;
+    }
+    .manager-name {
+      color: #0F172A;
+    }
+    .manager-title {
+      color: #64748B;
+      font-size: 0.75rem;
     }
 
     .loc-stat-row {
@@ -804,7 +1085,6 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       background: #F8FAFC;
       padding: 0.75rem;
       border-radius: 8px;
-      margin-bottom: 1rem;
       text-align: center;
     }
 
@@ -819,11 +1099,23 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       color: #64748B;
     }
 
+    .loc-stat-item.highlight-staff {
+      background: #FAF5FF;
+      border-radius: 6px;
+      padding: 0.15rem;
+    }
+    .loc-stat-item.highlight-staff .num {
+      color: #7C3AED;
+    }
+    .loc-stat-item.highlight-staff .lbl {
+      color: #6D28D9;
+      font-weight: 600;
+    }
+
     .loc-info-list {
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
+      gap: 0.4rem;
     }
 
     .info-row {
@@ -850,7 +1142,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
     }
 
     .loc-progress-bar {
-      margin-top: 0.5rem;
+      margin-top: 0.25rem;
     }
 
     .progress-label {
@@ -872,6 +1164,34 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       height: 100%;
       background: #1F3864;
       border-radius: 999px;
+    }
+
+    .loc-footer-actions {
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px dashed #E2E8F0;
+    }
+
+    .btn-card-edit-loc {
+      width: 100%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.55rem;
+      background: #F1F5F9;
+      color: #1F3864;
+      border: 1px solid #CBD5E1;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-card-edit-loc:hover {
+      background: #E2E8F0;
+      color: #0F172A;
+      border-color: #94A3B8;
     }
 
     /* Table Card */
@@ -897,7 +1217,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       font-size: 1.1rem;
       font-weight: 700;
       color: #0F172A;
-      margin: 0 0 0.25rem 0;
+      margin: 0;
       display: flex;
       align-items: center;
       gap: 0.5rem;
@@ -906,16 +1226,17 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
     .card-subtitle {
       font-size: 0.85rem;
       color: #64748B;
-      margin: 0;
+      margin: 0.2rem 0 0 0;
     }
 
     .table-tag {
-      font-size: 0.8rem;
-      font-weight: 600;
       background: #F1F5F9;
       color: #334155;
+      font-size: 0.8rem;
+      font-weight: 600;
       padding: 0.35rem 0.75rem;
       border-radius: 6px;
+      border: 1px solid #CBD5E1;
     }
 
     .table-responsive {
@@ -925,7 +1246,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
     .data-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
     }
 
     .data-table th {
@@ -933,55 +1254,28 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       color: #475569;
       font-weight: 600;
       padding: 0.75rem 1rem;
-      border-bottom: 2px solid #E2E8F0;
+      border: 1px solid #E2E8F0;
     }
 
     .data-table td {
-      padding: 0.85rem 1rem;
-      border-bottom: 1px solid #F1F5F9;
-      color: #1E293B;
+      padding: 0.75rem 1rem;
+      border: 1px solid #E2E8F0;
+      color: #334155;
     }
 
-    .data-table tr:hover td {
+    .data-table tr:hover {
       background: #F8FAFC;
     }
-
-    .grade-pill {
-      display: inline-block;
-      padding: 0.2rem 0.6rem;
-      border-radius: 6px;
-      font-weight: 700;
-      font-size: 0.85rem;
-    }
-    .grade-pill.g6 { background: #EFF6FF; color: #1E40AF; }
-    .grade-pill.g7 { background: #F0FDF4; color: #166534; }
-    .grade-pill.g8 { background: #FEF3C7; color: #92400E; }
-    .grade-pill.g9 { background: #F3E8FF; color: #6B21A8; }
 
     .highlight-col {
-      background: #F8FAFC;
+      background: #EFF6FF;
+      color: #1E40AF;
     }
 
-    .female-text {
-      color: #BE185D;
-      font-weight: 500;
-    }
-
-    .total-row td {
-      border-top: 2px solid #CBD5E1;
-      border-bottom: none;
-      background: #F1F5F9;
-      font-size: 0.95rem;
-    }
-
-    .text-primary {
-      color: #1F3864 !important;
-    }
-
-    /* Legal & Management Cards */
+    /* Legal info grid */
     .legal-info-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
       gap: 1.25rem;
     }
 
@@ -990,6 +1284,7 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       border-radius: 12px;
       border: 1px solid #E2E8F0;
       padding: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
 
     .legal-title {
@@ -1090,8 +1385,12 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       border: none;
       color: #64748B;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       padding: 0.25rem;
       border-radius: 6px;
+      transition: all 0.2s;
     }
     .close-btn:hover {
       background: #F1F5F9;
@@ -1105,19 +1404,53 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
       gap: 1rem;
     }
 
+    .info-notice-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      padding: 0.75rem 1rem;
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      color: #1E40AF;
+      line-height: 1.45;
+    }
+    .notice-icon {
+      font-size: 20px;
+      color: #2563EB;
+      margin-top: 1px;
+      flex-shrink: 0;
+    }
+    .notice-text {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
     .form-row {
       display: flex;
       gap: 1rem;
+      width: 100%;
     }
-    .form-row.two-col > * { flex: 1; }
-    .form-row.three-col > * { flex: 1; }
+
+    .form-row.two-col > .form-group {
+      flex: 1;
+    }
+
+    .form-row.three-col > .form-group {
+      flex: 1;
+    }
 
     .form-group {
       display: flex;
       flex-direction: column;
       gap: 0.35rem;
     }
-    .form-group.full-width { width: 100%; }
+
+    .form-group.full-width {
+      width: 100%;
+    }
 
     .form-label {
       font-size: 0.85rem;
@@ -1126,22 +1459,87 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
     }
 
     .req {
-      color: #DC2626;
+      color: #EF4444;
     }
 
-    .form-input, .form-textarea {
-      padding: 0.55rem 0.75rem;
+    .form-input, .form-textarea, .form-select {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
       border: 1px solid #CBD5E1;
       border-radius: 8px;
       font-size: 0.9rem;
       color: #0F172A;
       background: #FFFFFF;
-      transition: border-color 0.2s;
+      transition: all 0.2s ease;
+      box-sizing: border-box;
     }
-    .form-input:focus, .form-textarea:focus {
+
+    .form-input:focus, .form-textarea:focus, .form-select:focus {
       outline: none;
       border-color: #2563EB;
       box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .form-input.uppercase {
+      text-transform: uppercase;
+    }
+
+    .section-divider-title {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #1E293B;
+      padding-top: 0.5rem;
+      border-top: 1px dashed #E2E8F0;
+      margin-top: 0.25rem;
+    }
+
+    .auto-sync-hint-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.65rem 0.85rem;
+      background: #FAF5FF;
+      border: 1px solid #E9D5FF;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      color: #581C87;
+    }
+    .hint-icon {
+      font-size: 18px;
+      color: #7C3AED;
+      margin-top: 1px;
+      flex-shrink: 0;
+    }
+    .hint-text {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .checkbox-group-container {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      padding-bottom: 0.55rem;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+    }
+
+    .form-checkbox {
+      width: 18px;
+      height: 18px;
+      accent-color: #1F3864;
+      cursor: pointer;
     }
 
     .modal-footer {
@@ -1229,32 +1627,50 @@ import { SchoolInfo, SchoolStatsDetail } from '../../core/models/school.models';
     }
   `]
 })
-export class SchoolInfoComponent implements OnInit {
+export class SchoolInfoComponent implements OnInit, OnDestroy {
   private schoolService = inject(SchoolService);
   private authService = inject(AuthService);
+  private userService = inject(UserService);
+  academicYearService = inject(AcademicYearService);
   private fb = inject(FormBuilder);
+
+  private yearSub?: Subscription;
 
   school = signal<SchoolInfo | null>(null);
   loading = signal(true);
   saving = signal(false);
   showEditModal = signal(false);
 
+  // Location CRUD state
+  showLocationModal = signal(false);
+  isEditingLocation = signal(false);
+  selectedLocation = signal<LocationInfo | null>(null);
+  availableUsers = signal<UserPickerItem[]>([]);
+  savingLocation = signal(false);
+  deletingLocationId = signal<string | null>(null);
+
   editForm!: FormGroup;
+  locationForm!: FormGroup;
 
   ngOnInit(): void {
     this.initForm();
+    this.initLocationForm();
     this.loadSchoolData();
+
+    this.yearSub = this.academicYearService.yearChanged$.subscribe(() => {
+      this.loadSchoolData();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.yearSub?.unsubscribe();
   }
 
   initForm(): void {
     this.editForm = this.fb.group({
       name: ['', Validators.required],
       principalName: ['', Validators.required],
-      schoolYear: ['2026 - 2027', Validators.required],
-      totalStudents: [0, [Validators.required, Validators.min(0)]],
-      totalFemaleStudents: [0, [Validators.min(0)]],
-      totalClasses: [0, [Validators.required, Validators.min(0)]],
-      totalStaff: [0, [Validators.min(0)]],
+      schoolYear: [this.academicYearService.formattedCurrentYear(), Validators.required],
       phone: [''],
       email: [''],
       website: [''],
@@ -1263,9 +1679,24 @@ export class SchoolInfoComponent implements OnInit {
     });
   }
 
+  initLocationForm(): void {
+    this.locationForm = this.fb.group({
+      name: ['', Validators.required],
+      code: ['', [Validators.required, Validators.pattern(/^[A-Za-z0-9_-]+$/)]],
+      managerId: [''],
+      classCount: [0, [Validators.required, Validators.min(0)]],
+      studentCount: [0, [Validators.required, Validators.min(0)]],
+      femaleStudentCount: [0, [Validators.required, Validators.min(0)]],
+      address: [''],
+      phone: [''],
+      isMain: [false],
+    });
+  }
+
   loadSchoolData(): void {
+    const selectedYear = this.academicYearService.currentAcademicYear();
     this.loading.set(true);
-    this.schoolService.getSchoolInfo().subscribe({
+    this.schoolService.getSchoolInfo(selectedYear).subscribe({
       next: (data) => {
         this.school.set(data);
         this.loading.set(false);
@@ -1277,9 +1708,62 @@ export class SchoolInfoComponent implements OnInit {
     });
   }
 
+  loadUsers(): void {
+    this.userService.searchUsers({ pageSize: 100 }).subscribe({
+      next: (res) => {
+        this.availableUsers.set(res.items || []);
+      },
+      error: () => {}
+    });
+  }
+
   canEdit(): boolean {
-    const role = this.authService.currentUser()?.roles?.[0]?.role;
-    return role === 'ADMIN' || role === 'HIEU_TRUONG';
+    const user = this.authService.currentUser();
+    if (!user) return false;
+    if (user.isSystemAdmin || this.authService.isSystemAdmin()) return true;
+    if (this.authService.isAdmin() || this.authService.isHieuTruong() || this.authService.isBGH()) return true;
+
+    const roles = (user.roles || []).map((r: any) => (typeof r === 'string' ? r : r.role));
+    return roles.includes('ADMIN') || roles.includes('HIEU_TRUONG') || roles.includes('SYSTEM_ADMIN');
+  }
+
+  canAddLocation(): boolean {
+    const user = this.authService.currentUser();
+    if (!user) return false;
+    if (user.isSystemAdmin || this.authService.isSystemAdmin()) return true;
+    if (this.authService.isAdmin() || this.authService.isBGH()) return true;
+
+    const roles = (user.roles || []).map((r: any) => (typeof r === 'string' ? r : r.role));
+    return roles.includes('ADMIN') || roles.includes('HIEU_TRUONG') || roles.includes('PHO_HIEU_TRUONG') || roles.includes('SYSTEM_ADMIN');
+  }
+
+  canDeleteLocation(): boolean {
+    return this.canAddLocation();
+  }
+
+  canEditLocation(loc: LocationInfo): boolean {
+    const user = this.authService.currentUser();
+    if (!user) return false;
+    if (user.isSystemAdmin || this.authService.isSystemAdmin()) return true;
+    if (this.authService.isAdmin() || this.authService.isHieuTruong() || this.authService.isBGH()) return true;
+
+    const roles = (user.roles || []).map((r: any) => (typeof r === 'string' ? r : r.role));
+    if (roles.includes('ADMIN') || roles.includes('HIEU_TRUONG') || roles.includes('PHO_HIEU_TRUONG') || roles.includes('SYSTEM_ADMIN')) {
+      return true;
+    }
+
+    // Cán bộ phụ trách điểm trường này
+    if (loc.managerId && loc.managerId === user.id) return true;
+    if (loc.manager?.id && loc.manager.id === user.id) return true;
+
+    // Hoặc người dùng có scope quản lý điểm trường này
+    const hasScopedLoc = (user.roles || []).some((r: any) => (typeof r === 'object' && r.scopeLocationId === loc.id));
+    if (hasScopedLoc) return true;
+
+    // Hoặc người dùng thuộc điểm trường này
+    if (user.primaryLocationId === loc.id) return true;
+
+    return false;
   }
 
   getFemalePercent(): number {
@@ -1306,11 +1790,7 @@ export class SchoolInfoComponent implements OnInit {
       this.editForm.patchValue({
         name: s.name || '',
         principalName: s.principalName || '',
-        schoolYear: s.schoolYear || '2026 - 2027',
-        totalStudents: s.totalStudents || 0,
-        totalFemaleStudents: s.totalFemaleStudents || 0,
-        totalClasses: s.totalClasses || 0,
-        totalStaff: s.totalStaff || 0,
+        schoolYear: s.schoolYear || this.academicYearService.formattedCurrentYear(),
         phone: s.phone || '',
         email: s.email || '',
         website: s.website || '',
@@ -1340,6 +1820,112 @@ export class SchoolInfoComponent implements OnInit {
         console.error('Failed to update school info', err);
         this.saving.set(false);
         alert('Cập nhật thất bại. Vui lòng thử lại.');
+      }
+    });
+  }
+
+  openAddLocationModal(): void {
+    this.isEditingLocation.set(false);
+    this.selectedLocation.set(null);
+    this.locationForm.reset({
+      name: '',
+      code: '',
+      managerId: '',
+      classCount: 0,
+      studentCount: 0,
+      femaleStudentCount: 0,
+      address: '',
+      phone: '',
+      isMain: false,
+    });
+    this.loadUsers();
+    this.showLocationModal.set(true);
+  }
+
+  openEditLocationModal(loc: LocationInfo): void {
+    this.isEditingLocation.set(true);
+    this.selectedLocation.set(loc);
+    this.locationForm.patchValue({
+      name: loc.name || '',
+      code: loc.code || '',
+      managerId: loc.managerId || (loc.manager?.id || ''),
+      classCount: loc.classCount || 0,
+      studentCount: loc.studentCount || 0,
+      femaleStudentCount: loc.femaleStudentCount || 0,
+      address: loc.address || '',
+      phone: loc.phone || '',
+      isMain: loc.isMain || false,
+    });
+    this.loadUsers();
+    this.showLocationModal.set(true);
+  }
+
+  closeLocationModal(): void {
+    this.showLocationModal.set(false);
+    this.selectedLocation.set(null);
+  }
+
+  saveLocation(): void {
+    if (this.locationForm.invalid) {
+      this.locationForm.markAllAsTouched();
+      return;
+    }
+
+    const val = this.locationForm.value;
+    if (Number(val.femaleStudentCount) > Number(val.studentCount)) {
+      alert('Số học sinh nữ không được lớn hơn tổng số học sinh của điểm trường.');
+      return;
+    }
+
+    const currentYear = this.academicYearService.currentAcademicYear();
+    this.savingLocation.set(true);
+
+    if (this.isEditingLocation() && this.selectedLocation()) {
+      const locId = this.selectedLocation()!.id;
+      this.schoolService.updateLocation(locId, val, currentYear).subscribe({
+        next: () => {
+          this.savingLocation.set(false);
+          this.closeLocationModal();
+          this.loadSchoolData();
+        },
+        error: (err) => {
+          console.error('Failed to update location', err);
+          this.savingLocation.set(false);
+          alert(err.error?.message || 'Cập nhật điểm trường thất bại. Vui lòng thử lại.');
+        }
+      });
+    } else {
+      this.schoolService.createLocation(val, currentYear).subscribe({
+        next: () => {
+          this.savingLocation.set(false);
+          this.closeLocationModal();
+          this.loadSchoolData();
+        },
+        error: (err) => {
+          console.error('Failed to create location', err);
+          this.savingLocation.set(false);
+          alert(err.error?.message || 'Tạo mới điểm trường thất bại. Vui lòng thử lại.');
+        }
+      });
+    }
+  }
+
+  deleteLocation(loc: LocationInfo, event: Event): void {
+    event.stopPropagation();
+    if (!confirm(`Bạn có chắc chắn muốn xóa điểm trường "${loc.name}" (${loc.code})?`)) {
+      return;
+    }
+
+    this.deletingLocationId.set(loc.id);
+    this.schoolService.deleteLocation(loc.id).subscribe({
+      next: () => {
+        this.deletingLocationId.set(null);
+        this.loadSchoolData();
+      },
+      error: (err) => {
+        console.error('Failed to delete location', err);
+        this.deletingLocationId.set(null);
+        alert(err.error?.message || 'Không thể xóa điểm trường. Vui lòng kiểm tra các ràng buộc.');
       }
     });
   }
