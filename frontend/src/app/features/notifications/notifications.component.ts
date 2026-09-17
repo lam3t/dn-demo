@@ -1,6 +1,7 @@
 import {
   Component,
   OnInit,
+  OnDestroy,
   inject,
   signal,
   computed,
@@ -8,7 +9,9 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { NotificationService } from '../../core/services/notification.service';
+import { AuthService } from '../../core/services/auth.service';
 import { NotificationItem, NotificationType } from '../../core/models/notification.models';
 import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
 
@@ -173,10 +176,10 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
               <circle cx="78" cy="42" r="6" fill="#2E7D32" stroke="#FFFFFF" stroke-width="2" />
             </svg>
             <h3 class="empty-state-title">
-              {{ searchKeyword ? 'Không tìm thấy thông báo phù hợp!' : selectedTab() === 'UNREAD' ? 'Không có thông báo chưa đọc!' : 'Chưa có thông báo nào' }}
+              {{ searchKeyword ? 'Không tìm thấy thông báo phù hợp!' : selectedTab() === 'UNREAD' ? 'Không có thông báo chưa đọc!' : authService.isSystemAdmin() ? 'Chưa có thông báo hệ thống nào' : 'Chưa có thông báo nào' }}
             </h3>
             <p class="empty-state-desc">
-              {{ searchKeyword ? 'Thử tìm với từ khóa khác hoặc xóa bộ lọc tìm kiếm.' : selectedTab() === 'UNREAD' ? 'Tuyệt vời! Thầy/cô đã đọc hết tất cả thông báo và nhắc việc.' : 'Các thông báo giao việc mới, nhắc hạn và kết quả duyệt sẽ xuất hiện tại đây.' }}
+              {{ searchKeyword ? 'Thử tìm với từ khóa khác hoặc xóa bộ lọc tìm kiếm.' : selectedTab() === 'UNREAD' ? 'Tuyệt vời! Bạn đã đọc hết tất cả thông báo.' : authService.isSystemAdmin() ? 'Hệ thống nền tảng hoạt động bình thường, không có cảnh báo hoặc cập nhật cần xử lý.' : 'Các thông báo giao việc mới, nhắc hạn và kết quả duyệt sẽ xuất hiện tại đây.' }}
             </p>
           </div>
         } @else {
@@ -692,9 +695,11 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
     `,
   ],
 })
-export class NotificationsComponent implements OnInit {
+export class NotificationsComponent implements OnInit, OnDestroy {
   notifService = inject(NotificationService);
+  authService = inject(AuthService);
   private router = inject(Router);
+  private accountSub?: Subscription;
 
   isLoading = signal(false);
   selectedTab = signal<string>('ALL');
@@ -744,10 +749,22 @@ export class NotificationsComponent implements OnInit {
 
   ngOnInit() {
     this.loadNotifications();
+    this.accountSub = this.authService.accountSwitched$.subscribe(() => {
+      this.loadNotifications();
+    });
+  }
+
+  ngOnDestroy() {
+    this.accountSub?.unsubscribe();
   }
 
   loadNotifications() {
     this.isLoading.set(true);
+    if (this.authService.isSystemAdmin()) {
+      this.notificationsList.set([]);
+      this.totalCount.set(0);
+      this.unreadCount.set(0);
+    }
     this.notifService
       .getNotifications({ pageSize: 100 })
       .subscribe({

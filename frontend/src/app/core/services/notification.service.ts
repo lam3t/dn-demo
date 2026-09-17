@@ -8,6 +8,7 @@ import {
   NotificationFilterParams,
   NotificationListResponse,
 } from '../models/notification.models';
+import { AuthService } from './auth.service';
 
 @Injectable({
   providedIn: 'root',
@@ -15,6 +16,7 @@ import {
 export class NotificationService {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private authService = inject(AuthService);
 
   unreadCount = signal<number>(0);
   notifications = signal<NotificationItem[]>([]);
@@ -29,6 +31,19 @@ export class NotificationService {
   constructor() {
     this.checkBrowserSupport();
     this.startBackgroundPolling();
+
+    // Tự động làm sạch và đồng bộ lại khi người dùng đổi tài khoản / đổi quyền
+    this.authService.accountSwitched$.subscribe(() => {
+      this.resetState();
+      this.refreshNotifications();
+    });
+  }
+
+  resetState() {
+    this.notifications.set([]);
+    this.unreadCount.set(0);
+    this.seenIds.clear();
+    this.isInitialized = false;
   }
 
   private checkBrowserSupport() {
@@ -241,6 +256,18 @@ export class NotificationService {
           }
         }),
         catchError((err) => {
+          if (this.authService.isSystemAdmin()) {
+            this.unreadCount.set(0);
+            this.notifications.set([]);
+            return of({
+              items: [],
+              total: 0,
+              unreadCount: 0,
+              page: 1,
+              pageSize: 20,
+              totalPages: 0,
+            });
+          }
           return of({
             items: this.notifications(),
             total: this.notifications().length,

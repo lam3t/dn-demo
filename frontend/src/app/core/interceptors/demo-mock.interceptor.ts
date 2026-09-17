@@ -691,18 +691,35 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
 
         // 6. NOTIFICATIONS
         if (url.includes('/api/notifications')) {
+          let mockUser: any = null;
+          let mockActiveRole: any = null;
+          if (typeof window !== 'undefined' && window.localStorage) {
+            try {
+              const u = localStorage.getItem('tn_edu_user_profile');
+              if (u) mockUser = JSON.parse(u);
+              const r = localStorage.getItem('tn_edu_active_role');
+              if (r) mockActiveRole = JSON.parse(r);
+            } catch {}
+          }
+          const isSystemAdminUser =
+            !!mockUser?.isSystemAdmin ||
+            mockActiveRole?.role === 'SYSTEM_ADMIN' ||
+            mockUser?.roles?.some((r: any) => r.role === 'SYSTEM_ADMIN' || r === 'SYSTEM_ADMIN');
+
           if (url.includes('/read-all') && (method === 'PATCH' || method === 'POST')) {
-            MOCK_NOTIFICATIONS.forEach((n) => {
-              n.isRead = true;
-              n.readAt = new Date().toISOString();
-            });
+            if (!isSystemAdminUser) {
+              MOCK_NOTIFICATIONS.forEach((n) => {
+                n.isRead = true;
+                n.readAt = new Date().toISOString();
+              });
+            }
             return of(
               new HttpResponse({
                 status: 200,
                 body: {
                   success: true,
                   message: 'Đã đánh dấu đọc tất cả thông báo.',
-                  data: { count: MOCK_NOTIFICATIONS.length },
+                  data: { count: isSystemAdminUser ? 0 : MOCK_NOTIFICATIONS.length },
                 },
               })
             );
@@ -711,7 +728,7 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
           const readSingleMatch = url.match(/\/api\/notifications\/([a-zA-Z0-9_-]+)\/read/);
           if (readSingleMatch && (method === 'PATCH' || method === 'POST')) {
             const notifId = readSingleMatch[1];
-            const found = MOCK_NOTIFICATIONS.find((n) => n.id === notifId);
+            const found = isSystemAdminUser ? null : MOCK_NOTIFICATIONS.find((n) => n.id === notifId);
             if (found) {
               found.isRead = true;
               found.readAt = new Date().toISOString();
@@ -735,7 +752,37 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
             const search = (req.params.get('search') || (url.match(/[?&]search=([^&]+)/)?.[1]) || '').trim().toLowerCase();
             const type = (req.params.get('type') || (url.match(/[?&]type=([^&]+)/)?.[1]) || '').trim();
 
+            // System Admin operates at SaaS platform level and has 0 school/teacher task notifications
+            if (isSystemAdminUser) {
+              return of(
+                new HttpResponse({
+                  status: 200,
+                  body: {
+                    success: true,
+                    data: {
+                      items: [],
+                      total: 0,
+                      unreadCount: 0,
+                      page,
+                      pageSize: limit,
+                      totalPages: 0,
+                    },
+                  },
+                })
+              );
+            }
+
             let filtered = [...MOCK_NOTIFICATIONS];
+            if (mockUser?.id) {
+              const isHieuTruong = mockUser.roles?.some((r: any) => r.role === 'HIEU_TRUONG' || r === 'HIEU_TRUONG');
+              filtered = filtered.filter((n) => {
+                if (n.userId && n.userId !== mockUser.id && (!isHieuTruong || (n.userId !== 'u-hieutruong' && n.userId !== mockUser.id))) {
+                  return false;
+                }
+                return true;
+              });
+            }
+
             if (unreadOnly) {
               filtered = filtered.filter((n) => !n.isRead);
             }
@@ -753,10 +800,10 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
             }
 
             const total = filtered.length;
-            const totalPages = Math.ceil(total / limit) || 1;
+            const totalPages = Math.ceil(total / limit) || (total === 0 ? 0 : 1);
             const startIndex = (page - 1) * limit;
             const items = filtered.slice(startIndex, startIndex + limit);
-            const unreadCount = MOCK_NOTIFICATIONS.filter((n) => !n.isRead).length;
+            const unreadCount = filtered.filter((n) => !n.isRead).length;
 
             return of(
               new HttpResponse({
