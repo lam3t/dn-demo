@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -20,13 +20,13 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
       <div class="page-header">
         <div class="header-titles">
           <div class="header-tag">
-            <span class="material-symbols-outlined tag-icon">folder_shared</span>
+            <span class="material-symbols-outlined tag-icon">verified</span>
             <span>Kho Minh Chứng Số</span>
             <span class="year-badge">Năm học: {{ academicYearService.currentAcademicYear() }}</span>
           </div>
-          <h1 class="page-title">Kho Minh Chứng & Tài Liệu Hoạt Động ({{ academicYearService.currentAcademicYear() }})</h1>
+          <h1 class="page-title">Kho Minh Chứng & Hồ Sơ Nghiệm Thu ({{ academicYearService.currentAcademicYear() }})</h1>
           <p class="page-subtitle">
-            Trung tâm lưu trữ, tra cứu và khai thác tập trung các tài liệu, biên bản, hình ảnh, minh chứng kết quả công việc và KPI toàn trường năm học {{ academicYearService.currentAcademicYear() }}.
+            Trung tâm tra cứu, giám sát và khai thác tập trung các tài liệu, biên bản nghiệm thu, hình ảnh minh chứng kết quả thực hiện công việc và KPI toàn trường.
           </p>
         </div>
       </div>
@@ -42,7 +42,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
               <input
                 type="text"
                 class="form-control"
-                placeholder="Nhập tên tệp, tên công việc..."
+                placeholder="Nhập tên tệp, tên công việc, người cập nhật..."
                 [(ngModel)]="searchQuery"
                 (keyup.enter)="applyFilter()"
               />
@@ -104,7 +104,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
         </div>
       </div>
 
-      <!-- EVIDENCE GRID -->
+      <!-- EVIDENCE DATA TABLE (REORGANIZED AS TABLE VIEW) -->
       @if (isLoading()) {
         <div class="loading-box">
           <span class="material-symbols-outlined spinner-icon">progress_activity</span>
@@ -117,78 +117,197 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
           <p>Thử điều chỉnh từ khóa tìm kiếm hoặc bỏ chọn các bộ lọc phía trên.</p>
         </div>
       } @else {
-        <div class="evidence-grid">
-          @for (item of evidenceList(); track item.id) {
-            <div class="evidence-card">
-              <div class="card-type-icon" [ngClass]="getFileTypeClass(item.mimeType)">
-                <span class="material-symbols-outlined">{{ getFileTypeIcon(item.mimeType) }}</span>
-              </div>
+        <div class="table-card">
+          <div class="table-responsive">
+            <table class="evidence-table">
+              <thead>
+                <tr>
+                  <th class="col-file">Tên tệp tin & Định dạng</th>
+                  <th class="col-task">Công việc liên quan</th>
+                  <th class="col-scope">Điểm trường & Tổ phụ trách</th>
+                  <th class="col-uploader">Người cập nhật</th>
+                  <th class="col-date">Thời gian</th>
+                  <th class="col-actions">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of evidenceList(); track item.id) {
+                  <tr>
+                    <!-- 1. File Info -->
+                    <td class="col-file">
+                      <div class="file-cell">
+                        <div class="file-icon-box" [ngClass]="getFileTypeClass(item.mimeType)">
+                          <span class="material-symbols-outlined">{{ getFileTypeIcon(item.mimeType) }}</span>
+                        </div>
+                        <div class="file-info-text">
+                          <span class="file-name-title" [title]="item.originalName || item.fileName">
+                            {{ item.originalName || item.fileName }}
+                          </span>
+                          <div class="file-sub-meta">
+                            <span class="file-size-badge">{{ formatFileSize(item.fileSize) }}</span>
+                            <span class="file-format-badge" [ngClass]="getFileTypeClass(item.mimeType)">
+                              {{ getFileTypeName(item.mimeType) }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
 
-              <div class="card-body">
-                <h3 class="file-name" [title]="item.originalName || item.fileName">
-                  {{ item.originalName || item.fileName }}
-                </h3>
-                <div class="file-size-tag">{{ formatFileSize(item.fileSize) }} • {{ getFileTypeName(item.mimeType) }}</div>
-
-                @if (item.task) {
-                  <div class="task-link-box">
-                    <span class="material-symbols-outlined task-icon">assignment</span>
-                    <a [routerLink]="['/tasks', item.task.id]" class="task-title-link" [title]="item.task.title">
-                      @if (item.task.code) {
-                        <span class="task-code">#{{ item.task.code }}</span>
+                    <!-- 2. Linked Task -->
+                    <td class="col-task">
+                      @if (item.task) {
+                        <div class="task-info-box">
+                          <a [routerLink]="['/tasks', item.task.id]" class="task-link" [title]="item.task.title">
+                            @if (item.task.code) {
+                              <span class="task-code-pill">#{{ item.task.code }}</span>
+                            }
+                            <span class="task-title-text">{{ item.task.title }}</span>
+                          </a>
+                        </div>
+                      } @else {
+                        <span class="text-muted">Tài liệu độc lập</span>
                       }
-                      {{ item.task.title }}
-                    </a>
-                  </div>
+                    </td>
+
+                    <!-- 3. Scope / Location & Org Unit -->
+                    <td class="col-scope">
+                      <div class="scope-badges">
+                        @if (item.locationName || getLocationName(item.task?.locationId)) {
+                          <span class="badge-location">
+                            <span class="material-symbols-outlined badge-icon">location_on</span>
+                            {{ item.locationName || getLocationName(item.task?.locationId) }}
+                          </span>
+                        }
+                        @if (item.orgUnitName || getOrgUnitName(item.task?.orgUnitId)) {
+                          <span class="badge-org">
+                            <span class="material-symbols-outlined badge-icon">groups</span>
+                            {{ item.orgUnitName || getOrgUnitName(item.task?.orgUnitId) }}
+                          </span>
+                        }
+                      </div>
+                    </td>
+
+                    <!-- 4. Uploader -->
+                    <td class="col-uploader">
+                      <div class="uploader-cell">
+                        <img
+                          [src]="item.uploadedBy?.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (item.uploadedBy?.fullName || 'User')"
+                          class="uploader-avatar"
+                          alt="Avatar"
+                        />
+                        <div class="uploader-meta">
+                          <span class="uploader-name">{{ item.uploadedBy?.fullName || 'Người dùng' }}</span>
+                          @if (item.uploadedBy?.phone) {
+                            <a [href]="'tel:' + item.uploadedBy.phone" class="btn-phone" title="Gọi điện cho người cập nhật">
+                              <span class="material-symbols-outlined">call</span>
+                              <span>{{ item.uploadedBy.phone }}</span>
+                            </a>
+                          }
+                        </div>
+                      </div>
+                    </td>
+
+                    <!-- 5. Created Date -->
+                    <td class="col-date">
+                      <span class="date-text">{{ item.createdAt | date:'dd/MM/yyyy' }}</span>
+                      <span class="time-text">{{ item.createdAt | date:'HH:mm' }}</span>
+                    </td>
+
+                    <!-- 6. Actions -->
+                    <td class="col-actions">
+                      <div class="action-buttons">
+                        <button
+                          type="button"
+                          class="btn-act btn-view"
+                          (click)="previewEvidence(item)"
+                          title="Xem tài liệu"
+                        >
+                          <span class="material-symbols-outlined">visibility</span>
+                          <span>Xem</span>
+                        </button>
+                        <a
+                          [href]="item.fileUrl"
+                          [download]="item.originalName || item.fileName"
+                          target="_blank"
+                          class="btn-act btn-download"
+                          title="Tải xuống tệp tin"
+                        >
+                          <span class="material-symbols-outlined">download</span>
+                          <span>Tải về</span>
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
                 }
+              </tbody>
+            </table>
+          </div>
 
-                <div class="uploader-info">
-                  <div class="uploader-left">
-                    <img
-                      [src]="item.uploadedBy?.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (item.uploadedBy?.fullName || 'User')"
-                      class="uploader-avatar"
-                      alt="Avatar"
-                    />
-                    <div class="uploader-details">
-                      <span class="uploader-name">{{ item.uploadedBy?.fullName || 'Người dùng' }}</span>
-                      <span class="upload-time">{{ item.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
-                    </div>
-                  </div>
-
-                  @if (item.uploadedBy?.phone) {
-                    <a [href]="'tel:' + item.uploadedBy.phone" class="btn-call tap-target" title="Gọi điện cho người cập nhật">
-                      <span class="material-symbols-outlined">call</span>
-                    </a>
-                  }
-                </div>
-              </div>
-
-              <div class="card-footer">
-                <a [href]="item.fileUrl" target="_blank" class="btn-action btn-view" title="Xem trước tài liệu">
-                  <span class="material-symbols-outlined">visibility</span>
-                  <span>Xem tài liệu</span>
-                </a>
-                <a [href]="item.fileUrl" [download]="item.originalName || item.fileName" class="btn-action btn-download" title="Tải xuống tệp">
-                  <span class="material-symbols-outlined">download</span>
-                  <span>Tải về</span>
-                </a>
-              </div>
+          <!-- PAGINATION -->
+          @if (totalPages() > 1 || totalItems() > 0) {
+            <div class="pagination-footer">
+              <app-pagination
+                [currentPage]="currentPage()"
+                [totalItems]="totalItems()"
+                [pageSize]="pageSize()"
+                itemName="minh chứng"
+                (pageChange)="onPageChange($event)"
+              ></app-pagination>
             </div>
           }
         </div>
+      }
 
-        <!-- PAGINATION -->
-        @if (totalPages() > 1) {
-          <div class="pagination-wrapper">
-            <app-pagination
-              [currentPage]="currentPage()"
-              [totalItems]="totalItems()"
-              [pageSize]="pageSize()"
-              itemName="minh chứng"
-              (pageChange)="onPageChange($event)"
-            ></app-pagination>
+      <!-- PREVIEW MODAL -->
+      @if (previewItem()) {
+        <div class="modal-overlay" (click)="previewItem.set(null)">
+          <div class="modal-preview-card" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <div class="modal-title-box">
+                <span class="material-symbols-outlined modal-icon">{{ getFileTypeIcon(previewItem()!.mimeType) }}</span>
+                <h3 class="modal-title">{{ previewItem()!.originalName || previewItem()!.fileName }}</h3>
+              </div>
+              <div class="modal-actions">
+                <a
+                  [href]="previewItem()!.fileUrl"
+                  [download]="previewItem()!.originalName || previewItem()!.fileName"
+                  target="_blank"
+                  class="btn btn-sm btn-primary"
+                >
+                  <span class="material-symbols-outlined">download</span>
+                  <span>Tải về</span>
+                </a>
+                <button type="button" class="btn-close-modal" (click)="previewItem.set(null)">
+                  <span class="material-symbols-outlined">close</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="modal-body">
+              @if (previewItem()!.mimeType.includes('pdf')) {
+                <iframe [src]="previewItem()!.fileUrl" class="preview-frame" title="Xem trước minh chứng"></iframe>
+              } @else if (previewItem()!.mimeType.startsWith('image/')) {
+                <div class="img-wrap">
+                  <img [src]="previewItem()!.fileUrl" class="preview-img" alt="Minh chứng" />
+                </div>
+              } @else {
+                <div class="other-format-box">
+                  <span class="material-symbols-outlined large-doc-icon">{{ getFileTypeIcon(previewItem()!.mimeType) }}</span>
+                  <h4>{{ previewItem()!.originalName || previewItem()!.fileName }}</h4>
+                  <p>Văn bản Microsoft Office (.docx, .xlsx). Vui lòng tải về máy để xem nội dung đầy đủ nhất.</p>
+                  <a
+                    [href]="previewItem()!.fileUrl"
+                    [download]="previewItem()!.originalName || previewItem()!.fileName"
+                    class="btn btn-primary"
+                  >
+                    <span class="material-symbols-outlined">download</span>
+                    <span>Tải về máy ngay</span>
+                  </a>
+                </div>
+              }
+            </div>
           </div>
-        }
+        </div>
       }
     </div>
   `,
@@ -204,6 +323,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
       border-radius: 12px;
       padding: 24px;
       border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     .header-titles {
       display: flex;
@@ -220,6 +340,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
       font-size: 13px;
       font-weight: 600;
       margin-bottom: 8px;
+      width: fit-content;
     }
     .year-badge {
       background: #dbeafe;
@@ -243,6 +364,8 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
       font-size: 14px;
       line-height: 1.5;
     }
+
+    /* FILTER CARD */
     .filter-card {
       background: white;
       border-radius: 12px;
@@ -251,6 +374,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
       display: flex;
       flex-direction: column;
       gap: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     .filter-grid {
       display: grid;
@@ -263,27 +387,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
     @media (max-width: 640px) {
       .filter-grid { grid-template-columns: 1fr; }
     }
-    .search-field {
-      grid-column: span 1;
-    }
-    .form-control {
-      width: 100%;
-      height: 40px;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 0 12px;
-      font-size: 14px;
-      color: #0f172a;
-      background: #ffffff;
-      &:focus {
-        outline: none;
-        border-color: #2563eb;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-      }
-    }
-    .pagination-wrapper {
-      margin-top: 16px;
-    }
+    .search-field { grid-column: span 1; }
     .filter-field {
       display: flex;
       flex-direction: column;
@@ -314,6 +418,12 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
       border: 1px solid #cbd5e1;
       border-radius: 8px;
       font-size: 14px;
+      color: #0f172a;
+      &:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
     }
     .btn-clear-search {
       position: absolute;
@@ -333,6 +443,10 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
       font-size: 14px;
       background: white;
       color: #0f172a;
+      &:focus {
+        outline: none;
+        border-color: #2563eb;
+      }
     }
     .filter-actions {
       display: flex;
@@ -353,189 +467,347 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
       border: none;
       transition: all 0.2s;
     }
-    .btn-primary { background: #2563eb; color: white; }
-    .btn-primary:hover { background: #1d4ed8; }
-    .btn-secondary { background: #f1f5f9; color: #475569; }
-    .btn-secondary:hover { background: #e2e8f0; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-primary { background: #2563eb; color: white; &:hover { background: #1d4ed8; } }
+    .btn-secondary { background: #f1f5f9; color: #475569; &:hover { background: #e2e8f0; } }
     .filter-summary-text {
       margin-left: auto;
       font-size: 13px;
       color: #64748b;
     }
+
+    /* TABLE CARD */
+    .table-card {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .table-responsive {
+      overflow-x: auto;
+    }
+    .evidence-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+    .evidence-table th {
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 600;
+      padding: 12px 16px;
+      border-bottom: 1px solid #e2e8f0;
+      white-space: nowrap;
+    }
+    .evidence-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+      color: #1e293b;
+    }
+    .evidence-table tr:hover td {
+      background: #f8fafc;
+    }
+
+    /* Columns */
+    .col-file { min-width: 280px; }
+    .col-task { min-width: 240px; }
+    .col-scope { min-width: 180px; }
+    .col-uploader { min-width: 180px; }
+    .col-date { min-width: 120px; }
+    .col-actions { min-width: 170px; text-align: right; }
+
+    /* 1. File Cell */
+    .file-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .file-icon-box {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      span { font-size: 20px; }
+    }
+    .file-info-text {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      overflow: hidden;
+    }
+    .file-name-title {
+      font-weight: 600;
+      color: #0f172a;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .file-sub-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+    }
+    .file-size-badge {
+      color: #64748b;
+    }
+    .file-format-badge {
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    .type-pdf { background: #fee2e2; color: #b91c1c; }
+    .type-word { background: #e0e7ff; color: #3730a3; }
+    .type-excel { background: #dcfce7; color: #15803d; }
+    .type-img { background: #f3e8ff; color: #6b21a8; }
+    .type-other { background: #f1f5f9; color: #475569; }
+
+    /* 2. Task Cell */
+    .task-info-box {
+      display: flex;
+      align-items: center;
+    }
+    .task-link {
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      line-height: 1.4;
+      &:hover {
+        text-decoration: underline;
+        color: #1d4ed8;
+      }
+    }
+    .task-code-pill {
+      background: #eff6ff;
+      color: #1d4ed8;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .task-title-text {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .text-muted { color: #94a3b8; font-style: italic; }
+
+    /* 3. Scope Badges */
+    .scope-badges {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .badge-location, .badge-org {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 500;
+      width: fit-content;
+    }
+    .badge-location { background: #f1f5f9; color: #334155; }
+    .badge-org { background: #f0fdf4; color: #166534; }
+    .badge-icon { font-size: 14px; }
+
+    /* 4. Uploader Cell */
+    .uploader-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .uploader-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1px solid #cbd5e1;
+    }
+    .uploader-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .uploader-name {
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .btn-phone {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 11px;
+      color: #2563eb;
+      text-decoration: none;
+      &:hover { text-decoration: underline; }
+      span.material-symbols-outlined { font-size: 13px; }
+    }
+
+    /* 5. Date Cell */
+    .col-date {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .date-text { font-weight: 500; color: #334155; }
+    .time-text { font-size: 11px; color: #94a3b8; }
+
+    /* 6. Action Buttons */
+    .action-buttons {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+    .btn-act {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      border: 1px solid #cbd5e1;
+      background: white;
+      color: #334155;
+      transition: all 0.15s;
+      span.material-symbols-outlined { font-size: 16px; }
+    }
+    .btn-view:hover {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-color: #93c5fd;
+    }
+    .btn-download:hover {
+      background: #f0fdf4;
+      color: #166534;
+      border-color: #86efac;
+    }
+
+    .pagination-footer {
+      padding: 16px;
+      border-top: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+
     .loading-box, .empty-box {
       background: white;
       border-radius: 12px;
       padding: 48px 24px;
       text-align: center;
       border: 1px solid #e2e8f0;
-      color: #64748b;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
     }
     .spinner-icon {
       font-size: 36px;
-      animation: spin 1s linear infinite;
       color: #2563eb;
-      margin-bottom: 12px;
+      animation: spin 1s linear infinite;
     }
     @keyframes spin {
-      100% { transform: rotate(360deg); }
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
     }
     .empty-icon {
       font-size: 48px;
-      color: #cbd5e1;
-      margin-bottom: 8px;
+      color: #94a3b8;
     }
-    .evidence-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 16px;
-    }
-    .evidence-card {
-      background: white;
-      border-radius: 12px;
-      border: 1px solid #e2e8f0;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .evidence-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.07);
-    }
-    .card-type-icon {
-      height: 60px;
+
+    /* PREVIEW MODAL */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: white;
+      padding: 20px;
     }
-    .card-type-icon span { font-size: 32px; }
-    .type-pdf { background: linear-gradient(135deg, #ef4444, #b91c1c); }
-    .type-img { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
-    .type-word { background: linear-gradient(135deg, #2563eb, #1e40af); }
-    .type-excel { background: linear-gradient(135deg, #10b981, #047857); }
-    .type-other { background: linear-gradient(135deg, #64748b, #334155); }
-
-    .card-body {
-      padding: 16px;
+    .modal-preview-card {
+      background: white;
+      border-radius: 14px;
+      width: 850px;
+      height: 85vh;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      flex: 1;
-    }
-    .file-name {
-      font-size: 15px;
-      font-weight: 600;
-      color: #0f172a;
-      margin: 0;
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
     }
-    .file-size-tag {
-      font-size: 12px;
-      color: #64748b;
-    }
-    .task-link-box {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: #f8fafc;
-      padding: 6px 10px;
-      border-radius: 6px;
-      border: 1px solid #f1f5f9;
-    }
-    .task-icon { font-size: 16px; color: #2563eb; flex-shrink: 0; }
-    .task-title-link {
-      font-size: 13px;
-      color: #1e293b;
-      text-decoration: none;
-      font-weight: 500;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .task-title-link:hover { color: #2563eb; text-decoration: underline; }
-    .task-code {
-      color: #64748b;
-      font-size: 12px;
-      margin-right: 4px;
-    }
-    .uploader-info {
+    .modal-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid #e2e8f0;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-top: auto;
-      padding-top: 10px;
-      border-top: 1px dashed #e2e8f0;
+      background: #f8fafc;
     }
-    .uploader-left {
+    .modal-title-box {
       display: flex;
       align-items: center;
       gap: 8px;
     }
-    .uploader-avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      object-fit: cover;
+    .modal-icon { font-size: 20px; color: #2563eb; }
+    .modal-title { font-size: 15px; font-weight: 700; color: #0f172a; margin: 0; }
+    .modal-actions { display: flex; align-items: center; gap: 8px; }
+    .btn-close-modal {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      display: flex;
+      padding: 4px;
+      border-radius: 6px;
+      &:hover { background: #e2e8f0; color: #0f172a; }
     }
-    .uploader-details {
+    .modal-body {
+      flex: 1;
+      padding: 0;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0f172a;
+    }
+    .preview-frame { width: 100%; height: 100%; border: none; }
+    .img-wrap { padding: 20px; max-width: 100%; max-height: 100%; display: flex; align-items: center; justify-content: center; }
+    .preview-img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
+    .other-format-box {
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      text-align: center;
       display: flex;
       flex-direction: column;
-    }
-    .uploader-name {
-      font-size: 12px;
-      font-weight: 600;
-      color: #334155;
-    }
-    .upload-time {
-      font-size: 11px;
-      color: #94a3b8;
-    }
-    .btn-call {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: #f0fdf4;
-      color: #16a34a;
-      display: flex;
       align-items: center;
-      justify-content: center;
-      text-decoration: none;
-      transition: background 0.2s;
+      gap: 12px;
+      max-width: 480px;
     }
-    .btn-call:hover { background: #dcfce7; }
-    .btn-call span { font-size: 16px; }
-
-    .card-footer {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      border-top: 1px solid #e2e8f0;
-    }
-    .btn-action {
-      padding: 10px 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      font-size: 13px;
-      font-weight: 600;
-      text-decoration: none;
-      transition: background 0.2s;
-    }
-    .btn-view {
-      color: #2563eb;
-      background: #eff6ff;
-      border-right: 1px solid #e2e8f0;
-    }
-    .btn-view:hover { background: #dbeafe; }
-    .btn-download {
-      color: #475569;
-      background: #f8fafc;
-    }
-    .btn-download:hover { background: #f1f5f9; }
-    .btn-action span.material-symbols-outlined { font-size: 18px; }
+    .large-doc-icon { font-size: 64px; color: #2563eb; }
   `]
 })
 export class EvidenceComponent implements OnInit, OnDestroy {
@@ -551,7 +823,7 @@ export class EvidenceComponent implements OnInit, OnDestroy {
   totalItems = signal<number>(0);
   totalPages = signal<number>(1);
   currentPage = signal<number>(1);
-  pageSize = signal<number>(12);
+  pageSize = signal<number>(10);
 
   locations = signal<LocationItem[]>([]);
   orgUnits = signal<OrgUnitItem[]>([]);
@@ -561,6 +833,8 @@ export class EvidenceComponent implements OnInit, OnDestroy {
   selectedMimeType: string = 'ALL';
   selectedLocationId: string = '';
   selectedOrgUnitId: string = '';
+
+  previewItem = signal<any | null>(null);
 
   ngOnInit() {
     this.loadMetadata();
@@ -602,9 +876,9 @@ export class EvidenceComponent implements OnInit, OnDestroy {
       })
       .subscribe({
         next: (res) => {
-          this.evidenceList.set(res.items || []);
-          this.totalItems.set(res.pagination?.total || 0);
-          this.totalPages.set(res.pagination?.totalPages || 1);
+          this.evidenceList.set(res?.items || []);
+          this.totalItems.set(res?.pagination?.total || 0);
+          this.totalPages.set(res?.pagination?.totalPages || 1);
           this.isLoading.set(false);
         },
         error: () => {
@@ -636,6 +910,22 @@ export class EvidenceComponent implements OnInit, OnDestroy {
     this.loadEvidence();
   }
 
+  previewEvidence(item: any) {
+    this.previewItem.set(item);
+  }
+
+  getLocationName(locationId?: string): string {
+    if (!locationId) return '';
+    const loc = this.locations().find((l) => l.id === locationId);
+    return loc ? loc.name : '';
+  }
+
+  getOrgUnitName(orgUnitId?: string): string {
+    if (!orgUnitId) return '';
+    const org = this.orgUnits().find((o) => o.id === orgUnitId);
+    return org ? org.name : '';
+  }
+
   formatFileSize(bytes: number): string {
     if (!bytes || bytes === 0) return '0 B';
     const k = 1024;
@@ -648,7 +938,7 @@ export class EvidenceComponent implements OnInit, OnDestroy {
     if (!mimeType) return 'type-other';
     if (mimeType.includes('pdf')) return 'type-pdf';
     if (mimeType.startsWith('image/')) return 'type-img';
-    if (mimeType.includes('word')) return 'type-word';
+    if (mimeType.includes('word') || mimeType.includes('document')) return 'type-word';
     if (mimeType.includes('sheet') || mimeType.includes('excel')) return 'type-excel';
     return 'type-other';
   }
@@ -657,7 +947,7 @@ export class EvidenceComponent implements OnInit, OnDestroy {
     if (!mimeType) return 'draft';
     if (mimeType.includes('pdf')) return 'picture_as_pdf';
     if (mimeType.startsWith('image/')) return 'image';
-    if (mimeType.includes('word')) return 'description';
+    if (mimeType.includes('word') || mimeType.includes('document')) return 'description';
     if (mimeType.includes('sheet') || mimeType.includes('excel')) return 'table_view';
     return 'attach_file';
   }
@@ -666,8 +956,8 @@ export class EvidenceComponent implements OnInit, OnDestroy {
     if (!mimeType) return 'Tệp tin';
     if (mimeType.includes('pdf')) return 'PDF';
     if (mimeType.startsWith('image/')) return 'Hình ảnh';
-    if (mimeType.includes('word')) return 'Word DOCX';
-    if (mimeType.includes('sheet') || mimeType.includes('excel')) return 'Excel XLSX';
+    if (mimeType.includes('word') || mimeType.includes('document')) return 'Word';
+    if (mimeType.includes('sheet') || mimeType.includes('excel')) return 'Excel';
     return 'Tài liệu';
   }
 }

@@ -12,6 +12,8 @@ import {
   MOCK_NOTIFICATIONS,
   MOCK_DASHBOARD_OVERVIEW,
   MOCK_PERMISSIONS_MATRIX,
+  MOCK_DOCUMENT_FOLDERS,
+  MOCK_DOCUMENT_FILES,
 } from '../mock/demo-mock-data';
 import { LocationSummaryItem } from '../models/admin.models';
 
@@ -1448,6 +1450,334 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
               },
             })
           );
+        }
+
+        // 9. EVIDENCE REPOSITORY (/api/attachments/repository)
+        if (url.includes('/api/attachments/repository')) {
+          const searchParam = (req.params.get('search') || (url.match(/[?&]search=([^&]+)/)?.[1]) || '').toLowerCase();
+          const mimeParam = req.params.get('mimeType') || (url.match(/[?&]mimeType=([^&]+)/)?.[1]) || 'ALL';
+          const locParam = req.params.get('locationId') || (url.match(/[?&]locationId=([^&]+)/)?.[1]) || '';
+          const orgParam = req.params.get('orgUnitId') || (url.match(/[?&]orgUnitId=([^&]+)/)?.[1]) || '';
+          const pageParam = parseInt(req.params.get('page') || (url.match(/[?&]page=([^&]+)/)?.[1]) || '1', 10);
+          const pageSizeParam = parseInt(req.params.get('pageSize') || (url.match(/[?&]pageSize=([^&]+)/)?.[1]) || '10', 10);
+
+          // Build evidence items from tasks attachments & documents
+          const sampleEvidences = [
+            {
+              id: 'ev-1',
+              fileName: 'Bien-ban-nghiem-thu-CSVC-Dau-nam.pdf',
+              originalName: 'Biên bản nghiệm thu cơ sở vật chất đầu năm học.pdf',
+              fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+              fileSize: 2450000,
+              mimeType: 'application/pdf',
+              createdAt: '2026-09-02T09:30:00Z',
+              task: { id: 'task-csvc-1', code: 'CV-CSVC-01', title: 'Kiểm kê cơ sở vật chất phòng học đầu năm', locationId: 'loc-main', orgUnitId: 'org-vanphong' },
+              uploadedBy: { id: 'u-pht1', fullName: 'Nguyễn Văn Minh', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Minh', phone: '0903222333' },
+              locationName: 'Điểm chính (Trung tâm)',
+              orgUnitName: 'Tổ Văn phòng',
+            },
+            {
+              id: 'ev-2',
+              fileName: 'Giao-an-dien-tu-Toan-Khoi-9-T1.docx',
+              originalName: 'Kế hoạch bài dạy môn Toán Khối 9 Tuần 1.docx',
+              fileUrl: '#',
+              fileSize: 850000,
+              mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              createdAt: '2026-09-03T14:15:00Z',
+              task: { id: 'task-shcm-1', code: 'CV-TOAN-02', title: 'Soạn và duyệt giáo án Toán khối 9 theo CT GDPT 2018', locationId: 'loc-main', orgUnitId: 'org-toantin' },
+              uploadedBy: { id: 'u-totruong-toan', fullName: 'Lê Hoàng Long', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Long', phone: '0903444555' },
+              locationName: 'Điểm chính (Trung tâm)',
+              orgUnitName: 'Tổ Toán - Tin học',
+            },
+            {
+              id: 'ev-3',
+              fileName: 'Bang-tong-hop-Diem-kiem-tra-dau-nam.xlsx',
+              originalName: 'Bảng tổng hợp điểm khảo sát chất lượng đầu năm môn Tiếng Anh.xlsx',
+              fileUrl: '#',
+              fileSize: 1780000,
+              mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              createdAt: '2026-09-05T16:00:00Z',
+              task: { id: 'task-ta-1', code: 'CV-ANH-01', title: 'Khảo sát chất lượng tiếng Anh đầu năm các khối', locationId: 'loc-ph1', orgUnitId: 'org-tienganh' },
+              uploadedBy: { id: 'u-totruong-ta', fullName: 'Vũ Thị Hoa', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Hoa', phone: '0903555666' },
+              locationName: 'Phân hiệu 1 (Tân Lập)',
+              orgUnitName: 'Tổ Tiếng Anh',
+            },
+            {
+              id: 'ev-4',
+              fileName: 'Hinh-anh-khai-giang-nam-hoc-2026.png',
+              originalName: 'Ảnh tư liệu Lễ Khai giảng năm học mới 2026-2027.png',
+              fileUrl: 'https://picsum.photos/800/600?random=1',
+              fileSize: 3120000,
+              mimeType: 'image/png',
+              createdAt: '2026-09-05T11:00:00Z',
+              task: { id: 'task-kg-1', code: 'CV-BGH-01', title: 'Tổ chức Lễ Khai giảng năm học mới 2026-2027', locationId: 'loc-main', orgUnitId: 'org-bgh' },
+              uploadedBy: { id: 'u-hieutruong', fullName: 'Phạm Thị Nam', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Nam', phone: '0903111222' },
+              locationName: 'Điểm chính (Trung tâm)',
+              orgUnitName: 'Ban Giám hiệu',
+            },
+            {
+              id: 'ev-5',
+              fileName: 'Bien-ban-kiem-tra-chuyen-mon-Van-T9.pdf',
+              originalName: 'Biên bản kiểm tra hồ sơ chuyên môn Tổ Ngữ văn tháng 9.pdf',
+              fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+              fileSize: 1350000,
+              mimeType: 'application/pdf',
+              createdAt: '2026-09-10T10:45:00Z',
+              task: { id: 'task-van-1', code: 'CV-VAN-01', title: 'Kiểm tra nề nếp soạn giảng tổ Văn - Sử - Địa', locationId: 'loc-main', orgUnitId: 'org-vansudia' },
+              uploadedBy: { id: 'u-totruong-van', fullName: 'Đặng Thanh Hà', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ha', phone: '0903666777' },
+              locationName: 'Điểm chính (Trung tâm)',
+              orgUnitName: 'Tổ Ngữ văn - Lịch sử - Địa lý',
+            },
+            {
+              id: 'ev-6',
+              fileName: 'Ke-hoach-boi-duong-hoc-sinh-gioi-Khoi-8.pdf',
+              originalName: 'Kế hoạch chi tiết bồi dưỡng HSG Khoa học Tự nhiên.pdf',
+              fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+              fileSize: 920000,
+              mimeType: 'application/pdf',
+              createdAt: '2026-09-12T15:20:00Z',
+              task: { id: 'task-khtn-1', code: 'CV-KHTN-01', title: 'Thành lập đội tuyển và ôn tập HSG các môn KHTN', locationId: 'loc-ph2', orgUnitId: 'org-khtn' },
+              uploadedBy: { id: 'u-gv-ly', fullName: 'Bùi Tuấn Anh', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=TuanAnh', phone: '0903888999' },
+              locationName: 'Phân hiệu 2 (Vườn Dừa)',
+              orgUnitName: 'Tổ Khoa học Tự nhiên (Lý - Hóa - Sinh)',
+            },
+            {
+              id: 'ev-7',
+              fileName: 'Danh-sach-tiem-chung-hoc-sinh-T9.xlsx',
+              originalName: 'Danh sách tổng hợp tiêm chủng và khám sức khỏe HS Khối 6.xlsx',
+              fileUrl: '#',
+              fileSize: 1450000,
+              mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              createdAt: '2026-09-14T08:30:00Z',
+              task: { id: 'task-yte-1', code: 'CV-VP-03', title: 'Khám sức khỏe ban đầu cho học sinh toàn trường', locationId: 'loc-main', orgUnitId: 'org-vanphong' },
+              uploadedBy: { id: 'u-nv-yte', fullName: 'Ngô Thị Mai', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mai', phone: '0903999000' },
+              locationName: 'Điểm chính (Trung tâm)',
+              orgUnitName: 'Tổ Văn phòng',
+            },
+          ];
+
+          let filtered = sampleEvidences.filter((item) => {
+            const matchesSearch =
+              !searchParam ||
+              item.fileName.toLowerCase().includes(searchParam) ||
+              item.originalName.toLowerCase().includes(searchParam) ||
+              (item.task?.title && item.task.title.toLowerCase().includes(searchParam)) ||
+              (item.task?.code && item.task.code.toLowerCase().includes(searchParam)) ||
+              (item.uploadedBy?.fullName && item.uploadedBy.fullName.toLowerCase().includes(searchParam));
+
+            const matchesMime =
+              mimeParam === 'ALL' ||
+              (mimeParam === 'PDF' && item.mimeType.includes('pdf')) ||
+              (mimeParam === 'IMAGE' && item.mimeType.startsWith('image/')) ||
+              (mimeParam === 'WORD' && item.mimeType.includes('word')) ||
+              (mimeParam === 'EXCEL' && (item.mimeType.includes('sheet') || item.mimeType.includes('excel')));
+
+            const matchesLoc = !locParam || item.task?.locationId === locParam;
+            const matchesOrg = !orgParam || item.task?.orgUnitId === orgParam;
+
+            return matchesSearch && matchesMime && matchesLoc && matchesOrg;
+          });
+
+          const total = filtered.length;
+          const totalPages = Math.ceil(total / pageSizeParam) || 1;
+          const startIndex = (pageParam - 1) * pageSizeParam;
+          const items = filtered.slice(startIndex, startIndex + pageSizeParam);
+
+          return of(
+            new HttpResponse({
+              status: 200,
+              body: {
+                success: true,
+                data: {
+                  items,
+                  pagination: {
+                    page: pageParam,
+                    pageSize: pageSizeParam,
+                    total,
+                    totalPages,
+                  },
+                },
+              },
+            })
+          );
+        }
+
+        // 10. DOCUMENT MANAGEMENT (/api/documents)
+        if (url.includes('/api/documents')) {
+          // Initialize in-memory storage from localStorage if available
+          const STORAGE_FOLDERS_KEY = 'TN_EDU_DEMO_DOC_FOLDERS';
+          const STORAGE_FILES_KEY = 'TN_EDU_DEMO_DOC_FILES';
+
+          let storedFolders: any[] = [];
+          try {
+            const fRaw = localStorage.getItem(STORAGE_FOLDERS_KEY);
+            storedFolders = fRaw ? JSON.parse(fRaw) : [...MOCK_DOCUMENT_FOLDERS];
+          } catch {
+            storedFolders = [...MOCK_DOCUMENT_FOLDERS];
+          }
+
+          let storedFiles: any[] = [];
+          try {
+            const flRaw = localStorage.getItem(STORAGE_FILES_KEY);
+            storedFiles = flRaw ? JSON.parse(flRaw) : [...MOCK_DOCUMENT_FILES];
+          } catch {
+            storedFiles = [...MOCK_DOCUMENT_FILES];
+          }
+
+          const saveStorage = () => {
+            try {
+              localStorage.setItem(STORAGE_FOLDERS_KEY, JSON.stringify(storedFolders));
+              localStorage.setItem(STORAGE_FILES_KEY, JSON.stringify(storedFiles));
+            } catch {}
+          };
+
+          // 10.1 Reset/Init sample tree
+          if (url.includes('/sample-tree') && method === 'POST') {
+            storedFolders = [...MOCK_DOCUMENT_FOLDERS];
+            storedFiles = [...MOCK_DOCUMENT_FILES];
+            saveStorage();
+            return of(new HttpResponse({ status: 200, body: { success: true, data: storedFolders } }));
+          }
+
+          // 10.2 Global Search in Documents
+          if (url.includes('/api/documents/search')) {
+            const query = (req.params.get('search') || (url.match(/[?&]search=([^&]+)/)?.[1]) || '').toLowerCase();
+            const results = storedFiles.filter(
+              (f) =>
+                f.fileName.toLowerCase().includes(query) ||
+                (f.originalName && f.originalName.toLowerCase().includes(query)) ||
+                (f.description && f.description.toLowerCase().includes(query))
+            );
+            return of(new HttpResponse({ status: 200, body: { success: true, data: results } }));
+          }
+
+          // 10.3 Delete file: /api/documents/files/:id
+          const deleteFileMatch = url.match(/\/api\/documents\/files\/([a-zA-Z0-9_\-\.]+)/);
+          if (deleteFileMatch && method === 'DELETE') {
+            const fileId = deleteFileMatch[1];
+            storedFiles = storedFiles.filter((f) => f.id !== fileId);
+            saveStorage();
+            return of(new HttpResponse({ status: 200, body: { success: true, message: 'Đã xóa tệp tin.' } }));
+          }
+
+          // 10.4 Files in a folder: /api/documents/folders/:id/files
+          const folderFilesMatch = url.match(/\/api\/documents\/folders\/([a-zA-Z0-9_\-\.]+)\/files/);
+          if (folderFilesMatch) {
+            const folderId = folderFilesMatch[1];
+            if (method === 'GET') {
+              const query = (req.params.get('search') || (url.match(/[?&]search=([^&]+)/)?.[1]) || '').toLowerCase();
+              let files = storedFiles.filter((f) => f.folderId === folderId);
+              if (query) {
+                files = files.filter(
+                  (f) =>
+                    f.fileName.toLowerCase().includes(query) ||
+                    (f.originalName && f.originalName.toLowerCase().includes(query))
+                );
+              }
+              return of(new HttpResponse({ status: 200, body: { success: true, data: files } }));
+            }
+            if (method === 'POST') {
+              // Upload mock files
+              const newFile: any = {
+                id: 'doc-file-' + Date.now(),
+                folderId,
+                fileName: 'Tai_Lieu_Moi_' + new Date().toISOString().slice(0, 10) + '.pdf',
+                originalName: 'Tài liệu vừa tải lên ' + new Date().toLocaleTimeString('vi-VN') + '.pdf',
+                fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                fileSize: 1024 * 1024 * 1.5,
+                mimeType: 'application/pdf',
+                uploadedById: 'u-hieutruong',
+                uploadedBy: { id: 'u-hieutruong', fullName: 'Phạm Thị Nam', phone: '0903111222' },
+                tenantId: 'tenant-phuoc-tan',
+                academicYear: reqAcademicYear,
+                createdAt: new Date().toISOString(),
+              };
+              storedFiles.unshift(newFile);
+              saveStorage();
+              return of(new HttpResponse({ status: 201, body: { success: true, data: [newFile] } }));
+            }
+          }
+
+          // 10.5 Folder single item mutation (PATCH rename / DELETE)
+          const singleFolderMatch = url.match(/\/api\/documents\/folders\/([a-zA-Z0-9_\-\.]+)$/);
+          if (singleFolderMatch) {
+            const folderId = singleFolderMatch[1];
+            if (method === 'PATCH') {
+              const body = (req.body || {}) as any;
+              const idx = storedFolders.findIndex((f) => f.id === folderId);
+              if (idx !== -1) {
+                storedFolders[idx] = { ...storedFolders[idx], name: body.name || storedFolders[idx].name, updatedAt: new Date().toISOString() };
+                saveStorage();
+                return of(new HttpResponse({ status: 200, body: { success: true, data: storedFolders[idx] } }));
+              }
+            }
+            if (method === 'DELETE') {
+              // Recursive delete folder & subfolders & files
+              const idsToDelete = new Set<string>([folderId]);
+              let changed = true;
+              while (changed) {
+                changed = false;
+                storedFolders.forEach((f) => {
+                  if (f.parentId && idsToDelete.has(f.parentId) && !idsToDelete.has(f.id)) {
+                    idsToDelete.add(f.id);
+                    changed = true;
+                  }
+                });
+              }
+              storedFolders = storedFolders.filter((f) => !idsToDelete.has(f.id));
+              storedFiles = storedFiles.filter((f) => !idsToDelete.has(f.folderId));
+              saveStorage();
+              return of(new HttpResponse({ status: 200, body: { success: true, message: 'Đã xóa thư mục và tệp tin liên quan.' } }));
+            }
+          }
+
+          // 10.6 Folders Root: /api/documents/folders (GET tree / POST new folder)
+          if (url.includes('/api/documents/folders')) {
+            if (method === 'GET') {
+              // Build nested tree
+              const map = new Map<string, any>();
+              storedFolders.forEach((f) => {
+                const fl = storedFiles.filter((file) => file.folderId === f.id);
+                const totalSize = fl.reduce((sum, item) => sum + (item.fileSize || 0), 0);
+                map.set(f.id, {
+                  ...f,
+                  children: [],
+                  fileCount: fl.length,
+                  totalSize,
+                  isOpen: f.isOpen ?? false,
+                });
+              });
+
+              const tree: any[] = [];
+              storedFolders.forEach((f) => {
+                const node = map.get(f.id);
+                if (f.parentId && map.has(f.parentId)) {
+                  map.get(f.parentId).children.push(node);
+                } else {
+                  tree.push(node);
+                }
+              });
+
+              return of(new HttpResponse({ status: 200, body: { success: true, data: tree } }));
+            }
+
+            if (method === 'POST') {
+              const body = (req.body || {}) as any;
+              const newFolder = {
+                id: 'f-' + Date.now(),
+                name: (body.name || 'Thư mục mới').trim(),
+                parentId: body.parentId || null,
+                tenantId: 'tenant-phuoc-tan',
+                academicYear: body.academicYear || reqAcademicYear,
+                orderIndex: storedFolders.length + 1,
+                createdAt: new Date().toISOString(),
+                isOpen: true,
+              };
+              storedFolders.push(newFolder);
+              saveStorage();
+              return of(new HttpResponse({ status: 201, body: { success: true, data: newFolder } }));
+            }
+          }
         }
 
         // Default generic success response for mutations (POST/PUT/PATCH/DELETE)

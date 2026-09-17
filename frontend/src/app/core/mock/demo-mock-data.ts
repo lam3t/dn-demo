@@ -1856,3 +1856,298 @@ export const MOCK_PERMISSIONS_MATRIX: PermissionMatrixItem[] = [
     ],
   },
 ];
+
+export interface MockDocumentFolder {
+  id: string;
+  name: string;
+  parentId: string | null;
+  tenantId: string;
+  academicYear?: string;
+  orderIndex: number;
+  createdAt: string;
+  isOpen?: boolean;
+}
+
+export interface MockDocumentFile {
+  id: string;
+  folderId: string;
+  fileName: string;
+  originalName: string;
+  fileUrl: string;
+  fileSize: number;
+  mimeType: string;
+  uploadedById?: string;
+  uploadedBy?: {
+    id: string;
+    fullName: string;
+    avatarUrl?: string;
+    phone?: string;
+  };
+  tenantId: string;
+  academicYear?: string;
+  createdAt: string;
+  description?: string;
+}
+
+export const MOCK_DOCUMENT_FOLDERS: MockDocumentFolder[] = [
+  { id: 'f-root', name: 'HÒA BÌNH', parentId: null, tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 1, createdAt: '2026-08-01T08:00:00Z', isOpen: true },
+  { id: 'f-2627', name: '2026_2027', parentId: 'f-root', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 1, createdAt: '2026-08-01T08:05:00Z', isOpen: true },
+  { id: 'f-dang', name: '1. Công tác Đảng', parentId: 'f-2627', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 1, createdAt: '2026-08-10T08:00:00Z' },
+  { id: 'f-hctcns', name: '2. HC-TC-NS', parentId: 'f-2627', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 2, createdAt: '2026-08-10T08:10:00Z', isOpen: true },
+  { id: 'f-qdqc', name: 'QUYẾT ĐỊNH_QUY CHẾ ĐẦU NĂM HỌC', parentId: 'f-hctcns', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 1, createdAt: '2026-08-15T09:00:00Z' },
+  { id: 'f-diemchinh', name: '3. Điểm chính', parentId: 'f-2627', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 3, createdAt: '2026-08-10T08:20:00Z', isOpen: true },
+  { id: 'f-chuyenmon', name: 'Chuyên môn', parentId: 'f-diemchinh', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 1, createdAt: '2026-08-15T09:10:00Z' },
+  { id: 'f-csvc', name: 'CSVC', parentId: 'f-diemchinh', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 2, createdAt: '2026-08-15T09:20:00Z' },
+  { id: 'f-nhansu', name: 'Nhân sự', parentId: 'f-diemchinh', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 3, createdAt: '2026-08-15T09:30:00Z', isOpen: true },
+  { id: 'f-dshs', name: 'DS HS ĐẦU NĂM - DS CÁC LỚP 2026-2027', parentId: 'f-nhansu', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 1, createdAt: '2026-08-20T10:00:00Z' },
+  { id: 'f-ph1', name: '4. Phân hiệu 1', parentId: 'f-2627', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 4, createdAt: '2026-08-10T08:30:00Z' },
+  { id: 'f-ph2', name: '5. Phân hiệu 2', parentId: 'f-2627', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 5, createdAt: '2026-08-10T08:40:00Z' },
+  { id: 'f-thang', name: '6. Công tác tháng', parentId: 'f-2627', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 6, createdAt: '2026-08-10T08:50:00Z', isOpen: true },
+  { id: 'f-thang1', name: 'Tháng 1', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 1, createdAt: '2026-08-12T08:00:00Z' },
+  { id: 'f-thang2', name: 'Tháng 2', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 2, createdAt: '2026-08-12T08:00:00Z' },
+  { id: 'f-thang3', name: 'Tháng 3', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 3, createdAt: '2026-08-12T08:00:00Z' },
+  { id: 'f-thang4', name: 'Tháng 4', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 4, createdAt: '2026-08-12T08:00:00Z' },
+  { id: 'f-thang5', name: 'Tháng 5', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 5, createdAt: '2026-08-12T08:00:00Z' },
+  { id: 'f-thang8', name: 'Tháng 8', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 6, createdAt: '2026-08-12T08:00:00Z' },
+  { id: 'f-thang9', name: 'Tháng 9', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 7, createdAt: '2026-08-12T08:00:00Z', isOpen: true },
+  { id: 'f-tuan1', name: 'Tuần 1', parentId: 'f-thang9', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 1, createdAt: '2026-09-01T08:00:00Z' },
+  { id: 'f-tuan2', name: 'Tuần 2', parentId: 'f-thang9', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 2, createdAt: '2026-09-08T08:00:00Z' },
+  { id: 'f-tuan3', name: 'Tuần 3', parentId: 'f-thang9', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 3, createdAt: '2026-09-15T08:00:00Z' },
+];
+
+export const MOCK_DOCUMENT_FILES: MockDocumentFile[] = [
+  // f-dang
+  {
+    id: 'doc-file-1',
+    folderId: 'f-dang',
+    fileName: 'Nghi-quyet-Chi-bo-Dau-nam-2026-2027.pdf',
+    originalName: 'Nghị quyết Chi bộ đầu năm 2026 - 2027.pdf',
+    fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+    fileSize: 1420000,
+    mimeType: 'application/pdf',
+    uploadedById: 'u-hieutruong',
+    uploadedBy: { id: 'u-hieutruong', fullName: 'Phạm Thị Nam', phone: '0903111222' },
+    tenantId: 'tenant-phuoc-tan',
+    academicYear: '2026-2027',
+    createdAt: '2026-08-16T14:30:00Z',
+    description: 'Nghị quyết phương hướng nhiệm vụ năm học Chi bộ',
+  },
+  {
+    id: 'doc-file-2',
+    folderId: 'f-dang',
+    fileName: 'Ke-hoach-kiem-tra-giam-sat-Dang-2026.docx',
+    originalName: 'Kế hoạch kiểm tra giám sát Đảng viên 2026.docx',
+    fileUrl: '#',
+    fileSize: 685000,
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    uploadedById: 'u-hieutruong',
+    uploadedBy: { id: 'u-hieutruong', fullName: 'Phạm Thị Nam', phone: '0903111222' },
+    tenantId: 'tenant-phuoc-tan',
+    academicYear: '2026-2027',
+    createdAt: '2026-08-18T10:15:00Z',
+  },
+  // f-qdqc
+  {
+    id: 'doc-file-3',
+    folderId: 'f-qdqc',
+    fileName: 'Quyet-dinh-thanh-lap-hoi-dong-su-pham-2026-2027.pdf',
+    originalName: 'Quyết định thành lập Hội đồng Sư phạm năm học 2026-2027.pdf',
+    fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+    fileSize: 2150000,
+    mimeType: 'application/pdf',
+    uploadedById: 'u-hieutruong',
+    uploadedBy: { id: 'u-hieutruong', fullName: 'Phạm Thị Nam', phone: '0903111222' },
+    tenantId: 'tenant-phuoc-tan',
+    academicYear: '2026-2027',
+    createdAt: '2026-08-20T08:00:00Z',
+  },
+  {
+    id: 'doc-file-4',
+    folderId: 'f-qdqc',
+    fileName: 'Quy-che-chi-tieu-noi-bo-2026-2027.pdf',
+    originalName: 'Quy chế chi tiêu nội bộ năm học 2026-2027.pdf',
+    fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+    fileSize: 3450000,
+    mimeType: 'application/pdf',
+    uploadedById: 'u-hieutruong',
+    uploadedBy: { id: 'u-hieutruong', fullName: 'Phạm Thị Nam', phone: '0903111222' },
+    tenantId: 'tenant-phuoc-tan',
+    academicYear: '2026-2027',
+    createdAt: '2026-08-22T09:30:00Z',
+  },
+  {
+    id: 'doc-file-5',
+    folderId: 'f-qdqc',
+    fileName: 'Phan-cong-nhiem-vu-can-bo-giao-vien-2026-2027.docx',
+    originalName: 'Phân công nhiệm vụ Cán bộ - Giáo viên - Nhân viên 2026-2027.docx',
+    fileUrl: '#',
+    fileSize: 920000,
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    uploadedById: 'u-pht1',
+    uploadedBy: { id: 'u-pht1', fullName: 'Nguyễn Văn Minh', phone: '0903222333' },
+    tenantId: 'tenant-phuoc-tan',
+    academicYear: '2026-2027',
+    createdAt: '2026-08-25T11:00:00Z',
+  },
+  // f-chuyenmon
+  {
+    id: 'doc-file-6',
+    folderId: 'f-chuyenmon',
+    fileName: 'Phan-phoi-chuong-trinh-Toan-THCS-2026-2027.xlsx',
+    originalName: 'Phân phối chương trình Toán THCS năm học 2026-2027.xlsx',
+    fileUrl: '#',
+    fileSize: 1560000,
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    uploadedById: 'u-totruong-toan',
+    uploadedBy: { id: 'u-totruong-toan', fullName: 'Lê Hoàng Long', phone: '0903444555' },
+    tenantId: 'tenant-phuoc-tan',
+    academicYear: '2026-2027',
+    createdAt: '2026-08-28T14:20:00Z',
+  },
+  {
+    id: 'doc-file-7',
+    folderId: 'f-chuyenmon',
+    fileName: 'Ke-hoach-boi-duong-hoc-sinh-gioi-Khoi-9.docx',
+    originalName: 'Kế hoạch bồi dưỡng Học sinh giỏi Khối 9 cấp Tỉnh.docx',
+    fileUrl: '#',
+    fileSize: 780000,
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    uploadedById: 'u-totruong-toan',
+    uploadedBy: { id: 'u-totruong-toan', fullName: 'Lê Hoàng Long', phone: '0903444555' },
+    tenantId: 'tenant-phuoc-tan',
+    academicYear: '2026-2027',
+    createdAt: '2026-08-30T16:00:00Z',
+  },
+  // f-csvc
+  {
+    id: 'doc-file-8',
+    folderId: 'f-csvc',
+    fileName: 'Bien-ban-kiem-ke-tai-san-phong-may-dau-nam.pdf',
+    originalName: 'Biên bản kiểm kê tài sản phòng máy vi tính đầu năm.pdf',
+    fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+    fileSize: 1840000,
+    mimeType: 'application/pdf',
+    uploadedById: 'u-gv-tin1',
+    uploadedBy: { id: 'u-gv-tin1', fullName: 'Trần Minh Quang', phone: '0903777888' },
+    tenantId: 'tenant-phuoc-tan',
+    academicYear: '2026-2027',
+    createdAt: '2026-09-02T08:30:00Z',
+  },
+  {
+    id: 'doc-file-9',
+    folderId: 'f-csvc',
+    fileName: 'So-theo-doi-thiet-bi-day-hoc-2026-2027.xlsx',
+    originalName: 'Sổ theo dõi mượn trả thiết bị dạy học 2026-2027.xlsx',
+    fileUrl: '#',
+    fileSize: 2210000,
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    uploadedById: 'u-gv-tin1',
+    uploadedBy: { id: 'u-gv-tin1', fullName: 'Trần Minh Quang', phone: '0903777888' },
+    tenantId: 'tenant-phuoc-tan',
+    academicYear: '2026-2027',
+    createdAt: '2026-09-03T10:00:00Z',
+  },
+  // f-dshs
+  {
+    id: 'doc-file-10',
+    folderId: 'f-dshs',
+    fileName: 'Danh-sach-hoc-sinh-Khoi-6-nam-hoc-2026-2027.xlsx',
+    originalName: 'Danh sách tuyển sinh học sinh Khối 6 năm học 2026-2027.xlsx',
+    fileUrl: '#',
+    fileSize: 4200000,
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    uploadedById: 'u-pht1',
+    uploadedBy: { id: 'u-pht1', fullName: 'Nguyễn Văn Minh', phone: '0903222333' },
+    tenantId: 'tenant-phuoc-tan',
+    academicYear: '2026-2027',
+    createdAt: '2026-08-25T15:30:00Z',
+  },
+  {
+    id: 'doc-file-11',
+    folderId: 'f-dshs',
+    fileName: 'Danh-sach-hoc-sinh-Khoi-7-8-9-nam-hoc-2026-2027.xlsx',
+    originalName: 'Danh sách học sinh Khối 7, 8, 9 năm học 2026-2027.xlsx',
+    fileUrl: '#',
+    fileSize: 5800000,
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    uploadedById: 'u-pht1',
+    uploadedBy: { id: 'u-pht1', fullName: 'Nguyễn Văn Minh', phone: '0903222333' },
+    tenantId: 'tenant-phuoc-tan',
+    academicYear: '2026-2027',
+    createdAt: '2026-08-26T09:00:00Z',
+  },
+  // f-ph1
+  {
+    id: 'doc-file-12',
+    folderId: 'f-ph1',
+    fileName: 'Bien-ban-kiem-tra-dau-nam-Phan-hieu-1.pdf',
+    originalName: 'Biên bản kiểm tra CSVC & Nhân lực đầu năm Phân hiệu 1 Tân Lập.pdf',
+    fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+    fileSize: 1650000,
+    mimeType: 'application/pdf',
+    uploadedById: 'u-pht2',
+    uploadedBy: { id: 'u-pht2', fullName: 'Trần Thị Thu Hà', phone: '0903333444' },
+    tenantId: 'tenant-phuoc-tan',
+    academicYear: '2026-2027',
+    createdAt: '2026-09-01T08:00:00Z',
+  },
+  // f-tuan1
+  {
+    id: 'doc-file-13',
+    folderId: 'f-tuan1',
+    fileName: 'Lich-cong-tac-tuan-1-Thang-9-2026.pdf',
+    originalName: 'Lịch công tác tuần 1 (01/09 - 06/09/2026).pdf',
+    fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+    fileSize: 1120000,
+    mimeType: 'application/pdf',
+    uploadedById: 'u-hieutruong',
+    uploadedBy: { id: 'u-hieutruong', fullName: 'Phạm Thị Nam', phone: '0903111222' },
+    tenantId: 'tenant-phuoc-tan',
+    academicYear: '2026-2027',
+    createdAt: '2026-09-01T07:00:00Z',
+  },
+  {
+    id: 'doc-file-14',
+    folderId: 'f-tuan1',
+    fileName: 'Bien-ban-sinh-hoat-chuyen-mon-tuan-1.docx',
+    originalName: 'Biên bản sinh hoạt chuyên môn tuần 1 cụm liên trường.docx',
+    fileUrl: '#',
+    fileSize: 840000,
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    uploadedById: 'u-totruong-toan',
+    uploadedBy: { id: 'u-totruong-toan', fullName: 'Lê Hoàng Long', phone: '0903444555' },
+    tenantId: 'tenant-phuoc-tan',
+    academicYear: '2026-2027',
+    createdAt: '2026-09-05T16:30:00Z',
+  },
+  // f-tuan2
+  {
+    id: 'doc-file-15',
+    folderId: 'f-tuan2',
+    fileName: 'Lich-cong-tac-tuan-2-Thang-9-2026.pdf',
+    originalName: 'Lịch công tác tuần 2 (08/09 - 13/09/2026).pdf',
+    fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+    fileSize: 980000,
+    mimeType: 'application/pdf',
+    uploadedById: 'u-hieutruong',
+    uploadedBy: { id: 'u-hieutruong', fullName: 'Phạm Thị Nam', phone: '0903111222' },
+    tenantId: 'tenant-phuoc-tan',
+    academicYear: '2026-2027',
+    createdAt: '2026-09-08T07:00:00Z',
+  },
+  // f-tuan3
+  {
+    id: 'doc-file-16',
+    folderId: 'f-tuan3',
+    fileName: 'Lich-cong-tac-tuan-3-Thang-9-2026.pdf',
+    originalName: 'Lịch công tác tuần 3 (15/09 - 20/09/2026).pdf',
+    fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+    fileSize: 1050000,
+    mimeType: 'application/pdf',
+    uploadedById: 'u-hieutruong',
+    uploadedBy: { id: 'u-hieutruong', fullName: 'Phạm Thị Nam', phone: '0903111222' },
+    tenantId: 'tenant-phuoc-tan',
+    academicYear: '2026-2027',
+    createdAt: '2026-09-15T07:00:00Z',
+  },
+];

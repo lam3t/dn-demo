@@ -18,6 +18,7 @@ import systemAdminRoutes from './modules/system-admin/system-admin.routes';
 import searchRoutes from './modules/search/search.routes';
 import reportRoutes from './modules/reports/report.routes';
 import kpiRoutes from './modules/kpi/kpi.routes';
+import documentRoutes from './modules/documents/document.routes';
 import { tenantRateLimiter } from './shared/middleware/tenant-rate-limiter';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
 
@@ -66,6 +67,7 @@ app.use('/api/plans', planRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/tasks/:id/attachments', attachmentRoutes);
 app.use('/api/attachments', attachmentRoutes);
+app.use('/api/documents', documentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/search', searchRoutes);

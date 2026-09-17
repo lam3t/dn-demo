@@ -93,6 +93,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/evidence/evidence.component').then((m) => m.EvidenceComponent),
       },
+      {
+        path: 'documents',
+        loadComponent: () =>
+          import('./features/documents/documents.component').then((m) => m.DocumentsComponent),
+      },
 
       {
         path: 'admin-settings',
