@@ -33,6 +33,7 @@ export interface UserProfile {
   primaryOrgUnitId?: string | null;
   primaryOrgUnitName?: string;
   roles: UserRoleItem[];
+  permissions?: string[];
 }
 
 export interface ActiveContextRole {

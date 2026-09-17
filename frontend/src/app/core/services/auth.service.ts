@@ -73,7 +73,7 @@ export const DEMO_ACCOUNTS: DemoAccountInfo[] = [
     scopeName: 'Tổ Toán - Tin học',
     identifier: '0912111001',
     avatar: 'https://ui-avatars.com/api/?name=V%C5%A9+%C4%90%C3%ACnh+D%C5%A9ng&background=D97706&color=fff',
-    desc: 'Tổ trưởng Toán-Tin • Nghiệm thu công việc CV-DEMO-01 • Giao việc trong tổ',
+    desc: 'Tổ trưởng Toán-Tin • Quản lý chuyên môn tổ • Phân công và kiểm tra công việc',
     color: '#D97706',
     icon: 'supervisor_account',
   },
@@ -84,7 +84,7 @@ export const DEMO_ACCOUNTS: DemoAccountInfo[] = [
     scopeName: 'Phân hiệu 1 (Tân Lập)',
     identifier: '0914202001',
     avatar: 'https://ui-avatars.com/api/?name=B%C3%B9i+Th%E1%BB%8B+H%E1%BB%93ng+Nhung&background=059669&color=fff',
-    desc: 'Giáo viên thực thi • Nộp minh chứng • Báo cáo tiến độ • Đôn đốc việc CV-DEMO-02',
+    desc: 'Giáo viên thực thi • Nộp minh chứng • Báo cáo tiến độ công việc',
     color: '#059669',
     icon: 'person',
   },
@@ -151,6 +151,102 @@ export class AuthService {
     const role = this.activeRoleSignal()?.role;
     return role === 'GIAO_VIEN' || role === 'NHAN_VIEN';
   });
+
+  canManagePlans = computed(() => {
+    return this.isAdmin() || this.isHieuTruong() || this.isPHT() || this.isToTruong();
+  });
+
+  canCreateSchoolPlan = computed(() => {
+    return this.isAdmin() || this.isHieuTruong() || this.isPHT();
+  });
+
+  canApprovePlans = computed(() => {
+    return this.isAdmin() || this.isHieuTruong();
+  });
+
+  canAssignTasks = computed(() => {
+    return this.isAdmin() || this.isHieuTruong() || this.isPHT() || this.isToTruong();
+  });
+
+  canEvaluateTasks = computed(() => {
+    return this.isAdmin() || this.isHieuTruong() || this.isPHT() || this.isToTruong();
+  });
+
+  canManageSchoolInfo = computed(() => {
+    return this.isAdmin() || this.isHieuTruong();
+  });
+
+  canManageOrg = computed(() => {
+    return this.isAdmin() || this.isHieuTruong();
+  });
+
+  canViewSchoolKpi = computed(() => {
+    return this.isAdmin() || this.isHieuTruong() || this.isPHT() || this.isToTruong();
+  });
+
+  canConfigureKpi = computed(() => {
+    return this.isAdmin() || this.isHieuTruong();
+  });
+
+  hasPermission(permissionKey: string): boolean {
+    if (this.isSystemAdmin()) return true;
+    const user = this.currentUserSignal();
+    if (!user) return false;
+    const perms = user.permissions || [];
+    if (perms.includes(permissionKey) || perms.includes('*')) return true;
+
+    const role = this.activeRoleSignal()?.role || (user.roles?.[0]?.role as string);
+    if (role === 'ADMIN') return true;
+    if (role === 'HIEU_TRUONG') {
+      const htPerms = [
+        'plan.view', 'plan.view_all', 'plan.create', 'plan.edit', 'plan.delete', 'plan.approve', 'plan.export', 'plan.history',
+        'task.view', 'task.view_all', 'task.create', 'task.edit', 'task.delete', 'task.assign', 'task.update_progress', 'task.upload_evidence',
+        'task.request_review', 'task.review', 'task.approve', 'task.request_revision', 'task.close', 'task.cancel', 'task.propose', 'task.approve_proposal',
+        'task.comment', 'task.history', 'task.export',
+        'kpi.view_personal', 'kpi.view_org', 'kpi.view_location', 'kpi.view_all', 'kpi.rate_4level', 'kpi.recompute', 'kpi.export',
+        'report.view_dashboard', 'report.view_personal', 'report.view_org', 'report.view_school', 'report.export_excel', 'report.advanced_search',
+        'org.view', 'org.manage_school', 'org.manage_locations', 'org.manage_org_units', 'org.manage_classes', 'org.manage_staff',
+        'account.view'
+      ];
+      return htPerms.includes(permissionKey);
+    }
+    if (role === 'PHO_HIEU_TRUONG') {
+      const phtPerms = [
+        'plan.view', 'plan.view_all', 'plan.create', 'plan.edit', 'plan.export', 'plan.history',
+        'task.view', 'task.view_all', 'task.create', 'task.edit', 'task.assign', 'task.update_progress', 'task.upload_evidence',
+        'task.request_review', 'task.review', 'task.approve', 'task.request_revision', 'task.propose', 'task.approve_proposal',
+        'task.comment', 'task.history', 'task.export',
+        'kpi.view_personal', 'kpi.view_org', 'kpi.view_location', 'kpi.view_all', 'kpi.rate_4level', 'kpi.export',
+        'report.view_dashboard', 'report.view_personal', 'report.view_org', 'report.view_school', 'report.export_excel', 'report.advanced_search',
+        'org.view', 'account.view'
+      ];
+      return phtPerms.includes(permissionKey);
+    }
+    if (role === 'TO_TRUONG') {
+      const ttPerms = [
+        'plan.view', 'plan.create', 'plan.edit', 'plan.export',
+        'task.view', 'task.create', 'task.edit', 'task.assign', 'task.update_progress', 'task.upload_evidence',
+        'task.request_review', 'task.review', 'task.request_revision', 'task.propose',
+        'task.comment', 'task.history', 'task.export',
+        'kpi.view_personal', 'kpi.view_org', 'kpi.export',
+        'report.view_dashboard', 'report.view_personal', 'report.view_org', 'report.export_excel', 'report.advanced_search',
+        'org.view'
+      ];
+      return ttPerms.includes(permissionKey);
+    }
+    if (role === 'GIAO_VIEN' || role === 'NHAN_VIEN') {
+      const gvPerms = [
+        'plan.view',
+        'task.view', 'task.update_progress', 'task.upload_evidence', 'task.request_review', 'task.propose',
+        'task.comment', 'task.history',
+        'kpi.view_personal',
+        'report.view_dashboard', 'report.view_personal',
+        'org.view'
+      ];
+      return gvPerms.includes(permissionKey);
+    }
+    return false;
+  }
 
   constructor(private http: HttpClient, private router: Router) {
     this.loadStateFromStorage();

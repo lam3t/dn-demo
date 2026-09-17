@@ -34,6 +34,9 @@ export interface OrgUnitItem {
   code: string;
   type?: string | null;
   parentId?: string | null;
+  orderIndex?: number;
+  parent?: { id: string; name: string; code: string } | null;
+  _count?: { users: number; tasks: number; children: number } | null;
 }
 
 export interface OrgTreeNode {

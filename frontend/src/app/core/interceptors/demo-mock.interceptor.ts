@@ -14,6 +14,7 @@ import {
   MOCK_PERMISSIONS_MATRIX,
   MOCK_DOCUMENT_FOLDERS,
   MOCK_DOCUMENT_FILES,
+  generateMockDocumentFolders,
 } from '../mock/demo-mock-data';
 import { LocationSummaryItem } from '../models/admin.models';
 
@@ -1633,7 +1634,18 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
 
           // 10.1 Reset/Init sample tree
           if (url.includes('/sample-tree') && method === 'POST') {
-            storedFolders = [...MOCK_DOCUMENT_FOLDERS];
+            let activeSchoolName = MOCK_SCHOOL_INFO.name;
+            try {
+              const uProf = localStorage.getItem('tn_edu_user_profile') || localStorage.getItem('currentUser');
+              if (uProf) {
+                const u = JSON.parse(uProf);
+                if (u.tenant?.name || u.school?.name) {
+                  activeSchoolName = u.tenant?.name || u.school?.name;
+                }
+              }
+            } catch {}
+
+            storedFolders = generateMockDocumentFolders(activeSchoolName, MOCK_LOCATIONS, reqAcademicYear);
             storedFiles = [...MOCK_DOCUMENT_FILES];
             saveStorage();
             return of(new HttpResponse({ status: 200, body: { success: true, data: storedFolders } }));

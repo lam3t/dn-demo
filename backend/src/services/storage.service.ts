@@ -24,41 +24,47 @@ export class StorageService {
 
   /**
    * Lưu trữ tệp minh chứng theo tenant-isolated path: /{tenantId}/tasks/{taskId}/{fileId}-{fileName}
+   * Tương thích cả Local Disk và Serverless Vercel (Base64 Data URL)
    */
   public static async saveTaskEvidence(
     tenantId: string,
     taskId: string,
     file: Express.Multer.File
   ): Promise<UploadResult> {
-    const sanitizedFileName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const sanitizedFileName = (file.originalname || 'minh_chung.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
     const timestamp = Date.now();
     const uniqueFileName = `${timestamp}_${sanitizedFileName}`;
-    
-    // Chuẩn đường dẫn phân tầng đa tenant
     const relativeKey = `${tenantId}/tasks/${taskId}/${uniqueFileName}`;
-    
-    // Lưu cục bộ theo cấu trúc tenant folder
-    const targetDir = path.join(this.uploadsBase, tenantId, 'tasks', taskId);
-    this.ensureDirExists(targetDir);
+    const mimeType = file.mimetype || 'application/octet-stream';
 
-    const targetFilePath = path.join(targetDir, uniqueFileName);
-
+    // Tạo fileUrl: Ưu tiên Base64 Data URL nếu có file.buffer (hoạt động 100% trên Vercel Serverless)
+    let fileUrl = `/uploads/${relativeKey}`;
     if (file.buffer) {
-      fs.writeFileSync(targetFilePath, file.buffer);
-    } else if (file.path && fs.existsSync(file.path)) {
-      fs.copyFileSync(file.path, targetFilePath);
-      // Clean up multer temp file if needed
-      try { fs.unlinkSync(file.path); } catch (_) {}
+      fileUrl = `data:${mimeType};base64,${file.buffer.toString('base64')}`;
     }
 
-    const fileUrl = `/uploads/${relativeKey}`;
+    // Cố gắng ghi vào đĩa cục bộ nếu đang chạy ở local (bọc try-catch chống sập trên Vercel read-only)
+    try {
+      const targetDir = path.join(this.uploadsBase, tenantId, 'tasks', taskId);
+      this.ensureDirExists(targetDir);
+      const targetFilePath = path.join(targetDir, uniqueFileName);
+
+      if (file.buffer) {
+        fs.writeFileSync(targetFilePath, file.buffer);
+      } else if (file.path && fs.existsSync(file.path)) {
+        fs.copyFileSync(file.path, targetFilePath);
+        try { fs.unlinkSync(file.path); } catch (_) {}
+      }
+    } catch (_) {
+      // Vercel serverless read-only filesystem: bỏ qua lỗi ghi đĩa vì fileUrl đã chứa Base64
+    }
 
     return {
       fileKey: relativeKey,
       fileUrl,
       fileName: file.originalname,
-      fileSize: file.size,
-      mimeType: file.mimetype,
+      fileSize: file.size || (file.buffer ? file.buffer.length : 0),
+      mimeType,
     };
   }
 

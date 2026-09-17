@@ -63,8 +63,13 @@ export class AttachmentService {
     });
 
     // Bắn thông báo nộp minh chứng
-    const uploader = await prisma.user.findUnique({ where: { id: uploadedById }, select: { fullName: true } });
-    const uploaderName = uploader?.fullName || 'Người thực hiện';
+    let uploaderName = 'Người thực hiện';
+    if (uploadedById && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(uploadedById)) {
+      try {
+        const uploader = await prisma.user.findUnique({ where: { id: uploadedById }, select: { fullName: true } });
+        if (uploader?.fullName) uploaderName = uploader.fullName;
+      } catch (_) {}
+    }
     const notifyTargets = new Set<string>();
     if (task.createdById) notifyTargets.add(task.createdById);
     task.assignments

@@ -8,9 +8,8 @@ export const prisma =
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   });
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
-}
+// Luôn giữ singleton PrismaClient trên globalThis cho cả Serverless và Local
+globalForPrisma.prisma = prisma;
 
 export default prisma;
 

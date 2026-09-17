@@ -19,32 +19,14 @@ const ALLOWED_MIME_TYPES = [
   'image/svg+xml',
 ];
 
-const storage = multer.diskStorage({
-  destination: (req: Request, file, cb) => {
-    const taskId = req.params.id || req.params.taskId || 'general';
-    const uploadDir = path.join(__dirname, '../../../uploads/tasks', taskId);
-
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    // Giữ tên file sạch và thêm timestamp chống trùng
-    const ext = path.extname(file.originalname) || '.jpg';
-    const baseName = path
-      .basename(file.originalname, ext)
-      .replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF-]/g, '_') || 'anh_chup';
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e4)}`;
-    cb(null, `${baseName}-${uniqueSuffix}${ext}`);
-  },
-});
+// Sử dụng memoryStorage để tương thích hoàn toàn với Serverless (Vercel / Lambda)
+const storage = multer.memoryStorage();
 
 export const uploadAttachment = multer({
   storage,
   limits: {
-    fileSize: 20 * 1024 * 1024, // Giới hạn 20MB
+    fileSize: 50 * 1024 * 1024, // 50MB
+    fieldSize: 50 * 1024 * 1024, // 50MB
   },
   fileFilter: (req, file, cb) => {
     const mime = (file.mimetype || '').toLowerCase();

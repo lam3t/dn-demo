@@ -24,6 +24,7 @@ export class NotificationService {
   private seenIds = new Set<string>();
   private isInitialized = false;
   private pollingTimer?: any;
+  private sessionStartTime = Date.now();
 
   constructor() {
     this.checkBrowserSupport();
@@ -46,12 +47,6 @@ export class NotificationService {
       const permission = await Notification.requestPermission();
       const granted = permission === 'granted';
       this.isPermissionGranted.set(granted);
-      if (granted) {
-        this.showBrowserNotification({
-          title: 'TN EDU • Đã bật thông báo',
-          content: 'Bạn sẽ nhận được thông báo đẩy tức thì trên màn hình khi có việc mới hoặc cập nhật.',
-        });
-      }
       return granted;
     } catch {
       return false;
@@ -73,8 +68,7 @@ export class NotificationService {
     }
 
     try {
-      // Dùng tag duy nhất cho từng sự kiện để trình duyệt KHÔNG ghi đè/chặn thông báo mới của cùng 1 công việc
-      const uniqueTag = `tn-notif-${notif.id || Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const uniqueTag = `tn-notif-${notif.id || Date.now()}`;
       const n = new Notification(notif.title, {
         body: notif.content,
         icon: 'https://api.dicebear.com/7.x/identicon/svg?seed=TNEDU',
@@ -184,11 +178,11 @@ export class NotificationService {
     // Initial fetch
     this.refreshNotifications();
 
-    // Poll every 25 seconds
+    // Poll every 30 seconds
     this.pollingTimer = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return; // Save bandwidth when tab inactive
       this.refreshNotifications(true);
-    }, 25000);
+    }, 30000);
   }
 
   /**
@@ -199,20 +193,26 @@ export class NotificationService {
       next: (res) => {
         if (!res || !res.items) return;
 
+        // Lần đầu tải trang: Đánh dấu tất cả thông báo hiện có là đã thấy (không bắn toast hàng loạt)
         if (!this.isInitialized) {
           res.items.forEach((item) => this.seenIds.add(item.id));
           this.isInitialized = true;
           return;
         }
 
-        // Detect new items
-        const newUnreadItems = res.items.filter(
-          (item) => !item.isRead && !this.seenIds.has(item.id)
-        );
+        // Chỉ bắn thông báo đẩy nếu có thông báo THỰC SỰ MỚI phát sinh trong phiên làm việc hiện tại
+        const newUnreadItems = res.items.filter((item) => {
+          if (this.seenIds.has(item.id)) return false;
+          this.seenIds.add(item.id);
+
+          const itemTime = item.createdAt ? new Date(item.createdAt).getTime() : 0;
+          // Chỉ bắn push nếu thông báo mới được tạo trong vòng 45s gần đây (không bắn cho thông báo cũ từ trước)
+          const isFresh = itemTime >= this.sessionStartTime - 45000;
+          return !item.isRead && isFresh && isPolling;
+        });
 
         if (newUnreadItems.length > 0) {
           newUnreadItems.forEach((item) => {
-            this.seenIds.add(item.id);
             this.showBrowserNotification(item);
           });
           this.playNotificationSound();

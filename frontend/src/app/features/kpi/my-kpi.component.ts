@@ -26,7 +26,7 @@ import { KpiTaskDialogComponent } from './kpi-task-dialog.component';
         <div class="header-left">
           <div class="breadcrumb-row">
             <span class="material-symbols-outlined">analytics</span>
-            <span>Đánh Giá KPI Theo Trục Kết Quả Linh Hoạt (Sở GD&ĐT TP.HCM)</span>
+            <span>Đánh Giá KPI Theo Trục Kết Quả</span>
           </div>
           <h1 class="page-title">Bảng Điểm KPI Cá Nhân & Phân Bổ Trục Kết Quả</h1>
           <p class="page-subtitle">

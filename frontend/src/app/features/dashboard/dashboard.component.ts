@@ -1476,15 +1476,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   getRoleDirective(): string {
     if (this.authService.isHieuTruong()) {
-      return 'Theo dõi chỉ số KPI 3 điểm trường, phát hiện điểm nghẽn tiến độ và phê duyệt đóng các công việc hoàn tất cấp trường.';
+      return 'Theo dõi tiến độ thực hiện kế hoạch, chỉ số KPI các điểm trường và phê duyệt các công việc cấp trường.';
     }
     if (this.authService.isPHT()) {
-      return 'Đã tập trung theo dõi công việc và phân công giáo viên tại Phân hiệu 1 Tân Lập. Kiểm soát tiến độ các tổ chuyên môn.';
+      return 'Theo dõi tiến độ công việc và phân công giáo viên tại điểm trường / mảng phụ trách. Kiểm soát tiến độ các tổ chuyên môn.';
     }
     if (this.authService.isToTruong()) {
-      return '⚡ Đang có công việc CV-DEMO-01 đã nộp minh chứng và đang CHỜ BẠN KIỂM TRA NGHIỆM THU. Hãy bấm nút bên cạnh để duyệt ngay!';
+      return 'Quản lý, phân công và kiểm tra nghiệm thu tiến độ công việc trong tổ chuyên môn.';
     }
-    return '📌 Đôn đốc hoàn thành công việc quá hạn [CV-DEMO-02] và theo dõi tiến độ công việc [CV-DEMO-01] đã gửi duyệt.';
+    return 'Theo dõi và cập nhật tiến độ công việc được giao, báo cáo kết quả và nộp minh chứng.';
   }
 
   loadLocations() {

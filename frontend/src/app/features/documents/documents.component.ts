@@ -34,10 +34,6 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
 
         <div class="header-actions">
           @if (activeTab() === 'tree') {
-            <button type="button" class="btn btn-outline" (click)="reinitSampleTree()" title="Khôi phục lại cây thư mục mẫu chuẩn">
-              <span class="material-symbols-outlined">restart_alt</span>
-              <span>Cây thư mục mẫu</span>
-            </button>
             <button type="button" class="btn btn-primary" (click)="openUploadModal()" [disabled]="!selectedFolder()">
               <span class="material-symbols-outlined">upload_file</span>
               <span>Tải lên tệp</span>

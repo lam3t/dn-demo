@@ -1,5 +1,5 @@
 // Service Worker for TN EDU PWA
-const CACHE_NAME = 'tn-edu-cache-v3';
+const CACHE_NAME = 'tn-edu-cache-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -30,15 +30,15 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // 0. Only intercept http and https scheme requests (ignore chrome-extension://, moz-extension://, data:, etc.)
+  // 0. Only intercept http and https scheme requests
   if (!event.request.url.startsWith('http://') && !event.request.url.startsWith('https://')) {
     return;
   }
 
   const url = new URL(event.request.url);
 
-  // 1. Bypass Service Worker completely for API calls and non-GET requests
-  if (event.request.method !== 'GET' || url.pathname.startsWith('/api')) {
+  // 1. Bypass Service Worker completely for API calls, uploads and non-GET requests
+  if (event.request.method !== 'GET' || url.pathname.startsWith('/api') || url.pathname.startsWith('/uploads')) {
     return;
   }
 
@@ -70,16 +70,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Static assets: Stale-while-revalidate / Cache-first
+  // 3. Static assets: Never cache HTML responses for .js / .css / .wasm / .mjs requests
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
+      const isScriptOrStyle = url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || url.pathname.endsWith('.mjs');
+
       const fetchPromise = fetch(event.request)
         .then((networkResponse) => {
-          if (
-            networkResponse &&
-            networkResponse.status === 200 &&
-            (networkResponse.type === 'basic' || networkResponse.type === 'cors')
-          ) {
+          if (networkResponse && networkResponse.status === 200) {
+            const contentType = networkResponse.headers.get('content-type') || '';
+            // Safeguard: If a script file returns text/html, do NOT cache it
+            if (isScriptOrStyle && contentType.includes('text/html')) {
+              return networkResponse;
+            }
+
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(event.request, responseToCache).catch(() => {});
@@ -88,7 +92,7 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         })
         .catch(() => {
-          return cachedResponse || new Response('', { status: 404 });
+          return cachedResponse || new Response('', { status: 404, statusText: 'Not Found' });
         });
 
       return cachedResponse || fetchPromise;

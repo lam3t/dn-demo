@@ -31,11 +31,15 @@ export const authGuard: CanActivateFn = (route, state) => {
 
   const expectedRoles = route.data?.['roles'] as string[];
   if (expectedRoles && expectedRoles.length > 0) {
-    const activeRole = authService.activeRole()?.role;
-    const isAllowed = activeRole && expectedRoles.includes(activeRole);
+    const activeRole = authService.activeRole()?.role || authService.currentUser()?.roles?.[0]?.role;
+    const isAllowed = activeRole && (expectedRoles.includes(activeRole) || (activeRole === 'ADMIN'));
 
     if (!isAllowed) {
-      router.navigate(['/my-tasks']);
+      if (url.startsWith('/kpi')) {
+        router.navigate(['/my-kpi']);
+      } else {
+        router.navigate(['/dashboard']);
+      }
       return false;
     }
   }

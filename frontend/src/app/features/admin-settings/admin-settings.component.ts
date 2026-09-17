@@ -42,27 +42,24 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
 
         @if (!authService.isAdmin()) {
           <div class="role-warning-banner">
-            <span class="material-symbols-outlined warn-icon">info</span>
+            <span class="material-symbols-outlined warn-icon">lock</span>
             <div class="warn-content">
-              <span class="warn-title">Bạn đang truy cập với vai trò: <strong>{{ authService.activeRole()?.roleTitle || 'Cán bộ' }}</strong></span>
-              <span class="warn-desc">Phân hệ Quản trị & Cấu hình hệ thống chỉ dành riêng cho Giáo viên Tin học kiêm Quản trị hệ thống (Admin).</span>
+              <span class="warn-title">Quyền truy cập bị giới hạn</span>
+              <span class="warn-desc">Bạn đang đăng nhập với vai trò <strong>{{ authService.activeRole()?.roleTitle || 'Cán bộ' }}</strong>. Phân hệ Quản trị & Cấu hình hệ thống chỉ dành riêng cho Quản trị viên hệ thống (Admin).</span>
             </div>
-            <button type="button" class="btn-switch-principal tap-target" (click)="switchToAdminAccount()">
-              <span class="material-symbols-outlined">admin_panel_settings</span>
-              <span>Chuyển sang Cô Hoàng Thị Mai Anh (GV Tin học - Quản trị HT)</span>
-            </button>
           </div>
         }
       </div>
 
-      <!-- 6 NAVIGATION TABS (SRS Mục 5.3) -->
-      <div class="tabs-nav-bar">
-        <button
-          type="button"
-          class="nav-tab-btn tap-target"
-          [class.active]="activeTab() === 'accounts'"
-          (click)="switchTab('accounts')"
-        >
+      @if (authService.isAdmin()) {
+        <!-- 6 NAVIGATION TABS (SRS Mục 5.3) -->
+        <div class="tabs-nav-bar">
+          <button
+            type="button"
+            class="nav-tab-btn tap-target"
+            [class.active]="activeTab() === 'accounts'"
+            (click)="switchTab('accounts')"
+          >
           <span class="material-symbols-outlined">manage_accounts</span>
           <span>Tài khoản & Hạn mức</span>
           <span class="tab-badge">{{ totalUsers() }}</span>
@@ -86,8 +83,8 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
           (click)="switchTab('locations')"
         >
           <span class="material-symbols-outlined">apartment</span>
-          <span>Điểm trường & Phân hiệu</span>
-          <span class="tab-badge">{{ locationsSummary().length || locations().length }}</span>
+          <span>Điểm trường & Tổ chuyên môn</span>
+          <span class="tab-badge">{{ (locationsSummary().length || locations().length) + orgUnits().length }}</span>
         </button>
 
         <button
@@ -621,6 +618,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
       <!-- ======================================================= -->
       @if (activeTab() === 'locations') {
         <div class="tab-content-panel">
+          <!-- PHẦN 1: ĐIỂM TRƯỜNG & PHÂN HIỆU -->
           <div class="locations-top-bar">
             <div class="summary-meta-text">
               <h2>Danh sách Cơ sở & Điểm trường ({{ locationsSummary().length }})</h2>
@@ -716,6 +714,67 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
               }
             </div>
           }
+
+          <!-- PHẦN 2: TỔ CHUYÊN MÔN & KHỐI / PHÒNG BAN -->
+          <div class="locations-top-bar" style="margin-top: 2.5rem; border-top: 1px solid #E2E8F0; padding-top: 1.75rem;">
+            <div class="summary-meta-text">
+              <h2>Danh sách Tổ Chuyên Môn & Khối / Phòng Ban ({{ orgUnits().length }})</h2>
+              <p>Quản lý các tổ chuyên môn (Toán, Văn, Anh...), tổ văn phòng và các bộ phận nghiệp vụ trong trường.</p>
+            </div>
+            <button type="button" class="btn-primary tap-target" (click)="openCreateOrgUnitModal()">
+              <span class="material-symbols-outlined">group_add</span>
+              <span>+ Thêm tổ chuyên môn</span>
+            </button>
+          </div>
+
+          <div class="desktop-table-wrapper hide-on-mobile">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th style="width: 60px;" class="text-center">STT</th>
+                  <th>Tên Tổ / Phòng Ban</th>
+                  <th style="width: 140px;">Mã Tổ</th>
+                  <th>Trực thuộc Cấp trên</th>
+                  <th style="width: 90px;" class="text-center">Thứ tự</th>
+                  <th style="width: 130px;" class="text-center">Số nhân sự</th>
+                  <th style="width: 140px;" class="text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (org of orgUnits(); track org.id; let idx = $index) {
+                  <tr>
+                    <td class="text-center font-medium text-slate-500">{{ idx + 1 }}</td>
+                    <td>
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="material-symbols-outlined" style="color: #2563EB; font-size: 20px;">groups</span>
+                        <strong style="color: #0F172A; font-size: 0.9rem;">{{ org.name }}</strong>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="code-tag font-mono">{{ org.code }}</span>
+                    </td>
+                    <td>
+                      <span class="text-slate-600 text-xs">{{ org.parent?.name || getOrgName(org.parentId) || 'Trực thuộc Trường' }}</span>
+                    </td>
+                    <td class="text-center font-semibold text-slate-600">{{ org.orderIndex ?? 0 }}</td>
+                    <td class="text-center">
+                      <span class="tab-badge info">{{ getOrgUserCount(org.id) }} cán bộ GV</span>
+                    </td>
+                    <td class="text-right">
+                      <div class="action-btn-group" style="display: inline-flex; gap: 6px;">
+                        <button type="button" class="btn-icon-action" title="Chỉnh sửa tổ chuyên môn" (click)="openEditOrgUnitModal(org)">
+                          <span class="material-symbols-outlined">edit</span>
+                        </button>
+                        <button type="button" class="btn-icon-action danger" title="Xóa tổ chuyên môn" (click)="confirmDeleteOrgUnit(org)">
+                          <span class="material-symbols-outlined">delete</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
         </div>
       }
 
@@ -1302,6 +1361,75 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
           </div>
         </div>
       }
+      <!-- ======================================================= -->
+      <!-- MODAL TẠO / SỬA TỔ CHUYÊN MÔN -->
+      <!-- ======================================================= -->
+      @if (showOrgUnitModal()) {
+        <div class="modal-backdrop" (click)="closeModals()">
+          <div class="modal-dialog" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <h3>{{ editingOrgUnitId ? 'Sửa Tổ Chuyên Môn / Phòng Ban' : 'Thêm Mới Tổ Chuyên Môn' }}</h3>
+              <button type="button" class="modal-close-btn" (click)="closeModals()">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div class="modal-body">
+              <div class="form-group">
+                <label>Tên Tổ chuyên môn / Phòng ban <span class="req">*</span></label>
+                <input
+                  type="text"
+                  [(ngModel)]="orgUnitForm.name"
+                  placeholder="Ví dụ: Tổ Toán - Tin học, Tổ Ngữ văn..."
+                  class="form-input"
+                />
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label>Mã Tổ (Code) <span class="req">*</span></label>
+                  <input
+                    type="text"
+                    [(ngModel)]="orgUnitForm.code"
+                    placeholder="Ví dụ: TO_TOAN_TIN"
+                    class="form-input"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Thứ tự hiển thị</label>
+                  <input
+                    type="number"
+                    [(ngModel)]="orgUnitForm.orderIndex"
+                    class="form-input"
+                  />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Tổ chức cấp trên (Trực thuộc)</label>
+                <select [(ngModel)]="orgUnitForm.parentId" class="form-select">
+                  <option [ngValue]="null">-- Trực thuộc Trường (Cấp cao nhất) --</option>
+                  @for (parentOrg of getAvailableParentOrgs(); track parentOrg.id) {
+                    <option [value]="parentOrg.id">{{ parentOrg.name }} ({{ parentOrg.code }})</option>
+                  }
+                </select>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn-cancel tap-target" (click)="closeModals()">Hủy</button>
+              <button
+                type="button"
+                class="btn-primary tap-target"
+                [disabled]="isSubmitting()"
+                (click)="submitOrgUnitForm()"
+              >
+                {{ isSubmitting() ? 'Đang lưu...' : (editingOrgUnitId ? 'Cập nhật' : 'Tạo tổ chuyên môn') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      }
 
       <!-- MODAL ĐIỀU CHUYỂN CƠ SỞ CÔNG TÁC -->
       @if (showTransferModal() && transferTeacherTarget()) {
@@ -1587,6 +1715,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
             </div>
           </div>
         </div>
+      }
       }
     </div>
   `,
@@ -3113,6 +3242,7 @@ export class AdminSettingsComponent implements OnInit {
   showEditUserModal = signal<boolean>(false);
   showAddRoleModal = signal<boolean>(false);
   showLocationModal = signal<boolean>(false);
+  showOrgUnitModal = signal<boolean>(false);
   showCustomRoleModal = signal<boolean>(false);
   showTransferModal = signal<boolean>(false);
   transferTeacherTarget = signal<AdminUserItem | null>(null);
@@ -3150,6 +3280,14 @@ export class AdminSettingsComponent implements OnInit {
     phone: '',
     isMain: false,
     managerId: null as string | null,
+  };
+
+  editingOrgUnitId: string | null = null;
+  orgUnitForm = {
+    name: '',
+    code: '',
+    parentId: null as string | null,
+    orderIndex: 0,
   };
 
   customRoleForm = {
@@ -3739,10 +3877,108 @@ export class AdminSettingsComponent implements OnInit {
           this.loadCommonMetadata();
         },
         error: (err) => {
-          this.showAlert(err.error?.message || 'Không thể xóa điểm trường.', 'error');
+          this.showAlert(err.error?.message || 'Xóa điểm trường thất bại.', 'error');
         },
       });
     }
+  }
+
+  // =======================================================
+  // ORG UNITS CRUD LOGIC
+  // =======================================================
+  getOrgUserCount(orgId: string): number {
+    return this.usersList().filter((u) => u.primaryOrgUnit?.id === orgId).length;
+  }
+
+  getAvailableParentOrgs(): OrgUnitItem[] {
+    if (!this.editingOrgUnitId) return this.orgUnits();
+    return this.orgUnits().filter((o) => o.id !== this.editingOrgUnitId);
+  }
+
+  openCreateOrgUnitModal() {
+    this.editingOrgUnitId = null;
+    this.orgUnitForm = {
+      name: '',
+      code: '',
+      parentId: null,
+      orderIndex: this.orgUnits().length + 1,
+    };
+    this.showOrgUnitModal.set(true);
+  }
+
+  openEditOrgUnitModal(org: OrgUnitItem) {
+    this.editingOrgUnitId = org.id;
+    this.orgUnitForm = {
+      name: org.name,
+      code: org.code,
+      parentId: org.parentId || null,
+      orderIndex: org.orderIndex ?? 0,
+    };
+    this.showOrgUnitModal.set(true);
+  }
+
+  submitOrgUnitForm() {
+    if (!this.orgUnitForm.name.trim() || !this.orgUnitForm.code.trim()) {
+      this.showAlert('Vui lòng nhập Tên tổ và Mã tổ chuyên môn.', 'error');
+      return;
+    }
+
+    this.isSubmitting.set(true);
+    const payload = {
+      name: this.orgUnitForm.name.trim(),
+      code: this.orgUnitForm.code.trim().toUpperCase(),
+      parentId: this.orgUnitForm.parentId || null,
+      orderIndex: Number(this.orgUnitForm.orderIndex) || 0,
+    };
+
+    if (this.editingOrgUnitId) {
+      this.userService.updateOrgUnit(this.editingOrgUnitId, payload).subscribe({
+        next: () => {
+          this.isSubmitting.set(false);
+          this.showOrgUnitModal.set(false);
+          this.showAlert('Cập nhật tổ chuyên môn thành công.');
+          this.loadOrgUnitsData();
+        },
+        error: (err) => {
+          this.isSubmitting.set(false);
+          this.showAlert(err.error?.message || 'Cập nhật tổ chuyên môn thất bại.', 'error');
+        },
+      });
+    } else {
+      this.userService.createOrgUnit(payload).subscribe({
+        next: () => {
+          this.isSubmitting.set(false);
+          this.showOrgUnitModal.set(false);
+          this.showAlert('Thêm mới tổ chuyên môn thành công.');
+          this.loadOrgUnitsData();
+        },
+        error: (err) => {
+          this.isSubmitting.set(false);
+          this.showAlert(err.error?.message || 'Tạo tổ chuyên môn thất bại.', 'error');
+        },
+      });
+    }
+  }
+
+  confirmDeleteOrgUnit(org: OrgUnitItem) {
+    if (confirm(`Bạn có chắc chắn muốn xóa tổ chuyên môn [${org.name}]?`)) {
+      this.userService.deleteOrgUnit(org.id).subscribe({
+        next: () => {
+          this.showAlert(`Đã xóa tổ chuyên môn [${org.name}] thành công.`);
+          this.loadOrgUnitsData();
+        },
+        error: (err) => {
+          this.showAlert(err.error?.message || 'Không thể xóa tổ chuyên môn (còn nhân sự hoặc nhiệm vụ liên kết).', 'error');
+        },
+      });
+    }
+  }
+
+  loadOrgUnitsData() {
+    this.userService.clearOrgUnitsCache();
+    this.userService.getOrgUnits().subscribe({
+      next: (orgs) => this.orgUnits.set(orgs),
+    });
   }
 
   // =======================================================
@@ -4014,6 +4250,7 @@ export class AdminSettingsComponent implements OnInit {
     this.showEditUserModal.set(false);
     this.showAddRoleModal.set(false);
     this.showLocationModal.set(false);
+    this.showOrgUnitModal.set(false);
     this.showTransferModal.set(false);
     this.showCustomRoleModal.set(false);
     this.showCategoryModal.set(false);

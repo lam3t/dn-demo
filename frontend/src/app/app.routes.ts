@@ -45,16 +45,22 @@ export const routes: Routes = [
       },
       {
         path: 'kpi/school',
+        canActivate: [authGuard],
+        data: { roles: ['ADMIN', 'HIEU_TRUONG', 'PHO_HIEU_TRUONG', 'TO_TRUONG'] },
         loadComponent: () =>
           import('./features/kpi/school-kpi.component').then((m) => m.SchoolKpiComponent),
       },
       {
         path: 'kpi/overview',
+        canActivate: [authGuard],
+        data: { roles: ['ADMIN', 'HIEU_TRUONG', 'PHO_HIEU_TRUONG', 'TO_TRUONG'] },
         loadComponent: () =>
           import('./features/kpi/school-kpi.component').then((m) => m.SchoolKpiComponent),
       },
       {
         path: 'kpi/config/axes',
+        canActivate: [authGuard],
+        data: { roles: ['ADMIN', 'HIEU_TRUONG'] },
         loadComponent: () =>
           import('./features/kpi/kpi-axis-config.component').then((m) => m.KpiAxisConfigComponent),
       },

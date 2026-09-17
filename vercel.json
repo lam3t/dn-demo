@@ -8,7 +8,11 @@
       "destination": "/api"
     },
     {
-      "source": "/(.*)",
+      "source": "/uploads/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/((?!api/|uploads/|.*\\.[\\w]+$).*)",
       "destination": "/index.html"
     }
   ]

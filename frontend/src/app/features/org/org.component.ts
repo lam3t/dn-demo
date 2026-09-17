@@ -8,11 +8,12 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { UserService } from '../../core/services/user.service';
 import { TaskService } from '../../core/services/task.service';
 import { AuthService } from '../../core/services/auth.service';
+import { AcademicYearService } from '../../core/services/academic-year.service';
 import { ContactCardService } from '../../core/services/contact-card.service';
 import {
   LocationItem,
@@ -26,7 +27,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
 @Component({
   selector: 'app-org',
   standalone: true,
-  imports: [CommonModule, FormsModule, StatusBadgeComponent, PaginationComponent],
+  imports: [CommonModule, FormsModule, RouterModule, StatusBadgeComponent, PaginationComponent],
   template: `
     <div class="org-page-container">
       <!-- HEADER -->
@@ -34,13 +35,22 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
         <div class="header-left">
           <div class="header-badge">
             <span class="material-symbols-outlined">corporate_fare</span>
-            <span>CƠ CẤU TỔ CHỨC & PHÂN HIỆU</span>
+            <span>CƠ CẤU TỔ CHỨC & PHÂN HIỆU • NĂM HỌC {{ academicYearService.formattedCurrentYear() }}</span>
           </div>
           <h1 class="page-title">Sơ Đồ Tổ Chức & Điểm Trường</h1>
           <p class="page-subtitle">
-            Cơ cấu tổ chức trường học: Quản lý thống nhất các điểm trường/phân hiệu và các tổ chuyên môn, phòng ban chức năng.
+            Cơ cấu tổ chức trường học: Quản lý thống nhất các điểm trường/phân hiệu và các tổ chuyên môn, phòng ban chức năng Năm học {{ academicYearService.formattedCurrentYear() }}.
           </p>
         </div>
+
+        @if (authService.isAdmin() || authService.isHieuTruong()) {
+          <div class="header-right-actions">
+            <a routerLink="/admin-settings" class="btn-admin-org tap-target">
+              <span class="material-symbols-outlined">settings</span>
+              <span>Quản lý Điểm trường & Tổ chuyên môn</span>
+            </a>
+          </div>
+        }
       </header>
 
       <!-- CAMPUS HERO CARDS -->
@@ -77,7 +87,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                 <span>{{ getLocationTaskCount(loc.id) }} công việc</span>
               </div>
               <a
-                [href]="loc.phone ? ('tel:' + loc.phone) : 'javascript:void(0)'"
+                [href]="loc.phone ? ('tel:' + loc.phone) : null"
                 class="campus-call-btn tap-target"
                 (click)="$event.stopPropagation()"
                 title="Gọi hotline điểm trường"
@@ -436,6 +446,12 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
 
       /* HEADER */
       .page-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+
         .header-left {
           .header-badge {
             display: inline-flex;
@@ -466,6 +482,33 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
             margin: 4px 0 0 0;
             font-size: 0.9rem;
             color: #64748B;
+          }
+        }
+
+        .header-right-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+
+          .btn-admin-org {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: #2563EB;
+            color: #FFFFFF;
+            font-size: 0.86rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+
+            &:hover {
+              background: #1D4ED8;
+              box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+            }
+
+            .material-symbols-outlined { font-size: 18px; }
           }
         }
       }
@@ -1354,6 +1397,7 @@ export class OrgComponent implements OnInit, OnDestroy {
   userService = inject(UserService);
   taskService = inject(TaskService);
   authService = inject(AuthService);
+  academicYearService = inject(AcademicYearService);
   private contactCardService = inject(ContactCardService);
   private router = inject(Router);
 

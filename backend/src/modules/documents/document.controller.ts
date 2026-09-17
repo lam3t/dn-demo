@@ -5,7 +5,7 @@ export class DocumentController {
   async getTree(req: Request, res: Response, next: NextFunction) {
     try {
       const tenantId = req.user?.tenantId || 'tenant-phuoc-tan';
-      const academicYear = (req.query.academicYear as string) || req.academicYear || '2026-2027';
+      const academicYear = (req.query.academicYear as string) || (req as any).academicYear || '2026-2027';
       const tree = await documentService.getTree(tenantId, academicYear);
       res.status(200).json({ success: true, data: tree });
     } catch (error) {
@@ -65,7 +65,13 @@ export class DocumentController {
       const { folderId } = req.params;
       const uploadedById = req.user?.id || 'u-hieutruong';
       const files = (req.files as Express.Multer.File[]) || (req.file ? [req.file] : []);
-      const result = await documentService.uploadFiles(tenantId, folderId, uploadedById, files);
+      let filesData: any[] | undefined = undefined;
+      if (req.body.filesData) {
+        try {
+          filesData = typeof req.body.filesData === 'string' ? JSON.parse(req.body.filesData) : req.body.filesData;
+        } catch (_) {}
+      }
+      const result = await documentService.uploadFiles(tenantId, folderId, uploadedById, files, filesData);
       res.status(201).json({ success: true, data: result });
     } catch (error) {
       next(error);

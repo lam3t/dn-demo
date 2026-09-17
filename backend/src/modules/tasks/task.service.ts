@@ -556,6 +556,16 @@ export class TaskService {
       }
     }
 
+    // Kiểm tra quyền giao việc trực tiếp (Chỉ BGH, Tổ trưởng và Admin mới giao việc trực tiếp; Giáo viên tạo đề xuất)
+    const creatorRoles = await prisma.userRole.findMany({
+      where: { userId: data.createdById },
+    });
+    const roles = creatorRoles.map((r) => r.role);
+    const canDirectAssign = roles.some((r) =>
+      r === Role.ADMIN || r === Role.HIEU_TRUONG || r === Role.PHO_HIEU_TRUONG || r === Role.TO_TRUONG
+    );
+    const isProposal = Boolean(data.isProposal || !canDirectAssign);
+
     const task = await prisma.task.create({
       data: {
         tenantId,
@@ -569,7 +579,7 @@ export class TaskService {
         assignedOrgUnitId: data.assignedOrgUnitId || null,
         isOrgAssignment: Boolean(data.isOrgAssignment || data.assignedOrgUnitId),
         priority: data.priority || TaskPriority.TRUNG_BINH,
-        status: data.isProposal
+        status: isProposal
           ? TaskStatus.NHAP
           : (data.assignments && data.assignments.length > 0) || data.assignedOrgUnitId
           ? TaskStatus.DA_GIAO
@@ -579,10 +589,10 @@ export class TaskService {
         startDate: data.startDate ? new Date(data.startDate) : new Date(),
         dueDate: data.dueDate ? new Date(data.dueDate) : null,
         createdById: data.createdById,
-        isProposal: Boolean(data.isProposal),
-        proposalStatus: data.isProposal ? 'CHO_DUYET' : null,
+        isProposal: isProposal,
+        proposalStatus: isProposal ? 'CHO_DUYET' : null,
         proposalNote: data.proposalNote || null,
-        proposedById: data.isProposal ? data.createdById : null,
+        proposedById: isProposal ? data.createdById : null,
         // Flexible KPI fields
         periodId: data.primaryAxisId ? (data.periodId || null) : null,
         primaryAxisId: data.primaryAxisId || null,

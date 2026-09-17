@@ -609,7 +609,7 @@ import {
                     <th class="text-center col-breakdown">Thành Phần (A+B+C)</th>
                     <th class="text-center col-score">Tổng Điểm KPI</th>
                     <th class="text-center col-class">Xếp Loại</th>
-                    <th class="text-center col-action">Chi Tiết Công Việc</th>
+                    <th class="text-center col-action">Thao Tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -696,7 +696,7 @@ import {
                           title="Xem danh sách công việc và minh chứng theo trục nhiệm vụ"
                         >
                           <span class="material-symbols-outlined icon-btn">visibility</span>
-                          <span>Xem chi tiết ({{ staff.totalTasks }})</span>
+                          <span>Xem chi tiết</span>
                         </button>
                       </td>
                     </tr>
@@ -1517,20 +1517,43 @@ import {
 
       /* 5. Staff Table */
       .table-responsive {
+        width: 100%;
         overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: #CBD5E1 #F8FAFC;
+
+        &::-webkit-scrollbar {
+          height: 6px;
+        }
+        &::-webkit-scrollbar-track {
+          background: #F8FAFC;
+        }
+        &::-webkit-scrollbar-thumb {
+          background: #CBD5E1;
+          border-radius: 999px;
+          &:hover {
+            background: #94A3B8;
+          }
+        }
       }
 
       .staff-table {
         width: 100%;
+        min-width: 1320px;
         border-collapse: collapse;
         font-size: 0.86rem;
+
+        &.annual-staff-table {
+          min-width: 1200px;
+        }
 
         thead {
           background: #F8FAFC;
           border-bottom: 1px solid #E2E8F0;
 
           th {
-            padding: 11px 14px;
+            padding: 12px 14px;
             font-weight: 700;
             font-size: 0.78rem;
             color: #475569;
@@ -1566,19 +1589,19 @@ import {
           }
         }
 
-        .col-stt { width: 48px; text-align: center; }
-        .col-staff { min-width: 200px; }
-        .col-org { min-width: 130px; }
-        .col-tasks { min-width: 120px; }
-        .col-rate { min-width: 100px; }
-        .col-general { min-width: 160px; }
-        .col-breakdown { min-width: 150px; }
-        .col-score { min-width: 110px; }
-        .col-class { min-width: 160px; }
-        .col-action { min-width: 140px; }
-        .col-quarter { min-width: 105px; }
-        .col-avg { min-width: 110px; }
-        .col-note { min-width: 160px; }
+        .col-stt { width: 48px; min-width: 48px; text-align: center; }
+        .col-staff { min-width: 240px; }
+        .col-org { min-width: 160px; }
+        .col-tasks { min-width: 120px; white-space: nowrap; }
+        .col-rate { min-width: 100px; white-space: nowrap; }
+        .col-general { min-width: 180px; white-space: nowrap; }
+        .col-breakdown { min-width: 155px; white-space: nowrap; }
+        .col-score { min-width: 115px; white-space: nowrap; }
+        .col-class { min-width: 155px; white-space: nowrap; }
+        .col-action { min-width: 140px; white-space: nowrap; text-align: center; }
+        .col-quarter { min-width: 115px; white-space: nowrap; }
+        .col-avg { min-width: 115px; white-space: nowrap; }
+        .col-note { min-width: 160px; white-space: nowrap; }
 
         .staff-info-cell {
           display: flex;
@@ -1598,37 +1621,45 @@ import {
           .staff-meta {
             display: flex;
             flex-direction: column;
+            gap: 2px;
+            min-width: 0;
 
             .staff-name {
               font-size: 0.88rem;
               font-weight: 700;
               color: #0F172A;
+              white-space: nowrap;
             }
 
             .staff-title {
               font-size: 0.76rem;
               color: #64748B;
+              white-space: nowrap;
             }
 
             .staff-email {
               font-size: 0.72rem;
+              color: #94A3B8;
+              white-space: nowrap;
             }
           }
         }
 
         .org-pill {
           display: inline-block;
-          padding: 3px 8px;
+          padding: 4px 9px;
           border-radius: 6px;
-          background: #F1F5F9;
+          background: #F8FAFC;
           border: 1px solid #E2E8F0;
           font-size: 0.78rem;
           font-weight: 600;
           color: #334155;
+          line-height: 1.35;
         }
 
         .task-count-box {
           font-size: 0.84rem;
+          white-space: nowrap;
         }
 
         .rate-cell {
@@ -1661,12 +1692,15 @@ import {
         .general-score-input-wrap {
           display: inline-flex;
           align-items: center;
+          justify-content: center;
           gap: 4px;
           position: relative;
+          white-space: nowrap;
 
           .inline-score-input {
-            width: 56px;
-            padding: 4px 6px;
+            width: 52px;
+            height: 32px;
+            padding: 2px 6px;
             border: 1.5px solid #CBD5E1;
             border-radius: 6px;
             text-align: center;
@@ -1675,6 +1709,7 @@ import {
             color: #1E40AF;
             background: #F8FAFC;
             outline: none;
+            transition: all 0.15s ease;
 
             &:focus {
               background: #FFFFFF;
@@ -1687,6 +1722,7 @@ import {
             font-size: 0.8rem;
             font-weight: 600;
             color: #64748B;
+            white-space: nowrap;
           }
 
           .icon-saving {
@@ -1705,6 +1741,7 @@ import {
           border: 1px solid #E2E8F0;
           font-size: 0.78rem;
           color: #475569;
+          white-space: nowrap;
 
           .part-a strong { color: #1E40AF; }
           .part-b strong { color: #059669; }
@@ -1717,6 +1754,7 @@ import {
           font-size: 1rem;
           font-weight: 800;
           color: #1E3A8A;
+          white-space: nowrap;
 
           small {
             font-size: 0.72rem;
@@ -1733,6 +1771,7 @@ import {
           background: #EEF2FF;
           padding: 3px 8px;
           border-radius: 6px;
+          white-space: nowrap;
 
           small {
             font-size: 0.72rem;
@@ -1746,6 +1785,7 @@ import {
           flex-direction: column;
           align-items: center;
           gap: 2px;
+          white-space: nowrap;
 
           .q-score {
             font-size: 0.84rem;
@@ -1764,6 +1804,7 @@ import {
           color: #991B1B;
           font-size: 0.74rem;
           font-weight: 600;
+          white-space: nowrap;
 
           .icon-warn { font-size: 15px; color: #DC2626; }
         }
@@ -1776,6 +1817,7 @@ import {
         .btn-view-details {
           display: inline-flex;
           align-items: center;
+          justify-content: center;
           gap: 6px;
           padding: 6px 12px;
           border-radius: 6px;
@@ -1784,15 +1826,17 @@ import {
           color: #1E40AF;
           font-weight: 600;
           font-size: 0.8rem;
+          white-space: nowrap;
           cursor: pointer;
           transition: all 0.15s;
 
           &:hover {
             background: #DBEAFE;
             border-color: #93C5FD;
+            box-shadow: 0 1px 3px rgba(37, 99, 235, 0.15);
           }
 
-          .icon-btn { font-size: 16px; }
+          .icon-btn { font-size: 16px; flex-shrink: 0; }
         }
       }
 
@@ -2807,6 +2851,6 @@ export class SchoolKpiComponent implements OnInit {
   }
 
   exportExcel(): void {
-    alert('Đang kết xuất tệp tin Excel tổng hợp KPI toàn trường theo chuẩn Sở GD&ĐT TP.HCM (.xlsx)...');
+    alert('Đang kết xuất tệp tin Excel tổng hợp KPI toàn trường (.xlsx)...');
   }
 }

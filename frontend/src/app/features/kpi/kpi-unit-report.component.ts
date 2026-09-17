@@ -1005,6 +1005,6 @@ export class KpiUnitReportComponent implements OnInit {
   }
 
   exportExcel(): void {
-    alert('Đang kết xuất tệp tin Excel ma trận trục kết quả theo chuẩn Sở GD&ĐT TP.HCM (.xlsx)...');
+    alert('Đang kết xuất tệp tin Excel ma trận trục kết quả (.xlsx)...');
   }
 }

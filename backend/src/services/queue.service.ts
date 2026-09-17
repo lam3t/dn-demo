@@ -26,6 +26,12 @@ export class QueueService {
   private static isRedisAvailable = false;
 
   public static initialize() {
+    // Only attempt Redis connection if REDIS_HOST or REDIS_URL is explicitly set
+    if (!process.env.REDIS_HOST && !process.env.REDIS_URL) {
+      this.isRedisAvailable = false;
+      return;
+    }
+
     const redisHost = process.env.REDIS_HOST || '127.0.0.1';
     const redisPort = parseInt(process.env.REDIS_PORT || '6379', 10);
     const redisPassword = process.env.REDIS_PASSWORD || undefined;
@@ -71,11 +77,9 @@ export class QueueService {
         console.log('✓ BullMQ Queue Workers đã được khởi tạo.');
       }).catch(() => {
         this.isRedisAvailable = false;
-        console.log('ℹ Không phát hiện Redis service. Hệ thống chuyển sang cơ chế Background Queue In-Memory.');
       });
     } catch (e) {
       this.isRedisAvailable = false;
-      console.log('ℹ Khởi tạo Background Queue ở chế độ In-Memory.');
     }
   }
 

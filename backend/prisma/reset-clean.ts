@@ -8,6 +8,17 @@ async function cleanReset() {
   console.log('🧹 Bắt đầu xóa sạch toàn bộ dữ liệu test...');
 
   // 1. Xóa dữ liệu theo thứ tự quan hệ khóa ngoại
+  await prisma.kpiSpecialCase.deleteMany({});
+  await prisma.kpiScoreRecord.deleteMany({});
+  await prisma.kpiBonusProposal.deleteMany({});
+  await prisma.taskAssignmentLog.deleteMany({});
+  await prisma.kpiTaskAxisTag.deleteMany({});
+  await prisma.unitAxisApplicability.deleteMany({});
+  await prisma.kpiAxis.deleteMany({});
+  await prisma.evaluationPeriod.deleteMany({});
+  await prisma.kPIRecord.deleteMany({});
+  await prisma.kPIDefinition.deleteMany({});
+
   await prisma.systemAuditLog.deleteMany({});
   await prisma.adminAuditLog.deleteMany({});
   await prisma.comment.deleteMany({});
@@ -16,8 +27,8 @@ async function cleanReset() {
   await prisma.taskAssignment.deleteMany({});
   await prisma.notification.deleteMany({});
   await prisma.task.deleteMany({});
+  await prisma.planLog.deleteMany({});
   await prisma.plan.deleteMany({});
-  await prisma.kPIDefinition.deleteMany({});
   await prisma.sharedCategory.deleteMany({});
   await prisma.rolePermission.deleteMany({});
   await prisma.userRole.deleteMany({});

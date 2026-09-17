@@ -89,6 +89,39 @@ export class UserService {
     return this.orgUnitsCache$;
   }
 
+  createOrgUnit(data: { name: string; code: string; parentId?: string | null; orderIndex?: number }): Observable<OrgUnitItem> {
+    return this.http
+      .post<{ success: boolean; message: string; data: OrgUnitItem }>('/api/org/units', data)
+      .pipe(
+        map((res) => {
+          this.clearOrgUnitsCache();
+          return res.data;
+        })
+      );
+  }
+
+  updateOrgUnit(
+    id: string,
+    data: { name?: string; code?: string; parentId?: string | null; orderIndex?: number }
+  ): Observable<OrgUnitItem> {
+    return this.http
+      .put<{ success: boolean; message: string; data: OrgUnitItem }>(`/api/org/units/${id}`, data)
+      .pipe(
+        map((res) => {
+          this.clearOrgUnitsCache();
+          return res.data;
+        })
+      );
+  }
+
+  deleteOrgUnit(id: string): Observable<void> {
+    return this.http.delete<{ success: boolean; message: string }>(`/api/org/units/${id}`).pipe(
+      map(() => {
+        this.clearOrgUnitsCache();
+      })
+    );
+  }
+
   getOrgTree(): Observable<OrgTreeNode[]> {
     return this.http
       .get<{ success: boolean; data: OrgTreeNode[] }>('/api/org/tree')

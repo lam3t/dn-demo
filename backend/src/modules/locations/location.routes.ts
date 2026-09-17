@@ -17,9 +17,17 @@ router.post(
   (req, res, next) => locationController.create(req, res, next)
 );
 
-router.patch('/:id', (req, res, next) => locationController.update(req, res, next));
+router.patch(
+  '/:id',
+  requireRole(Role.ADMIN, Role.HIEU_TRUONG, Role.PHO_HIEU_TRUONG),
+  (req, res, next) => locationController.update(req, res, next)
+);
 
-router.put('/:id', (req, res, next) => locationController.update(req, res, next));
+router.put(
+  '/:id',
+  requireRole(Role.ADMIN, Role.HIEU_TRUONG, Role.PHO_HIEU_TRUONG),
+  (req, res, next) => locationController.update(req, res, next)
+);
 
 router.delete(
   '/:id',

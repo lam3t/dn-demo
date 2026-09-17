@@ -1889,31 +1889,86 @@ export interface MockDocumentFile {
   description?: string;
 }
 
-export const MOCK_DOCUMENT_FOLDERS: MockDocumentFolder[] = [
-  { id: 'f-root', name: 'HÒA BÌNH', parentId: null, tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 1, createdAt: '2026-08-01T08:00:00Z', isOpen: true },
-  { id: 'f-2627', name: '2026_2027', parentId: 'f-root', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 1, createdAt: '2026-08-01T08:05:00Z', isOpen: true },
-  { id: 'f-dang', name: '1. Công tác Đảng', parentId: 'f-2627', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 1, createdAt: '2026-08-10T08:00:00Z' },
-  { id: 'f-hctcns', name: '2. HC-TC-NS', parentId: 'f-2627', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 2, createdAt: '2026-08-10T08:10:00Z', isOpen: true },
-  { id: 'f-qdqc', name: 'QUYẾT ĐỊNH_QUY CHẾ ĐẦU NĂM HỌC', parentId: 'f-hctcns', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 1, createdAt: '2026-08-15T09:00:00Z' },
-  { id: 'f-diemchinh', name: '3. Điểm chính', parentId: 'f-2627', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 3, createdAt: '2026-08-10T08:20:00Z', isOpen: true },
-  { id: 'f-chuyenmon', name: 'Chuyên môn', parentId: 'f-diemchinh', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 1, createdAt: '2026-08-15T09:10:00Z' },
-  { id: 'f-csvc', name: 'CSVC', parentId: 'f-diemchinh', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 2, createdAt: '2026-08-15T09:20:00Z' },
-  { id: 'f-nhansu', name: 'Nhân sự', parentId: 'f-diemchinh', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 3, createdAt: '2026-08-15T09:30:00Z', isOpen: true },
-  { id: 'f-dshs', name: 'DS HS ĐẦU NĂM - DS CÁC LỚP 2026-2027', parentId: 'f-nhansu', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 1, createdAt: '2026-08-20T10:00:00Z' },
-  { id: 'f-ph1', name: '4. Phân hiệu 1', parentId: 'f-2627', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 4, createdAt: '2026-08-10T08:30:00Z' },
-  { id: 'f-ph2', name: '5. Phân hiệu 2', parentId: 'f-2627', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 5, createdAt: '2026-08-10T08:40:00Z' },
-  { id: 'f-thang', name: '6. Công tác tháng', parentId: 'f-2627', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 6, createdAt: '2026-08-10T08:50:00Z', isOpen: true },
-  { id: 'f-thang1', name: 'Tháng 1', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 1, createdAt: '2026-08-12T08:00:00Z' },
-  { id: 'f-thang2', name: 'Tháng 2', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 2, createdAt: '2026-08-12T08:00:00Z' },
-  { id: 'f-thang3', name: 'Tháng 3', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 3, createdAt: '2026-08-12T08:00:00Z' },
-  { id: 'f-thang4', name: 'Tháng 4', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 4, createdAt: '2026-08-12T08:00:00Z' },
-  { id: 'f-thang5', name: 'Tháng 5', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 5, createdAt: '2026-08-12T08:00:00Z' },
-  { id: 'f-thang8', name: 'Tháng 8', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 6, createdAt: '2026-08-12T08:00:00Z' },
-  { id: 'f-thang9', name: 'Tháng 9', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 7, createdAt: '2026-08-12T08:00:00Z', isOpen: true },
-  { id: 'f-tuan1', name: 'Tuần 1', parentId: 'f-thang9', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 1, createdAt: '2026-09-01T08:00:00Z' },
-  { id: 'f-tuan2', name: 'Tuần 2', parentId: 'f-thang9', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 2, createdAt: '2026-09-08T08:00:00Z' },
-  { id: 'f-tuan3', name: 'Tuần 3', parentId: 'f-thang9', tenantId: 'tenant-phuoc-tan', academicYear: '2026-2027', orderIndex: 3, createdAt: '2026-09-15T08:00:00Z' },
-];
+export function generateMockDocumentFolders(
+  schoolName: string = 'PHƯỚC TÂN',
+  locations: any[] = MOCK_LOCATIONS,
+  academicYear: string = '2026-2027'
+): MockDocumentFolder[] {
+  let rootName = schoolName
+    .toUpperCase()
+    .replace(/^TRƯỜNG\s+THCS\s+/i, '')
+    .replace(/^TRƯỜNG\s+TH\s*(&|VÀ)\s*THCS\s+/i, '')
+    .replace(/^TRƯỜNG\s+TIỂU\s+HỌC\s+/i, '')
+    .replace(/^TRƯỜNG\s+MẦM\s+NON\s+/i, '')
+    .replace(/^TRƯỜNG\s+THPT\s+/i, '')
+    .replace(/^TRƯỜNG\s+/i, '')
+    .trim() || 'PHƯỚC TÂN';
+
+  const cleanYear = (academicYear || '2026-2027').replace(/\s+/g, '').replace(/Nămhọc/gi, '') || '2026-2027';
+  const yearUnderscore = cleanYear.replace('-', '_');
+
+  const folders: MockDocumentFolder[] = [
+    { id: 'f-root', name: rootName, parentId: null, tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 1, createdAt: '2026-08-01T08:00:00Z', isOpen: true },
+    { id: 'f-year', name: yearUnderscore, parentId: 'f-root', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 1, createdAt: '2026-08-01T08:05:00Z', isOpen: true },
+    { id: 'f-dang', name: '1. Công tác Đảng', parentId: 'f-year', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 1, createdAt: '2026-08-10T08:00:00Z' },
+    { id: 'f-hctcns', name: '2. HC-TC-NS', parentId: 'f-year', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 2, createdAt: '2026-08-10T08:10:00Z', isOpen: true },
+    { id: 'f-qdqc', name: 'QUYẾT ĐỊNH_QUY CHẾ ĐẦU NĂM HỌC', parentId: 'f-hctcns', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 1, createdAt: '2026-08-15T09:00:00Z' },
+  ];
+
+  let order = 3;
+  if (locations && locations.length > 0) {
+    locations.forEach((loc, idx) => {
+      const locFolderId = `f-loc-${loc.id || idx}`;
+      folders.push({
+        id: locFolderId,
+        name: `${order}. ${loc.name}`,
+        parentId: 'f-year',
+        tenantId: 'tenant-phuoc-tan',
+        academicYear: cleanYear,
+        orderIndex: order++,
+        createdAt: '2026-08-10T08:20:00Z',
+        isOpen: idx === 0 || !!loc.isMain,
+      });
+
+      folders.push(
+        { id: `f-cm-${loc.id || idx}`, name: 'Chuyên môn', parentId: locFolderId, tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 1, createdAt: '2026-08-15T09:10:00Z' },
+        { id: `f-csvc-${loc.id || idx}`, name: 'CSVC', parentId: locFolderId, tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 2, createdAt: '2026-08-15T09:20:00Z' },
+        { id: `f-ns-${loc.id || idx}`, name: 'Nhân sự', parentId: locFolderId, tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 3, createdAt: '2026-08-15T09:30:00Z', isOpen: true },
+        { id: `f-dshs-${loc.id || idx}`, name: `DS HS ĐẦU NĂM - DS CÁC LỚP ${cleanYear}`, parentId: `f-ns-${loc.id || idx}`, tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 1, createdAt: '2026-08-20T10:00:00Z' }
+      );
+    });
+  } else {
+    folders.push(
+      { id: 'f-diemchinh', name: `${order++}. Điểm chính`, parentId: 'f-year', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 3, createdAt: '2026-08-10T08:20:00Z', isOpen: true },
+      { id: 'f-cm', name: 'Chuyên môn', parentId: 'f-diemchinh', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 1, createdAt: '2026-08-15T09:10:00Z' },
+      { id: 'f-csvc', name: 'CSVC', parentId: 'f-diemchinh', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 2, createdAt: '2026-08-15T09:20:00Z' },
+      { id: 'f-ns', name: 'Nhân sự', parentId: 'f-diemchinh', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 3, createdAt: '2026-08-15T09:30:00Z', isOpen: true },
+      { id: 'f-dshs', name: `DS HS ĐẦU NĂM - DS CÁC LỚP ${cleanYear}`, parentId: 'f-ns', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 1, createdAt: '2026-08-20T10:00:00Z' }
+    );
+  }
+
+  folders.push(
+    { id: 'f-thang', name: `${order++}. Công tác tháng`, parentId: 'f-year', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: order, createdAt: '2026-08-10T08:50:00Z', isOpen: true },
+    { id: 'f-thang8', name: 'Tháng 8', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 1, createdAt: '2026-08-12T08:00:00Z' },
+    { id: 'f-thang9', name: 'Tháng 9', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 2, createdAt: '2026-08-12T08:00:00Z', isOpen: true },
+    { id: 'f-tuan1', name: 'Tuần 1', parentId: 'f-thang9', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 1, createdAt: '2026-09-01T08:00:00Z' },
+    { id: 'f-tuan2', name: 'Tuần 2', parentId: 'f-thang9', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 2, createdAt: '2026-09-08T08:00:00Z' },
+    { id: 'f-tuan3', name: 'Tuần 3', parentId: 'f-thang9', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 3, createdAt: '2026-09-15T08:00:00Z' },
+    { id: 'f-tuan4', name: 'Tuần 4', parentId: 'f-thang9', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 4, createdAt: '2026-09-22T08:00:00Z' },
+    { id: 'f-thang10', name: 'Tháng 10', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 3, createdAt: '2026-08-12T08:00:00Z' },
+    { id: 'f-thang11', name: 'Tháng 11', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 4, createdAt: '2026-08-12T08:00:00Z' },
+    { id: 'f-thang12', name: 'Tháng 12', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 5, createdAt: '2026-08-12T08:00:00Z' },
+    { id: 'f-thang1', name: 'Tháng 1', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 6, createdAt: '2026-08-12T08:00:00Z' },
+    { id: 'f-thang2', name: 'Tháng 2', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 7, createdAt: '2026-08-12T08:00:00Z' },
+    { id: 'f-thang3', name: 'Tháng 3', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 8, createdAt: '2026-08-12T08:00:00Z' },
+    { id: 'f-thang4', name: 'Tháng 4', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 9, createdAt: '2026-08-12T08:00:00Z' },
+    { id: 'f-thang5', name: 'Tháng 5', parentId: 'f-thang', tenantId: 'tenant-phuoc-tan', academicYear: cleanYear, orderIndex: 10, createdAt: '2026-08-12T08:00:00Z' }
+  );
+
+  return folders;
+}
+
+export const MOCK_DOCUMENT_FOLDERS: MockDocumentFolder[] = generateMockDocumentFolders();
 
 export const MOCK_DOCUMENT_FILES: MockDocumentFile[] = [
   // f-dang

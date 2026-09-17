@@ -52,14 +52,16 @@ interface PaperPlanRow {
         </div>
 
         <div class="header-actions">
-          <button type="button" class="btn-primary tap-target" (click)="openCreatePlanModal()">
-            <span class="material-symbols-outlined">add_circle</span>
-            <span>Lập kế hoạch mới</span>
-          </button>
-          <button type="button" class="btn-secondary tap-target" (click)="openDuplicateModal()">
-            <span class="material-symbols-outlined">content_copy</span>
-            <span>Sao chép kỳ trước</span>
-          </button>
+          @if (authService.canManagePlans()) {
+            <button type="button" class="btn-primary tap-target" (click)="openCreatePlanModal()">
+              <span class="material-symbols-outlined">add_circle</span>
+              <span>Lập kế hoạch mới</span>
+            </button>
+            <button type="button" class="btn-secondary tap-target" (click)="openDuplicateModal()">
+              <span class="material-symbols-outlined">content_copy</span>
+              <span>Sao chép kỳ trước</span>
+            </button>
+          }
         </div>
       </header>
 
@@ -333,7 +335,7 @@ interface PaperPlanRow {
                           <span>{{ row.isSaving ? 'Đang lưu...' : (row.saved ? 'Đã lưu' : 'Lưu') }}</span>
                         </button>
 
-                        @if (row.saved) {
+                        @if (row.saved && authService.canAssignTasks()) {
                           <button
                             type="button"
                             class="btn-create-task-from-row tap-target"
@@ -370,16 +372,18 @@ interface PaperPlanRow {
 
             <div class="bottom-bar-right">
               <span class="row-counter-text">Đang có {{ paperRows().length }} dòng kế hoạch</span>
-              <button
-                type="button"
-                class="btn-batch-generate tap-target"
-                (click)="batchGenerateTasks()"
-                [disabled]="!canBatchGenerate()"
-                title="Tạo nhanh tất cả công việc cho các dòng đã lưu"
-              >
-                <span class="material-symbols-outlined">bolt</span>
-                <span>Tạo việc hàng loạt từ bảng</span>
-              </button>
+              @if (authService.canAssignTasks()) {
+                <button
+                  type="button"
+                  class="btn-batch-generate tap-target"
+                  (click)="batchGenerateTasks()"
+                  [disabled]="!canBatchGenerate()"
+                  title="Tạo nhanh tất cả công việc cho các dòng đã lưu"
+                >
+                  <span class="material-symbols-outlined">bolt</span>
+                  <span>Tạo việc hàng loạt từ bảng</span>
+                </button>
+              }
             </div>
           </div>
         </section>
@@ -414,8 +418,10 @@ interface PaperPlanRow {
                 <div class="form-group">
                   <label class="form-label">Cấp độ kế hoạch <span class="required">*</span></label>
                   <select class="form-select" [(ngModel)]="planFormLevel">
-                    <option value="NAM">Kế hoạch Năm</option>
-                    <option value="HOC_KY">Học kỳ</option>
+                    @if (authService.canCreateSchoolPlan()) {
+                      <option value="NAM">Kế hoạch Năm</option>
+                      <option value="HOC_KY">Học kỳ</option>
+                    }
                     <option value="QUY">Quý</option>
                     <option value="THANG">Tháng</option>
                     <option value="TUAN">Tuần</option>

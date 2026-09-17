@@ -13,6 +13,7 @@ import { Router } from '@angular/router';
 import { PlanTreeNode, PlanLevel } from '../../../core/models/plan.models';
 import { StatusBadgeComponent } from '../status-badge/status-badge.component';
 import { ContactCardService } from '../../../core/services/contact-card.service';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-plan-tree',
@@ -120,33 +121,37 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
 
                 <!-- ACTIONS -->
                 <div class="node-actions" (click)="$event.stopPropagation()">
-                  <button
-                    type="button"
-                    class="action-btn btn-add-task tap-target"
-                    title="Tạo việc từ mốc kế hoạch này"
-                    (click)="onAddChildTask(node)"
-                  >
-                    <span class="material-symbols-outlined">add_task</span>
-                    <span class="action-btn-text">Giao việc</span>
-                  </button>
+                  @if (authService.canAssignTasks()) {
+                    <button
+                      type="button"
+                      class="action-btn btn-add-task tap-target"
+                      title="Tạo việc từ mốc kế hoạch này"
+                      (click)="onAddChildTask(node)"
+                    >
+                      <span class="material-symbols-outlined">add_task</span>
+                      <span class="action-btn-text">Giao việc</span>
+                    </button>
+                  }
 
-                  <button
-                    type="button"
-                    class="action-btn btn-add-sub tap-target"
-                    title="Thêm kế hoạch con"
-                    (click)="onAddChildPlan(node)"
-                  >
-                    <span class="material-symbols-outlined">add</span>
-                  </button>
+                  @if (authService.canManagePlans()) {
+                    <button
+                      type="button"
+                      class="action-btn btn-add-sub tap-target"
+                      title="Thêm kế hoạch con"
+                      (click)="onAddChildPlan(node)"
+                    >
+                      <span class="material-symbols-outlined">add</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    class="action-btn btn-edit tap-target"
-                    title="Sửa kế hoạch"
-                    (click)="onEditPlan(node, $event)"
-                  >
-                    <span class="material-symbols-outlined">edit</span>
-                  </button>
+                    <button
+                      type="button"
+                      class="action-btn btn-edit tap-target"
+                      title="Sửa kế hoạch"
+                      (click)="onEditPlan(node, $event)"
+                    >
+                      <span class="material-symbols-outlined">edit</span>
+                    </button>
+                  }
 
                   <button
                     type="button"
@@ -157,14 +162,16 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
                     <span class="material-symbols-outlined">history</span>
                   </button>
 
-                  <button
-                    type="button"
-                    class="action-btn btn-delete tap-target"
-                    title="Xóa kế hoạch"
-                    (click)="onDeletePlan(node, $event)"
-                  >
-                    <span class="material-symbols-outlined">delete</span>
-                  </button>
+                  @if (authService.canManagePlans()) {
+                    <button
+                      type="button"
+                      class="action-btn btn-delete tap-target"
+                      title="Xóa kế hoạch"
+                      (click)="onDeletePlan(node, $event)"
+                    >
+                      <span class="material-symbols-outlined">delete</span>
+                    </button>
+                  }
                 </div>
               </div>
 
@@ -179,14 +186,16 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
                           <span class="material-symbols-outlined">checklist</span>
                           <span>Danh sách công việc trực thuộc ({{ node.tasks.length }})</span>
                         </div>
-                        <button
-                          type="button"
-                          class="inline-add-task-btn"
-                          (click)="onAddChildTask(node)"
-                        >
-                          <span class="material-symbols-outlined">add</span>
-                          <span>Thêm việc</span>
-                        </button>
+                        @if (authService.canAssignTasks()) {
+                          <button
+                            type="button"
+                            class="inline-add-task-btn"
+                            (click)="onAddChildTask(node)"
+                          >
+                            <span class="material-symbols-outlined">add</span>
+                            <span>Thêm việc</span>
+                          </button>
+                        }
                       </div>
 
                       <!-- DESKTOP TABLE -->
@@ -382,14 +391,18 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
                     <div class="node-empty-content">
                       <p>Chưa có kế hoạch con hoặc công việc nào trong mốc này.</p>
                       <div class="empty-node-actions">
-                        <button type="button" class="btn-create-sub-action" (click)="onAddChildTask(node)">
-                          <span class="material-symbols-outlined">add_task</span>
-                          <span>Giao việc mới</span>
-                        </button>
-                        <button type="button" class="btn-create-sub-action secondary" (click)="onAddChildPlan(node)">
-                          <span class="material-symbols-outlined">create_new_folder</span>
-                          <span>Thêm cấp con ({{ getNextLevelLabel(node.level) }})</span>
-                        </button>
+                        @if (authService.canAssignTasks()) {
+                          <button type="button" class="btn-create-sub-action" (click)="onAddChildTask(node)">
+                            <span class="material-symbols-outlined">add_task</span>
+                            <span>Giao việc mới</span>
+                          </button>
+                        }
+                        @if (authService.canManagePlans()) {
+                          <button type="button" class="btn-create-sub-action secondary" (click)="onAddChildPlan(node)">
+                            <span class="material-symbols-outlined">create_new_folder</span>
+                            <span>Thêm cấp con ({{ getNextLevelLabel(node.level) }})</span>
+                          </button>
+                        }
                       </div>
                     </div>
                   }
@@ -1240,6 +1253,7 @@ import { ContactCardService } from '../../../core/services/contact-card.service'
 export class PlanTreeComponent implements OnChanges {
   private router = inject(Router);
   private contactCardService = inject(ContactCardService);
+  authService = inject(AuthService);
 
   @Input() nodes: PlanTreeNode[] = [];
   @Input() isRoot = true;

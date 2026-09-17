@@ -261,7 +261,7 @@ import { NotificationService } from '../../../core/services/notification.service
                       <div class="kpi-header-left">
                         <span class="material-symbols-outlined icon-kpi">hub</span>
                         <div>
-                          <strong>Gắn Trục Kết Quả KPI (Sở GD&ĐT)</strong>
+                          <strong>Gắn Trục Kết Quả KPI</strong>
                           <span class="kpi-sub-text">Xác định công việc này có tính điểm vào 70 điểm KPI của người phụ trách hay không</span>
                         </div>
                       </div>

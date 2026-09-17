@@ -37,7 +37,7 @@ import { UserPickerItem } from '../../core/models/user.models';
           <p class="page-subtitle">
             Hiệu trưởng: <strong>{{ school()?.principalName || 'Chưa cập nhật' }}</strong> • 
             Địa chỉ: {{ school()?.address || 'Chưa cập nhật địa chỉ' }} • 
-            Hotline: <a [href]="school()?.phone ? ('tel:' + school()?.phone) : 'javascript:void(0)'" class="phone-link">{{ school()?.phone || 'Chưa cập nhật' }}</a>
+            Hotline: <a [href]="school()?.phone ? ('tel:' + school()?.phone) : null" class="phone-link">{{ school()?.phone || 'Chưa cập nhật' }}</a>
           </p>
         </div>
 
@@ -223,7 +223,7 @@ import { UserPickerItem } from '../../core/models/user.models';
                   </div>
                   <div class="info-row">
                     <span class="material-symbols-outlined row-icon">call</span>
-                    <a [href]="loc.phone ? ('tel:' + loc.phone) : 'javascript:void(0)'" class="phone-link">{{ loc.phone || school()?.phone || 'Chưa cập nhật' }}</a>
+                    <a [href]="loc.phone ? ('tel:' + loc.phone) : null" class="phone-link">{{ loc.phone || school()?.phone || 'Chưa cập nhật' }}</a>
                     <span class="direct-call-badge">Liên hệ trực tiếp</span>
                   </div>
                 </div>
