@@ -2632,12 +2632,30 @@ export class DocumentsComponent implements OnInit, OnDestroy {
   }
 
   // ===================== TREE & FILE METHODS =====================
-  loadTreeAndSelectDefault() {
+  loadTreeAndSelectDefault(targetFolderId?: string) {
     this.isLoadingTree.set(true);
     this.documentService.getFolderTree(this.academicYearService.currentAcademicYear()).subscribe({
       next: (tree) => {
         this.folderTree.set(tree);
         this.isLoadingTree.set(false);
+
+        if (targetFolderId) {
+          const all = this.flattenTree(tree);
+          const found = all.find((f) => f.id === targetFolderId);
+          if (found) {
+            this.selectFolder(found);
+            return;
+          }
+        }
+
+        if (this.selectedFolder()) {
+          const all = this.flattenTree(tree);
+          const existing = all.find((f) => f.id === this.selectedFolder()!.id);
+          if (existing) {
+            this.selectFolder(existing);
+            return;
+          }
+        }
 
         if (tree.length > 0) {
           const root = tree[0];
@@ -2650,6 +2668,22 @@ export class DocumentsComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.isLoadingTree.set(false);
+      },
+    });
+  }
+
+  refreshTreePreservingSelection(preserveFolderId?: string) {
+    const idToKeep = preserveFolderId || this.selectedFolder()?.id;
+    this.documentService.getFolderTree(this.academicYearService.currentAcademicYear()).subscribe({
+      next: (tree) => {
+        this.folderTree.set(tree);
+        if (idToKeep) {
+          const all = this.flattenTree(tree);
+          const found = all.find((f) => f.id === idToKeep);
+          if (found) {
+            this.selectedFolder.set(found);
+          }
+        }
       },
     });
   }
@@ -2730,11 +2764,12 @@ export class DocumentsComponent implements OnInit, OnDestroy {
 
     this.isSubmittingFolder.set(true);
     if (this.isEditingFolder() && this.folderToEdit()) {
-      this.documentService.updateFolder(this.folderToEdit()!.id, { name }).subscribe({
+      const editId = this.folderToEdit()!.id;
+      this.documentService.updateFolder(editId, { name }).subscribe({
         next: () => {
           this.isSubmittingFolder.set(false);
           this.closeFolderModal();
-          this.loadTreeAndSelectDefault();
+          this.refreshTreePreservingSelection(editId);
         },
         error: () => {
           this.isSubmittingFolder.set(false);
@@ -2749,10 +2784,10 @@ export class DocumentsComponent implements OnInit, OnDestroy {
           academicYear: this.academicYearService.currentAcademicYear(),
         })
         .subscribe({
-          next: () => {
+          next: (created) => {
             this.isSubmittingFolder.set(false);
             this.closeFolderModal();
-            this.loadTreeAndSelectDefault();
+            this.loadTreeAndSelectDefault(created?.id || parentId || undefined);
           },
           error: () => {
             this.isSubmittingFolder.set(false);
@@ -2767,9 +2802,10 @@ export class DocumentsComponent implements OnInit, OnDestroy {
         `Bạn có chắc chắn muốn xóa thư mục "${folder.name}" và toàn bộ tệp tin, thư mục con bên trong?`
       )
     ) {
+      const parentId = folder.parentId;
       this.documentService.deleteFolder(folder.id).subscribe({
         next: () => {
-          this.loadTreeAndSelectDefault();
+          this.loadTreeAndSelectDefault(parentId || undefined);
         },
       });
     }
@@ -2832,6 +2868,8 @@ export class DocumentsComponent implements OnInit, OnDestroy {
     this.isUploading.set(true);
     this.uploadProgress.set(10);
 
+    const targetFolderId = folder.id;
+
     // Read all files as Base64 Data URLs so they can be downloaded or previewed 100% reliably
     const filesData: FilePayload[] = [];
     for (const file of this.pendingFiles) {
@@ -2848,15 +2886,17 @@ export class DocumentsComponent implements OnInit, OnDestroy {
     this.uploadProgress.set(60);
 
     this.documentService
-      .uploadFilesWithProgress(folder.id, this.pendingFiles, filesData)
+      .uploadFilesWithProgress(targetFolderId, this.pendingFiles, filesData)
       .subscribe({
         next: (event) => {
           this.uploadProgress.set(event.progress);
           if (event.completed) {
             this.isUploading.set(false);
             this.closeUploadModal();
-            this.loadFilesForFolder(folder.id);
-            this.loadTreeAndSelectDefault();
+            // Reload files for current folder
+            this.loadFilesForFolder(targetFolderId);
+            // Refresh folder tree counts while KEEPING current selected folder
+            this.refreshTreePreservingSelection(targetFolderId);
           }
         },
         error: () => {
@@ -2891,19 +2931,32 @@ export class DocumentsComponent implements OnInit, OnDestroy {
     const fileName = file.originalName || file.fileName || 'tai-lieu';
     const dataUrl = file.fileUrl;
 
-    // 1. If real Base64 Data URL (from uploaded file)
+    // 1. If Base64 Data URL (from uploaded file)
     if (dataUrl && typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      return;
+      try {
+        const blob = this.dataUrlToBlob(dataUrl);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        return;
+      } catch (err) {
+        console.error('Lỗi decode Base64 sang Blob, fallback sang generator:', err);
+      }
     }
 
-    // 2. If valid external HTTP URL
-    if (dataUrl && typeof dataUrl === 'string' && (dataUrl.startsWith('http://') || dataUrl.startsWith('https://')) && !dataUrl.includes('dummy')) {
+    // 2. If valid external HTTP URL that is not a placeholder
+    if (
+      dataUrl &&
+      typeof dataUrl === 'string' &&
+      (dataUrl.startsWith('http://') || dataUrl.startsWith('https://')) &&
+      !dataUrl.includes('dummy') &&
+      !dataUrl.includes('picsum.photos')
+    ) {
       const link = document.createElement('a');
       link.href = dataUrl;
       link.download = fileName;
@@ -2914,8 +2967,23 @@ export class DocumentsComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // 3. Fallback for sample demo mock files: Generate valid downloadable Blob on the fly
+    // 3. Fallback for sample mock files: Generate valid binary Blob
     this.generateAndDownloadBlob(file);
+  }
+
+  private dataUrlToBlob(dataUrl: string): Blob {
+    const parts = dataUrl.split(',');
+    const header = parts[0];
+    const base64Data = parts[1];
+    const mimeMatch = header.match(/:(.*?);/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+    const binaryStr = window.atob(base64Data);
+    const len = binaryStr.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+    return new Blob([bytes], { type: mimeType });
   }
 
   private generateAndDownloadBlob(file: any) {
@@ -2932,7 +3000,7 @@ export class DocumentsComponent implements OnInit, OnDestroy {
       const docContent = `{\\rtf1\\ansi\\deff0 {\\fonttbl{\\f0 Arial;}}\\f0\\fs24 \\b TRƯỜNG THCS NGUYỄN HUỆ\\b0\\par \\b TÀI LIỆU MINH CHỨNG: ${fileName}\\b0\\par\\par Người cập nhật: Trần Minh Quang\\par Năm học: 2026 - 2027\\par Nội dung: Tài liệu và minh chứng đã được thẩm định và lưu trữ trên hệ thống số hóa TN EDU.\\par}`;
       blob = new Blob([docContent], { type: 'application/msword;charset=utf-8;' });
     } else if (lower.endsWith('.pdf') || file.mimeType?.includes('pdf')) {
-      // Simple text-based PDF or text Blob
+      // Simple text-based PDF Blob
       const textContent = `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>>>endobj\nxref\n0 4\n0000000000 65535 f\n0000000010 00000 n\n0000000053 00000 n\n0000000102 00000 n\ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF\n`;
       blob = new Blob([textContent], { type: 'application/pdf' });
     } else {
@@ -2947,7 +3015,7 @@ export class DocumentsComponent implements OnInit, OnDestroy {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
 
   // ===================== TAB 2: EVIDENCE METHODS =====================
