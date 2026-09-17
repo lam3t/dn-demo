@@ -1677,24 +1677,54 @@ export const demoMockInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>
               return of(new HttpResponse({ status: 200, body: { success: true, data: files } }));
             }
             if (method === 'POST') {
-              // Upload mock files
-              const newFile: any = {
-                id: 'doc-file-' + Date.now(),
-                folderId,
-                fileName: 'Tai_Lieu_Moi_' + new Date().toISOString().slice(0, 10) + '.pdf',
-                originalName: 'Tài liệu vừa tải lên ' + new Date().toLocaleTimeString('vi-VN') + '.pdf',
-                fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-                fileSize: 1024 * 1024 * 1.5,
-                mimeType: 'application/pdf',
-                uploadedById: 'u-hieutruong',
-                uploadedBy: { id: 'u-hieutruong', fullName: 'Phạm Thị Nam', phone: '0903111222' },
-                tenantId: 'tenant-phuoc-tan',
-                academicYear: reqAcademicYear,
-                createdAt: new Date().toISOString(),
-              };
-              storedFiles.unshift(newFile);
+              const body = req.body as any;
+              let uploadedList: any[] = [];
+
+              let filesData: any[] = [];
+              if (body instanceof FormData) {
+                const raw = body.get('filesData');
+                if (raw && typeof raw === 'string') {
+                  try { filesData = JSON.parse(raw); } catch {}
+                }
+              } else if (body && body.filesData) {
+                filesData = body.filesData;
+              }
+
+              if (filesData && filesData.length > 0) {
+                uploadedList = filesData.map((f: any, idx: number) => ({
+                  id: 'doc-file-' + Date.now() + '-' + idx,
+                  folderId,
+                  fileName: f.name || f.fileName || 'Tep_tin.pdf',
+                  originalName: f.originalName || f.name || 'Tệp tin.pdf',
+                  fileUrl: f.dataUrl || '',
+                  fileSize: f.size || 1024 * 500,
+                  mimeType: f.type || 'application/octet-stream',
+                  uploadedById: 'u-totruong-toan',
+                  uploadedBy: { id: 'u-totruong-toan', fullName: 'Trần Minh Quang', phone: '0903777888' },
+                  tenantId: 'tenant-phuoc-tan',
+                  academicYear: reqAcademicYear,
+                  createdAt: new Date().toISOString(),
+                }));
+              } else {
+                uploadedList = [{
+                  id: 'doc-file-' + Date.now(),
+                  folderId,
+                  fileName: 'Tai_Lieu_Moi_' + new Date().toISOString().slice(0, 10) + '.pdf',
+                  originalName: 'Tài liệu vừa tải lên ' + new Date().toLocaleTimeString('vi-VN') + '.pdf',
+                  fileUrl: '',
+                  fileSize: 1024 * 1024 * 1.5,
+                  mimeType: 'application/pdf',
+                  uploadedById: 'u-totruong-toan',
+                  uploadedBy: { id: 'u-totruong-toan', fullName: 'Trần Minh Quang', phone: '0903777888' },
+                  tenantId: 'tenant-phuoc-tan',
+                  academicYear: reqAcademicYear,
+                  createdAt: new Date().toISOString(),
+                }];
+              }
+
+              uploadedList.forEach((file) => storedFiles.unshift(file));
               saveStorage();
-              return of(new HttpResponse({ status: 201, body: { success: true, data: [newFile] } }));
+              return of(new HttpResponse({ status: 201, body: { success: true, data: uploadedList } }));
             }
           }
 

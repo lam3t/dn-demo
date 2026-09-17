@@ -90,8 +90,8 @@ export const routes: Routes = [
       },
       {
         path: 'evidence',
-        loadComponent: () =>
-          import('./features/evidence/evidence.component').then((m) => m.EvidenceComponent),
+        redirectTo: 'documents',
+        pathMatch: 'full',
       },
       {
         path: 'documents',

@@ -132,14 +132,9 @@ import { UserPickerItem } from '../../../core/models/user.models';
               <span class="nav-text">Báo cáo & Thống kê</span>
             </a>
 
-            <a routerLink="/evidence" routerLinkActive="active" class="nav-link" title="Kho minh chứng & Hồ sơ">
-              <span class="material-symbols-outlined nav-icon">verified</span>
-              <span class="nav-text">Kho minh chứng</span>
-            </a>
-
-            <a routerLink="/documents" routerLinkActive="active" class="nav-link" title="Quản lý cây thư mục & Tài liệu">
-              <span class="material-symbols-outlined nav-icon">folder_open</span>
-              <span class="nav-text">Quản lý tài liệu</span>
+            <a routerLink="/documents" routerLinkActive="active" class="nav-link" title="Kho minh chứng & Quản lý tài liệu">
+              <span class="material-symbols-outlined nav-icon">folder_shared</span>
+              <span class="nav-text">Kho minh chứng & Tài liệu</span>
             </a>
 
             <a routerLink="/notifications" routerLinkActive="active" class="nav-link">
@@ -899,14 +894,9 @@ import { UserPickerItem } from '../../../core/models/user.models';
                     <span class="nav-label">Báo cáo & Xuất Excel</span>
                   </a>
 
-                  <a routerLink="/evidence" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
-                    <span class="material-symbols-outlined nav-icon">verified</span>
-                    <span class="nav-label">Kho minh chứng</span>
-                  </a>
-
                   <a routerLink="/documents" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">
-                    <span class="material-symbols-outlined nav-icon">folder_open</span>
-                    <span class="nav-label">Quản lý tài liệu</span>
+                    <span class="material-symbols-outlined nav-icon">folder_shared</span>
+                    <span class="nav-label">Kho minh chứng & Tài liệu</span>
                   </a>
 
                   <a routerLink="/notifications" routerLinkActive="active" (click)="closeMobileDrawer()" class="drawer-nav-item">

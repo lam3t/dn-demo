@@ -3,6 +3,14 @@ import { HttpClient, HttpRequest, HttpEvent, HttpEventType } from '@angular/comm
 import { Observable, map } from 'rxjs';
 import { DocumentFolder, DocumentFile, CreateFolderDto, UpdateFolderDto, DocumentUploadEvent } from '../models/document.models';
 
+export interface FilePayload {
+  name: string;
+  originalName: string;
+  size: number;
+  type: string;
+  dataUrl: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -61,12 +69,15 @@ export class DocumentService {
   /**
    * Tải lên danh sách tệp tin vào thư mục có báo tiến trình
    */
-  uploadFilesWithProgress(folderId: string, files: File[]): Observable<DocumentUploadEvent> {
+  uploadFilesWithProgress(folderId: string, files: File[], filesData?: FilePayload[]): Observable<DocumentUploadEvent> {
     const formData = new FormData();
     files.forEach((file) => {
       formData.append('files', file);
     });
     formData.append('folderId', folderId);
+    if (filesData && filesData.length > 0) {
+      formData.append('filesData', JSON.stringify(filesData));
+    }
 
     const req = new HttpRequest('POST', `/api/documents/folders/${folderId}/files`, formData, {
       reportProgress: true,
