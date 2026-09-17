@@ -190,11 +190,14 @@ export class NotificationService {
   private startBackgroundPolling() {
     if (this.pollingTimer) clearInterval(this.pollingTimer);
 
-    // Initial fetch
-    this.refreshNotifications();
+    // Initial fetch if authenticated
+    if (this.authService.isAuthenticated()) {
+      this.refreshNotifications();
+    }
 
-    // Poll every 30 seconds
+    // Poll every 30 seconds if authenticated
     this.pollingTimer = setInterval(() => {
+      if (!this.authService.isAuthenticated()) return;
       if (typeof document !== 'undefined' && document.hidden) return; // Save bandwidth when tab inactive
       this.refreshNotifications(true);
     }, 30000);
@@ -204,6 +207,9 @@ export class NotificationService {
    * Làm mới danh sách thông báo và kiểm tra có thông báo mới không
    */
   refreshNotifications(isPolling = false): void {
+    if (!this.authService.isAuthenticated()) {
+      return;
+    }
     this.getNotifications({ pageSize: 20 }).subscribe({
       next: (res) => {
         if (!res || !res.items) return;

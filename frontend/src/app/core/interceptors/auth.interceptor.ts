@@ -43,29 +43,10 @@ export const authInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, ne
               return next(retriedReq);
             }),
             catchError((refreshErr) => {
-              // Try auto re-login for current demo account phone if available
-              const currentUser = authService.currentUser();
-              const phone = currentUser?.phone || '0903111222';
-
-              return authService.login(phone, '123456').pipe(
-                switchMap((loginRes) => {
-                  isRefreshing = false;
-                  const freshToken = loginRes.data.accessToken;
-                  refreshTokenSubject.next(freshToken);
-                  const retriedReq = req.clone({
-                    setHeaders: {
-                      Authorization: `Bearer ${freshToken}`,
-                    },
-                  });
-                  return next(retriedReq);
-                }),
-                catchError((loginErr) => {
-                  isRefreshing = false;
-                  refreshTokenSubject.next(null);
-                  authService.logout();
-                  return throwError(() => refreshErr || loginErr);
-                })
-              );
+              isRefreshing = false;
+              refreshTokenSubject.next(null);
+              authService.logout();
+              return throwError(() => refreshErr);
             })
           );
         } else {
