@@ -1,0 +1,33 @@
+name: Auto Deploy to Production Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Execute Deploy Script on Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            echo "🚀 Bắt đầu cập nhật mã nguồn mới trên Server..."
+            cd ~/school-management || cd /var/www/school-management || cd /app/school-management
+            git pull origin main
+            echo "🐳 Build lại container Docker với mã nguồn mới..."
+            cd deploy-package
+            docker compose up -d --build
+            docker image prune -f
+            echo "✅ Cập nhật thành công hệ thống!"
