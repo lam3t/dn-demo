@@ -9,6 +9,18 @@ export interface UploadResult {
   mimeType: string;
 }
 
+export function decodeUtf8FileName(originalName: string): string {
+  if (!originalName) return 'tep_tin';
+  try {
+    // Multer/busboy parse header theo chuẩn latin1. Chuyển đổi lại UTF-8 để giữ nguyên dấu tiếng Việt
+    const decoded = Buffer.from(originalName, 'latin1').toString('utf8');
+    if (!decoded.includes('\ufffd')) {
+      return decoded;
+    }
+  } catch (_) {}
+  return originalName;
+}
+
 export class StorageService {
   private static uploadsBase = path.join(process.cwd(), 'uploads');
   private static isS3Configured = Boolean(process.env.S3_BUCKET && process.env.S3_ENDPOINT);
@@ -24,26 +36,30 @@ export class StorageService {
 
   /**
    * Lưu trữ tệp minh chứng theo tenant-isolated path: /{tenantId}/tasks/{taskId}/{fileId}-{fileName}
-   * Tương thích cả Local Disk và Serverless Vercel (Base64 Data URL)
+   * Giữ nguyên 100% tên tệp gốc tiếng Việt chuẩn UTF-8
    */
   public static async saveTaskEvidence(
     tenantId: string,
     taskId: string,
     file: Express.Multer.File
   ): Promise<UploadResult> {
-    const sanitizedFileName = (file.originalname || 'minh_chung.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const rawOriginalName = decodeUtf8FileName(file.originalname || 'minh_chung.pdf');
+    const ext = path.extname(rawOriginalName) || '.bin';
+    const baseName = path.basename(rawOriginalName, ext);
+    // Tên file lưu đĩa vật lý: xóa ký tự cấm của OS Windows/Linux nhưng giữ nguyên timestamp + tên
+    const safeDiskBase = baseName.replace(/[/\\?%*:|"<>]/g, '_').substring(0, 100);
     const timestamp = Date.now();
-    const uniqueFileName = `${timestamp}_${sanitizedFileName}`;
+    const uniqueFileName = `${timestamp}_${safeDiskBase}${ext}`;
     const relativeKey = `${tenantId}/tasks/${taskId}/${uniqueFileName}`;
     const mimeType = file.mimetype || 'application/octet-stream';
 
-    // Tạo fileUrl: Ưu tiên Base64 Data URL nếu có file.buffer (hoạt động 100% trên Vercel Serverless)
+    // Tạo fileUrl: Luôn dùng URL tĩnh /uploads/... cho production server, chỉ dùng Base64 data URL trên Vercel Serverless
     let fileUrl = `/uploads/${relativeKey}`;
-    if (file.buffer) {
+    if (process.env.VERCEL && file.buffer) {
       fileUrl = `data:${mimeType};base64,${file.buffer.toString('base64')}`;
     }
 
-    // Cố gắng ghi vào đĩa cục bộ nếu đang chạy ở local (bọc try-catch chống sập trên Vercel read-only)
+    // Ghi vào đĩa cục bộ
     try {
       const targetDir = path.join(this.uploadsBase, tenantId, 'tasks', taskId);
       this.ensureDirExists(targetDir);
@@ -55,14 +71,17 @@ export class StorageService {
         fs.copyFileSync(file.path, targetFilePath);
         try { fs.unlinkSync(file.path); } catch (_) {}
       }
-    } catch (_) {
-      // Vercel serverless read-only filesystem: bỏ qua lỗi ghi đĩa vì fileUrl đã chứa Base64
+    } catch (err) {
+      console.error('Lỗi khi ghi tệp đính kèm vào đĩa:', err);
+      if (!process.env.VERCEL && file.buffer) {
+        fileUrl = `data:${mimeType};base64,${file.buffer.toString('base64')}`;
+      }
     }
 
     return {
       fileKey: relativeKey,
       fileUrl,
-      fileName: file.originalname,
+      fileName: rawOriginalName,
       fileSize: file.size || (file.buffer ? file.buffer.length : 0),
       mimeType,
     };

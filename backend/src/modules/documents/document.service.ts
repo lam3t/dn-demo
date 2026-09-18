@@ -1,5 +1,6 @@
 import prisma from '../../prisma';
 import { AppError } from '../../middlewares/error.middleware';
+import { decodeUtf8FileName } from '../../services/storage.service';
 
 export interface DocumentFolderData {
   id: string;
@@ -312,8 +313,9 @@ export class DocumentService {
     for (let i = 0; i < itemsCount; i++) {
       const f = files[i] || null;
       const meta = filesData && filesData[i] ? filesData[i] : null;
-      const fileName = meta?.originalName || meta?.name || f?.originalname || f?.filename || 'Tep_Tin_Moi.pdf';
-      const originalName = meta?.originalName || meta?.name || f?.originalname || 'Tệp tin mới.pdf';
+      const rawName = f?.originalname ? decodeUtf8FileName(f.originalname) : '';
+      const fileName = meta?.originalName || meta?.name || rawName || f?.filename || 'Tep_Tin_Moi.pdf';
+      const originalName = meta?.originalName || meta?.name || rawName || 'Tệp tin mới.pdf';
       const mimeType = meta?.type || f?.mimetype || 'application/pdf';
       const fileSize = meta?.size || f?.size || (f?.buffer ? f.buffer.length : 1024 * 500);
 

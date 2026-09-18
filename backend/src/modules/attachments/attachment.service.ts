@@ -58,7 +58,7 @@ export class AttachmentService {
         taskId,
         userId: uploadedById,
         action: 'DINH_KEM_MINH_CHUNG',
-        note: `Đã tải lên ${files.length} tệp minh chứng: ${files.map((f) => f.originalname).join(', ')}`,
+        note: `Đã tải lên ${files.length} tệp minh chứng: ${createdAttachments.map((a) => a.fileName).join(', ')}`,
       },
     });
 
