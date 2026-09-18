@@ -2295,14 +2295,19 @@ export class MyTasksComponent implements OnInit, OnDestroy {
   }
 
   getRoleGuidance(): string {
+    const user = this.authService.currentUser();
+    const activeRole = this.authService.activeRole();
+    const orgName = activeRole?.scopeName || user?.primaryOrgUnitName || 'tổ chuyên môn';
+    const locName = activeRole?.scopeName || user?.primaryLocationName || 'Điểm trường / Phân hiệu';
+
     if (this.authService.isHieuTruong()) {
-      return 'Nhiệm vụ trực tiếp chỉ đạo, giám sát các tổ chuyên môn và duyệt đóng các mốc kế hoạch quan trọng.';
+      return 'Nhiệm vụ trực tiếp chỉ đạo, giám sát các tổ chuyên môn và duyệt đóng các mốc kế hoạch quan trọng toàn trường.';
     }
     if (this.authService.isPHT()) {
-      return 'Theo dõi & chỉ đạo các công việc trọng tâm tại Phân hiệu 1 Tân Lập và công việc phối hợp liên trường.';
+      return `Theo dõi & chỉ đạo các công việc trọng tâm tại ${locName} và công việc phân công phụ trách.`;
     }
     if (this.authService.isToTruong()) {
-      return 'Quản lý tiến độ tổ Toán - Tin. Kiểm tra & Nghiệm thu đạt yêu cầu cho các công việc giáo viên đã hoàn tất nộp minh chứng.';
+      return `Quản lý tiến độ ${orgName}. Kiểm tra & Nghiệm thu đạt yêu cầu cho các công việc giáo viên trong tổ đã hoàn tất nộp minh chứng.`;
     }
     return 'Cập nhật tiến độ % thực hiện, kéo thanh trượt, đính kèm hình ảnh/tệp minh chứng và gửi kiểm tra duyệt.';
   }

@@ -246,13 +246,13 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                                 <div class="member-name-line">
                                   <strong class="member-name">{{ user.fullName }}</strong>
                                   @if (user.isToTruong || user.id === node.leader?.id) {
-                                    <span class="leader-badge-pill" title="Tổ trưởng tổ chuyên môn">👑 Tổ trưởng</span>
+                                    <span class="leader-badge-pill" [title]="'Tổ trưởng ' + (node.name || 'tổ chuyên môn')">👑 Tổ trưởng</span>
                                   }
                                   @if (isCurrentUser(user.id)) {
                                     <span class="current-user-tag">⭐ Bạn</span>
                                   }
                                 </div>
-                                <span class="member-title">{{ (user.isToTruong || user.id === node.leader?.id) ? ('Tổ trưởng • ' + (user.title || 'Giáo viên')) : (user.title || 'Giáo viên') }}</span>
+                                <span class="member-title">{{ (user.isToTruong || user.id === node.leader?.id) ? ('Tổ trưởng ' + (node.name || '') + ' • ' + (user.title || 'Giáo viên')) : (user.title || 'Giáo viên') }}</span>
                                 <span class="member-loc-pill" [ngClass]="getLocationBadgeClass(user.primaryLocation?.name)">
                                   {{ user.primaryLocation?.name || 'Điểm chính' }}
                                 </span>
@@ -345,7 +345,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                       <div class="name-row">
                         <strong class="user-name">{{ u.fullName }}</strong>
                         @if (isToTruongUser(u)) {
-                          <span class="leader-badge-pill" title="Tổ trưởng tổ chuyên môn">👑 Tổ trưởng</span>
+                          <span class="leader-badge-pill" [title]="'Tổ trưởng ' + (u.primaryOrgUnit?.name || 'tổ chuyên môn')">👑 Tổ trưởng</span>
                         }
                         @if (isCurrentUser(u.id)) {
                           <span class="current-user-tag">⭐ Vị trí của bạn</span>
@@ -354,7 +354,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                           {{ u.currentTaskLoad }} việc
                         </span>
                       </div>
-                      <span class="user-title">{{ isToTruongUser(u) ? ('Tổ trưởng • ' + (u.title || 'Giáo viên')) : (u.title || 'Giáo viên') }}</span>
+                      <span class="user-title">{{ isToTruongUser(u) ? ('Tổ trưởng ' + (u.primaryOrgUnit?.name || '') + ' • ' + (u.title || 'Giáo viên')) : (u.title || 'Giáo viên') }}</span>
                       <span class="user-org">{{ u.primaryOrgUnit?.name }}</span>
                     </div>
 

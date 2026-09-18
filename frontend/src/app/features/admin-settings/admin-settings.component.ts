@@ -734,7 +734,8 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
                 <tr>
                   <th style="width: 60px;" class="text-center">STT</th>
                   <th>Tên Tổ / Phòng Ban</th>
-                  <th style="width: 140px;">Mã Tổ</th>
+                  <th style="width: 130px;">Mã Tổ</th>
+                  <th style="width: 170px;">👑 Tổ trưởng phụ trách</th>
                   <th>Trực thuộc Cấp trên</th>
                   <th style="width: 90px;" class="text-center">Thứ tự</th>
                   <th style="width: 130px;" class="text-center">Số nhân sự</th>
@@ -753,6 +754,15 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
                     </td>
                     <td>
                       <span class="code-tag font-mono">{{ org.code }}</span>
+                    </td>
+                    <td>
+                      @if (getOrgLeader(org.id); as leader) {
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                          <span class="role-badge-pill role-to-truong" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: #FEF3C7; color: #B45309; font-weight: 600;">👑 {{ leader.fullName }}</span>
+                        </div>
+                      } @else {
+                        <span class="text-slate-400 text-xs italic">Chưa chỉ định</span>
+                      }
                     </td>
                     <td>
                       <span class="text-slate-600 text-xs">{{ org.parent?.name || getOrgName(org.parentId) || 'Trực thuộc Trường' }}</span>
@@ -1414,6 +1424,19 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
                     <option [value]="parentOrg.id">{{ parentOrg.name }} ({{ parentOrg.code }})</option>
                   }
                 </select>
+              </div>
+
+              <div class="form-group">
+                <label>👑 Tổ trưởng chuyên môn phụ trách tổ</label>
+                <app-people-picker
+                  placeholder="Tìm & chỉ định Tổ trưởng chuyên môn..."
+                  mode="single"
+                  [required]="false"
+                  [(ngModel)]="orgUnitForm.leaderId"
+                ></app-people-picker>
+                <span class="field-hint" style="font-size: 0.8rem; color: #64748B; margin-top: 4px; display: block;">
+                  Mỗi tổ có 1 Tổ trưởng chuyên môn chịu trách nhiệm phân công, quản lý và duyệt công việc trong phạm vi tổ.
+                </span>
               </div>
             </div>
 
@@ -3290,6 +3313,7 @@ export class AdminSettingsComponent implements OnInit {
     code: '',
     parentId: null as string | null,
     orderIndex: 0,
+    leaderId: null as string | null,
   };
 
   customRoleForm = {
@@ -3934,17 +3958,20 @@ export class AdminSettingsComponent implements OnInit {
       code: '',
       parentId: null,
       orderIndex: this.orgUnits().length + 1,
+      leaderId: null,
     };
     this.showOrgUnitModal.set(true);
   }
 
   openEditOrgUnitModal(org: OrgUnitItem) {
     this.editingOrgUnitId = org.id;
+    const currentLeader = this.getOrgLeader(org.id);
     this.orgUnitForm = {
       name: org.name,
       code: org.code,
       parentId: org.parentId || null,
       orderIndex: org.orderIndex ?? 0,
+      leaderId: currentLeader ? currentLeader.id : null,
     };
     this.showOrgUnitModal.set(true);
   }
@@ -3962,14 +3989,51 @@ export class AdminSettingsComponent implements OnInit {
       parentId: this.orgUnitForm.parentId || null,
       orderIndex: Number(this.orgUnitForm.orderIndex) || 0,
     };
+    const chosenLeaderId = this.orgUnitForm.leaderId;
 
     if (this.editingOrgUnitId) {
-      this.userService.updateOrgUnit(this.editingOrgUnitId, payload).subscribe({
+      const orgId = this.editingOrgUnitId;
+      const previousLeader = this.getOrgLeader(orgId);
+
+      this.userService.updateOrgUnit(orgId, payload).subscribe({
         next: () => {
-          this.isSubmitting.set(false);
-          this.showOrgUnitModal.set(false);
-          this.showAlert('Cập nhật tổ chuyên môn thành công.');
-          this.loadOrgUnitsData();
+          if (chosenLeaderId && chosenLeaderId !== previousLeader?.id) {
+            this.adminService.updateUser(chosenLeaderId, { isToTruong: true, orgUnitId: orgId }).subscribe({
+              next: () => {
+                this.isSubmitting.set(false);
+                this.showOrgUnitModal.set(false);
+                this.showAlert('Cập nhật tổ chuyên môn và bổ nhiệm Tổ trưởng thành công.');
+                this.loadOrgUnitsData();
+                this.loadUsers();
+              },
+              error: () => {
+                this.isSubmitting.set(false);
+                this.showOrgUnitModal.set(false);
+                this.showAlert('Cập nhật tổ chuyên môn thành công (nhưng gán Tổ trưởng chưa hoàn tất).', 'error');
+                this.loadOrgUnitsData();
+              }
+            });
+          } else if (!chosenLeaderId && previousLeader) {
+            this.adminService.updateUser(previousLeader.id, { isToTruong: false, orgUnitId: orgId }).subscribe({
+              next: () => {
+                this.isSubmitting.set(false);
+                this.showOrgUnitModal.set(false);
+                this.showAlert('Cập nhật tổ chuyên môn thành công.');
+                this.loadOrgUnitsData();
+                this.loadUsers();
+              },
+              error: () => {
+                this.isSubmitting.set(false);
+                this.showOrgUnitModal.set(false);
+                this.loadOrgUnitsData();
+              }
+            });
+          } else {
+            this.isSubmitting.set(false);
+            this.showOrgUnitModal.set(false);
+            this.showAlert('Cập nhật tổ chuyên môn thành công.');
+            this.loadOrgUnitsData();
+          }
         },
         error: (err) => {
           this.isSubmitting.set(false);
@@ -3978,11 +4042,30 @@ export class AdminSettingsComponent implements OnInit {
       });
     } else {
       this.userService.createOrgUnit(payload).subscribe({
-        next: () => {
-          this.isSubmitting.set(false);
-          this.showOrgUnitModal.set(false);
-          this.showAlert('Thêm mới tổ chuyên môn thành công.');
-          this.loadOrgUnitsData();
+        next: (createdOrg: any) => {
+          const createdOrgId = createdOrg?.id;
+          if (chosenLeaderId && createdOrgId) {
+            this.adminService.updateUser(chosenLeaderId, { isToTruong: true, orgUnitId: createdOrgId }).subscribe({
+              next: () => {
+                this.isSubmitting.set(false);
+                this.showOrgUnitModal.set(false);
+                this.showAlert('Thêm mới tổ chuyên môn và bổ nhiệm Tổ trưởng thành công.');
+                this.loadOrgUnitsData();
+                this.loadUsers();
+              },
+              error: () => {
+                this.isSubmitting.set(false);
+                this.showOrgUnitModal.set(false);
+                this.showAlert('Thêm mới tổ chuyên môn thành công.');
+                this.loadOrgUnitsData();
+              }
+            });
+          } else {
+            this.isSubmitting.set(false);
+            this.showOrgUnitModal.set(false);
+            this.showAlert('Thêm mới tổ chuyên môn thành công.');
+            this.loadOrgUnitsData();
+          }
         },
         error: (err) => {
           this.isSubmitting.set(false);
@@ -4312,6 +4395,12 @@ export class AdminSettingsComponent implements OnInit {
   // =======================================================
   isUserToTruong(user: AdminUserItem): boolean {
     return user.roles.some((r) => r.role === 'TO_TRUONG');
+  }
+
+  getOrgLeader(orgId: string): AdminUserItem | null {
+    return this.usersList().find((u) =>
+      u.roles.some((r) => r.role === 'TO_TRUONG' && (r.scopeOrgUnitId === orgId || u.primaryOrgUnit?.id === orgId))
+    ) || null;
   }
 
   getOrgName(orgId: string | null | undefined): string {

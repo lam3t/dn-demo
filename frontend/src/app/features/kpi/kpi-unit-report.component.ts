@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { KpiFlexibleService } from '../../core/services/kpi-flexible.service';
 import { AuthService } from '../../core/services/auth.service';
+import { UserService } from '../../core/services/user.service';
+import { OrgUnitItem } from '../../core/models/user.models';
 import {
   EvaluationPeriod,
   UnitAxisMatrixReport,
@@ -71,11 +73,9 @@ import {
               (ngModelChange)="loadReport()"
             >
               <option value="all">Toàn Trường (Tổng Hợp Tất Cả Các Tổ)</option>
-              <option value="to_toan">Tổ Toán - Tin</option>
-              <option value="to_van">Tổ Ngữ Văn - GDCD</option>
-              <option value="to_anh">Tổ Tiếng Anh</option>
-              <option value="to_khoa_hoc">Tổ KHTN</option>
-              <option value="to_van_phong">Tổ Văn Phòng / Hành Chính</option>
+              @for (org of orgUnits(); track org.id) {
+                <option [value]="org.id">{{ org.name }}</option>
+              }
             </select>
           </div>
 
@@ -792,9 +792,11 @@ import {
 })
 export class KpiUnitReportComponent implements OnInit {
   private kpiService = inject(KpiFlexibleService);
+  private userService = inject(UserService);
   public authService = inject(AuthService);
 
   periods = signal<EvaluationPeriod[]>([]);
+  orgUnits = signal<OrgUnitItem[]>([]);
   selectedPeriodId = signal<string>('');
   selectedOrgUnitId = 'all';
 
@@ -816,6 +818,14 @@ export class KpiUnitReportComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadPeriods();
+    this.loadOrgUnits();
+  }
+
+  loadOrgUnits(): void {
+    this.userService.getOrgUnits().subscribe({
+      next: (units) => this.orgUnits.set(units),
+      error: (err) => console.error('Failed to load org units for KPI report:', err),
+    });
   }
 
   loadPeriods(): void {

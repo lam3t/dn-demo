@@ -1468,13 +1468,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   getRoleDescription(): string {
+    const user = this.authService.currentUser();
+    const activeRole = this.authService.activeRole();
+    const orgName = activeRole?.scopeName || user?.primaryOrgUnitName || 'Tổ chuyên môn';
+    const locName = activeRole?.scopeName || user?.primaryLocationName || 'Phân hiệu';
+
     if (this.authService.isHieuTruong()) return 'Quản trị điều hành toàn trường';
-    if (this.authService.isPHT()) return 'Phụ trách Phân hiệu 1 - Tân Lập';
-    if (this.authService.isToTruong()) return 'Quản lý Tổ chuyên môn Toán - Tin';
+    if (this.authService.isPHT()) return `Phụ trách ${locName}`;
+    if (this.authService.isToTruong()) return `Quản lý ${orgName}`;
     return 'Không gian làm việc & thực thi cá nhân';
   }
 
   getRoleDirective(): string {
+    const user = this.authService.currentUser();
+    const activeRole = this.authService.activeRole();
+    const orgName = activeRole?.scopeName || user?.primaryOrgUnitName || 'tổ chuyên môn';
+
     if (this.authService.isHieuTruong()) {
       return 'Theo dõi tiến độ thực hiện kế hoạch, chỉ số KPI các điểm trường và phê duyệt các công việc cấp trường.';
     }
@@ -1482,7 +1491,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return 'Theo dõi tiến độ công việc và phân công giáo viên tại điểm trường / mảng phụ trách. Kiểm soát tiến độ các tổ chuyên môn.';
     }
     if (this.authService.isToTruong()) {
-      return 'Quản lý, phân công và kiểm tra nghiệm thu tiến độ công việc trong tổ chuyên môn.';
+      return `Quản lý, phân công và kiểm tra nghiệm thu tiến độ công việc trong ${orgName}.`;
     }
     return 'Theo dõi và cập nhật tiến độ công việc được giao, báo cáo kết quả và nộp minh chứng.';
   }
