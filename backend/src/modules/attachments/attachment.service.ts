@@ -1,7 +1,7 @@
 import prisma from '../../prisma';
 import { AppError } from '../../middlewares/error.middleware';
 import { Role, NotificationType, TaskAssignmentRole } from '@prisma/client';
-import { StorageService } from '../../services/storage.service';
+import { StorageService, decodeUtf8FileName } from '../../services/storage.service';
 import { QueueService } from '../../services/queue.service';
 
 export class AttachmentService {
@@ -92,7 +92,7 @@ export class AttachmentService {
   }
 
   async getByTaskId(taskId: string) {
-    return prisma.attachment.findMany({
+    const list = await prisma.attachment.findMany({
       where: { taskId },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -101,6 +101,12 @@ export class AttachmentService {
         },
       },
     });
+
+    return list.map((att) => ({
+      ...att,
+      fileName: decodeUtf8FileName(att.fileName || att.originalName),
+      originalName: decodeUtf8FileName(att.originalName || att.fileName),
+    }));
   }
 
   async delete(id: string, userId: string, userRoles: Role[]) {
@@ -218,8 +224,14 @@ export class AttachmentService {
       }),
     ]);
 
+    const sanitizedItems = items.map((att) => ({
+      ...att,
+      fileName: decodeUtf8FileName(att.fileName || att.originalName),
+      originalName: decodeUtf8FileName(att.originalName || att.fileName),
+    }));
+
     return {
-      items,
+      items: sanitizedItems,
       pagination: {
         page,
         pageSize,

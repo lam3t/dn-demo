@@ -6,6 +6,7 @@ import appCache from '../../utils/cache';
 import { resolveTenantId } from '../../utils/tenant.util';
 import { QueueService } from '../../services/queue.service';
 import { TaskAxisValidationService } from '../kpi/services/task-axis-validation.service';
+import { decodeUtf8FileName } from '../../services/storage.service';
 
 export interface TaskQueryParams {
   status?: TaskStatus;
@@ -494,8 +495,15 @@ export class TaskService {
       Boolean(task.dueDate && new Date(task.dueDate) < now) &&
       !completedStatuses.includes(task.status);
 
+    const sanitizedAttachments = (task.attachments || []).map((att) => ({
+      ...att,
+      fileName: decodeUtf8FileName(att.fileName || att.originalName),
+      originalName: decodeUtf8FileName(att.originalName || att.fileName),
+    }));
+
     return {
       ...task,
+      attachments: sanitizedAttachments,
       isOverdue,
     };
   }

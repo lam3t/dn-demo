@@ -11,14 +11,20 @@ export interface UploadResult {
 
 export function decodeUtf8FileName(originalName: string): string {
   if (!originalName) return 'tep_tin';
-  try {
-    // Multer/busboy parse header theo chuẩn latin1. Chuyển đổi lại UTF-8 để giữ nguyên dấu tiếng Việt
-    const decoded = Buffer.from(originalName, 'latin1').toString('utf8');
-    if (!decoded.includes('\ufffd')) {
-      return decoded;
-    }
-  } catch (_) {}
-  return originalName;
+  let result = originalName;
+  for (let i = 0; i < 2; i++) {
+    try {
+      if (/[\u00C0-\u00FF]/.test(result)) {
+        const decoded = Buffer.from(result, 'latin1').toString('utf8');
+        if (!decoded.includes('\ufffd') && decoded !== result) {
+          result = decoded;
+          continue;
+        }
+      }
+    } catch (_) {}
+    break;
+  }
+  return result;
 }
 
 export class StorageService {

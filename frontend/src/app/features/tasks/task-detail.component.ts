@@ -288,8 +288,8 @@ import { FileDropzoneComponent } from '../../shared/components/file-dropzone/fil
                         <span class="material-symbols-outlined">{{ getFileIcon(file.mimeType) }}</span>
                       </div>
                       <div class="file-info-col">
-                        <a [href]="file.fileUrl" target="_blank" class="file-name-link" [title]="file.originalName">
-                          {{ file.originalName }}
+                        <a [href]="file.fileUrl" target="_blank" class="file-name-link" [title]="getDisplayFileName(file.originalName || file.fileName)">
+                          {{ getDisplayFileName(file.originalName || file.fileName) }}
                         </a>
                         <div class="file-sub-meta">
                           <span>{{ formatFileSize(file.fileSize) }}</span>
@@ -2514,6 +2514,25 @@ export class TaskDetailComponent implements OnInit {
     const isBGH = this.authService.isBGH() || this.authService.isAdmin() || this.authService.isHieuTruong();
     const isCreator = t.createdById === currentUserId;
     return isBGH || isCreator;
+  }
+
+  getDisplayFileName(name: string | undefined): string {
+    if (!name) return 'Tệp đính kèm';
+    let result = name;
+    for (let i = 0; i < 2; i++) {
+      try {
+        if (/[\u00C0-\u00FF]/.test(result)) {
+          const bytes = new Uint8Array([...result].map((c) => c.charCodeAt(0) & 0xff));
+          const decoded = new TextDecoder('utf-8').decode(bytes);
+          if (!decoded.includes('\ufffd') && decoded !== result) {
+            result = decoded;
+            continue;
+          }
+        }
+      } catch (_) {}
+      break;
+    }
+    return result;
   }
 
   canDeleteAttachment(file: TaskAttachmentItem): boolean {
