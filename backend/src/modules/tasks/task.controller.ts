@@ -291,7 +291,10 @@ export class TaskController {
     try {
       const { id } = req.params;
       const tenantId = req.user?.tenantId;
-      await taskService.delete(id, tenantId);
+      const userId = req.user!.id;
+      const userRoles = req.user?.roles || [];
+      const isSystemAdmin = req.user?.isSystemAdmin || false;
+      await taskService.delete(id, tenantId, userId, userRoles, isSystemAdmin);
 
       res.status(200).json({
         success: true,

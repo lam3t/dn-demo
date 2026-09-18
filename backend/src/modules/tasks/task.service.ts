@@ -1388,15 +1388,64 @@ export class TaskService {
   }
 
   /**
-   * Xóa công việc
+   * Xóa công việc (Dành cho người tạo việc, BGH, Tổ trưởng hoặc Admin khi tạo nhầm)
    */
-  async delete(id: string, tenantId?: string) {
+  async delete(
+    id: string,
+    tenantId?: string,
+    userId?: string,
+    userRoles?: string[],
+    isSystemAdmin?: boolean
+  ) {
     const where: any = { id };
     if (tenantId) where.tenantId = tenantId;
 
-    const existing = await prisma.task.findFirst({ where });
+    const existing = await prisma.task.findFirst({
+      where,
+      include: {
+        assignments: true,
+      },
+    });
     if (!existing) {
       throw new AppError('Không tìm thấy công việc.', 404);
+    }
+
+    // Kiểm tra quyền xóa:
+    if (userId && !isSystemAdmin) {
+      const roleNames = (userRoles || []).map((r: any) =>
+        typeof r === 'string' ? r : r.role
+      );
+      const isPrivileged =
+        roleNames.includes('ADMIN') ||
+        roleNames.includes('SYSTEM_ADMIN') ||
+        roleNames.includes('HIEU_TRUONG') ||
+        roleNames.includes('PHO_HIEU_TRUONG');
+      const isCreator = existing.createdById === userId;
+
+      let isToTruongOrg = false;
+      if (roleNames.includes('TO_TRUONG')) {
+        const userWithRoles = await prisma.user.findUnique({
+          where: { id: userId },
+          include: { roles: true },
+        });
+        const scopedOrgIds = userWithRoles?.roles
+          .filter((r) => r.role === 'TO_TRUONG')
+          .map((r) => r.scopeOrgUnitId)
+          .filter(Boolean) as string[];
+        if (
+          (existing.orgUnitId && scopedOrgIds.includes(existing.orgUnitId)) ||
+          (existing.assignedOrgUnitId && scopedOrgIds.includes(existing.assignedOrgUnitId))
+        ) {
+          isToTruongOrg = true;
+        }
+      }
+
+      if (!isPrivileged && !isCreator && !isToTruongOrg) {
+        throw new AppError(
+          'Bạn không có quyền xóa công việc này. Chỉ người tạo công việc, Tổ trưởng phụ trách, Ban Giám hiệu hoặc Quản trị viên mới được phép xóa.',
+          403
+        );
+      }
     }
 
     const planId = existing.planId;

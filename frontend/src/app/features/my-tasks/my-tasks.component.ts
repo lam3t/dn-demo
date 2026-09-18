@@ -389,6 +389,17 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
                         <span>Cập nhật</span>
                       </button>
                     }
+
+                    @if (canDeleteTask(task)) {
+                      <button
+                        type="button"
+                        class="btn-card-action btn-delete-card tap-target"
+                        (click)="confirmDeleteTask(task, $event)"
+                        title="Xóa công việc tạo nhầm"
+                      >
+                        <span class="material-symbols-outlined">delete</span>
+                      </button>
+                    }
                   </div>
                 </div>
               </div>
@@ -568,6 +579,17 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
                         >
                           <span class="material-symbols-outlined">visibility</span>
                         </button>
+
+                        @if (canDeleteTask(task)) {
+                          <button
+                            type="button"
+                            class="btn-tbl-icon btn-tbl-delete tap-target"
+                            (click)="confirmDeleteTask(task, $event)"
+                            title="Xóa công việc tạo nhầm"
+                          >
+                            <span class="material-symbols-outlined text-danger">delete</span>
+                          </button>
+                        }
                       </div>
                     </td>
                   </tr>
@@ -1208,6 +1230,35 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
                 font-size: 18px;
               }
             }
+
+            .card-footer-btns {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+
+              .btn-delete-card {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+                background: #FEF2F2;
+                border: 1px solid #FCA5A5;
+                color: #DC2626;
+                cursor: pointer;
+                transition: all 0.15s ease;
+
+                &:hover {
+                  background: #FEE2E2;
+                  border-color: #EF4444;
+                }
+
+                .material-symbols-outlined {
+                  font-size: 18px;
+                }
+              }
+            }
           }
         }
       }
@@ -1525,6 +1576,15 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
                   background: #EEF4FC;
                   color: #1F3864;
                   border-color: #BFDBFE;
+                }
+
+                &.btn-tbl-delete {
+                  color: #DC2626;
+                  &:hover {
+                    background: #FEE2E2;
+                    color: #B91C1C;
+                    border-color: #FCA5A5;
+                  }
                 }
               }
             }
@@ -2442,6 +2502,54 @@ export class MyTasksComponent implements OnInit, OnDestroy {
         alert(err.error?.message || 'Không thể chuyển trạng thái.');
       },
     });
+  }
+
+  canDeleteTask(task: TaskItem): boolean {
+    const currentUser = this.authService.currentUser();
+    const currentUserId = currentUser?.id;
+
+    if (this.authService.isAdmin() || this.authService.isHieuTruong() || this.authService.isPHT()) {
+      return true;
+    }
+
+    if (currentUserId && task.createdById === currentUserId) {
+      return true;
+    }
+
+    if (this.authService.isToTruong()) {
+      const activeRole = this.authService.activeRole();
+      const scopeOrg = activeRole?.scopeOrgUnitId || currentUser?.primaryOrgUnitId;
+      if (scopeOrg && (task.orgUnitId === scopeOrg || task.assignedOrgUnitId === scopeOrg)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  async confirmDeleteTask(task: TaskItem, event?: MouseEvent) {
+    if (event) event.stopPropagation();
+
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Xóa công việc tạo nhầm',
+      message: `Bạn có chắc chắn muốn xóa vĩnh viễn công việc [${task.title}]? Dữ liệu công việc này sẽ bị xóa hoàn toàn khỏi hệ thống.`,
+      confirmText: 'Xóa công việc',
+      cancelText: 'Hủy bỏ',
+      type: 'danger',
+    });
+
+    if (confirmed) {
+      this.isLoading.set(true);
+      this.taskService.deleteTask(task.id).subscribe({
+        next: () => {
+          this.loadMyTasks();
+        },
+        error: (err) => {
+          this.isLoading.set(false);
+          alert(err.error?.message || 'Không thể xóa công việc.');
+        },
+      });
+    }
   }
 
   getMyRoleName(task: TaskItem): string {

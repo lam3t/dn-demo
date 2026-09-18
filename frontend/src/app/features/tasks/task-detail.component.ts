@@ -49,6 +49,20 @@ import { UserPickerItem } from '../../core/models/user.models';
           <span class="bc-sep">/</span>
           <span class="bc-current">{{ task()?.code || 'Chi tiết công việc' }}</span>
         </div>
+
+        @if (canDeleteTask()) {
+          <div class="top-nav-right-actions">
+            <button
+              type="button"
+              class="btn-top-delete tap-target"
+              (click)="confirmDeleteTask()"
+              title="Xóa công việc tạo nhầm hoặc không còn sử dụng"
+            >
+              <span class="material-symbols-outlined">delete</span>
+              <span>Xóa công việc</span>
+            </button>
+          </div>
+        }
       </div>
 
       @if (isLoading()) {
@@ -635,6 +649,21 @@ import { UserPickerItem } from '../../core/models/user.models';
                     </button>
                   }
                 }
+
+                <!-- NÚT XÓA CÔNG VIỆC TẠO NHẦM -->
+                @if (canDeleteTask()) {
+                  <div class="delete-task-row">
+                    <button
+                      type="button"
+                      class="btn-wf-delete tap-target"
+                      (click)="confirmDeleteTask()"
+                      title="Xóa vĩnh viễn công việc này nếu tạo nhầm"
+                    >
+                      <span class="material-symbols-outlined">delete_forever</span>
+                      <span>Xóa công việc tạo nhầm</span>
+                    </button>
+                  </div>
+                }
               </div>
 
               @if (workflowError()) {
@@ -1087,6 +1116,37 @@ import { UserPickerItem } from '../../core/models/user.models';
           }
           .bc-sep { color: #CBD5E1; }
           .bc-current { color: #1E293B; font-weight: 700; }
+        }
+
+        .top-nav-right-actions {
+          margin-left: auto;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+
+          .btn-top-delete {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            background: #FEF2F2;
+            border: 1.5px solid #FCA5A5;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #DC2626;
+            cursor: pointer;
+            transition: all 0.15s ease;
+
+            &:hover {
+              background: #FEE2E2;
+              border-color: #EF4444;
+            }
+
+            .material-symbols-outlined {
+              font-size: 18px;
+            }
+          }
         }
       }
 
@@ -1978,6 +2038,38 @@ import { UserPickerItem } from '../../core/models/user.models';
             &:hover {
               opacity: 0.9;
               transform: translateY(-1px);
+            }
+          }
+
+          .delete-task-row {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px dashed #E2E8F0;
+            display: flex;
+            justify-content: flex-end;
+
+            .btn-wf-delete {
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              padding: 7px 12px;
+              background: #FEF2F2;
+              border: 1px solid #FCA5A5;
+              border-radius: 8px;
+              font-size: 0.8rem;
+              font-weight: 700;
+              color: #DC2626;
+              cursor: pointer;
+              transition: all 0.15s ease;
+
+              &:hover {
+                background: #FEE2E2;
+                border-color: #EF4444;
+              }
+
+              .material-symbols-outlined {
+                font-size: 18px;
+              }
             }
           }
         }
@@ -3478,5 +3570,62 @@ export class TaskDetailComponent implements OnInit {
     if (log.action === 'UPDATE_PROGRESS') return `Cập nhật tiến độ lên ${log.newProgress}%`;
     if (log.action === 'ATTACH_FILE') return 'Đã nộp tệp minh chứng kết quả';
     return log.action;
+  }
+
+  canDeleteTask(): boolean {
+    const t = this.task();
+    if (!t) return false;
+    const currentUser = this.authService.currentUser();
+    const currentUserId = currentUser?.id;
+
+    if (this.authService.isAdmin() || this.authService.isHieuTruong() || this.authService.isPHT()) {
+      return true;
+    }
+
+    if (currentUserId && t.createdById === currentUserId) {
+      return true;
+    }
+
+    if (this.authService.isToTruong()) {
+      const activeRole = this.authService.activeRole();
+      const scopeOrg = activeRole?.scopeOrgUnitId || currentUser?.primaryOrgUnitId;
+      if (scopeOrg && (t.orgUnitId === scopeOrg || t.assignedOrgUnitId === scopeOrg)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  async confirmDeleteTask() {
+    const t = this.task();
+    if (!t) return;
+
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Xóa công việc tạo nhầm',
+      message: `Bạn có chắc chắn muốn xóa vĩnh viễn công việc [${t.title}]? Dữ liệu công việc, phân công và tiến độ liên quan sẽ bị xóa hoàn toàn khỏi hệ thống.`,
+      confirmText: 'Xóa công việc',
+      cancelText: 'Hủy bỏ',
+      type: 'danger',
+    });
+
+    if (confirmed) {
+      this.isLoading.set(true);
+      this.taskService.deleteTask(t.id).subscribe({
+        next: () => {
+          this.isLoading.set(false);
+          this.notificationService.emitNotification({
+            title: 'Đã xóa công việc',
+            content: `Công việc [${t.title}] đã được xóa thành công khỏi hệ thống.`,
+            type: 'HE_THONG',
+          });
+          this.router.navigate(['/tasks']);
+        },
+        error: (err) => {
+          this.isLoading.set(false);
+          this.workflowError.set(err.error?.message || 'Không thể xóa công việc này.');
+        },
+      });
+    }
   }
 }
