@@ -4,6 +4,8 @@ import {
   inject,
   signal,
   computed,
+  ViewChild,
+  ElementRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -387,24 +389,26 @@ import { FileDropzoneComponent } from '../../shared/components/file-dropzone/fil
               <div class="comment-composer-box">
                 <div class="composer-wrapper">
                   <textarea
+                    #commentTextareaRef
                     rows="3"
                     class="composer-textarea"
                     [(ngModel)]="commentText"
                     (keyup)="onCommentKeyUp($event)"
                     (keydown)="onCommentKeyDown($event)"
+                    (click)="onCommentClick($event)"
                     placeholder="Viết ý kiến trao đổi... (Gõ @ để nhắc tên giáo viên liên quan • Enter để gửi)"
                   ></textarea>
 
                   <!-- MENTION SUGGESTION POPUP -->
-                  @if (showMentionSuggestions()) {
+                  @if (showMentionSuggestions() && filteredMentionUsers().length > 0) {
                     <div class="mention-autocomplete-menu">
-                      <div class="mention-menu-header">Gợi ý người liên quan trong việc:</div>
-                      @for (member of taskMembers(); track member.id) {
+                      <div class="mention-menu-header">Gợi ý người liên quan (@mention):</div>
+                      @for (member of filteredMentionUsers(); track member.id) {
                         <div class="mention-member-row tap-target" (click)="selectMentionMember(member)">
                           <img [src]="member.avatarUrl || 'https://ui-avatars.com/api/?name=' + member.fullName + '&background=1F3864&color=fff'" class="m-avatar" alt="" />
                           <div class="m-info">
                             <strong class="m-name">{{ member.fullName }}</strong>
-                            <span class="m-title">{{ member.title || 'Cán bộ' }}</span>
+                            <span class="m-title">{{ member.roleLabel || member.title || 'Cán bộ' }}</span>
                           </div>
                         </div>
                       }
@@ -2405,6 +2409,8 @@ export class TaskDetailComponent implements OnInit {
   commentText = '';
   isSubmittingComment = signal(false);
   showMentionSuggestions = signal(false);
+  mentionQuery = signal<string>('');
+  @ViewChild('commentTextareaRef') commentTextareaRef?: ElementRef<HTMLTextAreaElement>;
 
   // Workflow error
   workflowError = signal<string | null>(null);
@@ -2482,10 +2488,55 @@ export class TaskDetailComponent implements OnInit {
     return this.task()?.assignments?.find((a) => a.role === 'KIEM_TRA') || null;
   });
 
-  taskMembers = computed(() => {
+  filteredMentionUsers = computed(() => {
     const t = this.task();
-    if (!t || !t.assignments) return [];
-    return t.assignments.map((a) => a.user);
+    if (!t) return [];
+
+    const userMap = new Map<string, any>();
+
+    // 1. Thêm Người tạo task / Người giao việc (A)
+    if (t.createdBy && t.createdBy.id) {
+      userMap.set(t.createdBy.id, {
+        ...t.createdBy,
+        roleLabel: 'Người giao việc',
+      });
+    }
+
+    // 2. Thêm các thành viên trong RACI (Chủ trì B, Kiểm tra C, Phối hợp, Phê duyệt)
+    if (t.assignments && Array.isArray(t.assignments)) {
+      for (const a of t.assignments) {
+        if (a.user && a.user.id) {
+          const roleLabel =
+            a.role === 'CHU_TRI'
+              ? 'Chủ trì'
+              : a.role === 'KIEM_TRA'
+              ? 'Kiểm tra'
+              : a.role === 'PHE_DUYET'
+              ? 'Phê duyệt'
+              : a.role === 'PHOI_HOP'
+              ? 'Phối hợp'
+              : 'Theo dõi';
+
+          const existing = userMap.get(a.user.id);
+          userMap.set(a.user.id, {
+            ...(existing || a.user),
+            roleLabel: existing ? `${existing.roleLabel}, ${roleLabel}` : roleLabel,
+          });
+        }
+      }
+    }
+
+    const allUsers = Array.from(userMap.values());
+    const q = this.mentionQuery();
+    if (!q) {
+      return allUsers;
+    }
+
+    return allUsers.filter((u) => {
+      const name = (u.fullName || '').toLowerCase();
+      const role = (u.roleLabel || '').toLowerCase();
+      return name.includes(q) || role.includes(q);
+    });
   });
 
   // Permission checks
@@ -2727,19 +2778,73 @@ export class TaskDetailComponent implements OnInit {
   }
 
   onCommentKeyUp(event: KeyboardEvent) {
-    if (this.commentText.includes('@')) {
-      this.showMentionSuggestions.set(true);
-    } else {
+    if (event.key === 'Escape') {
       this.showMentionSuggestions.set(false);
+      return;
     }
+    this.checkMentionTrigger();
+  }
+
+  onCommentClick(event: MouseEvent) {
+    this.checkMentionTrigger();
+  }
+
+  private checkMentionTrigger() {
+    const textarea = this.commentTextareaRef?.nativeElement;
+    const text = this.commentText || '';
+    const cursorPos = textarea ? textarea.selectionStart : text.length;
+    const textBeforeCursor = text.substring(0, cursorPos);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+
+    if (lastAtIndex === -1) {
+      this.showMentionSuggestions.set(false);
+      this.mentionQuery.set('');
+      return;
+    }
+
+    // Ký tự trước @ phải là đầu dòng hoặc khoảng trắng
+    const charBeforeAt = lastAtIndex > 0 ? textBeforeCursor[lastAtIndex - 1] : ' ';
+    if (!/\s/.test(charBeforeAt) && lastAtIndex !== 0) {
+      this.showMentionSuggestions.set(false);
+      this.mentionQuery.set('');
+      return;
+    }
+
+    const query = textBeforeCursor.substring(lastAtIndex + 1);
+    // Nếu có chứa ký tự xuống dòng hoặc khoảng trắng dài (>1 từ) thì đóng gợi ý
+    if (query.includes('\n') || query.length > 25 || /\s{2,}/.test(query)) {
+      this.showMentionSuggestions.set(false);
+      this.mentionQuery.set('');
+      return;
+    }
+
+    this.mentionQuery.set(query.trim().toLowerCase());
+    this.showMentionSuggestions.set(true);
   }
 
   selectMentionMember(member: any) {
-    const lastAtIndex = this.commentText.lastIndexOf('@');
+    const textarea = this.commentTextareaRef?.nativeElement;
+    const text = this.commentText;
+    const cursorPos = textarea ? textarea.selectionStart : text.length;
+    const textBeforeCursor = text.substring(0, cursorPos);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+
     if (lastAtIndex >= 0) {
-      this.commentText = this.commentText.substring(0, lastAtIndex) + `@${member.fullName} `;
+      const beforeAt = text.substring(0, lastAtIndex);
+      const afterCursor = text.substring(cursorPos);
+      const mentionTag = `@${member.fullName} `;
+      this.commentText = beforeAt + mentionTag + afterCursor;
+
+      setTimeout(() => {
+        if (textarea) {
+          const newPos = beforeAt.length + mentionTag.length;
+          textarea.focus();
+          textarea.setSelectionRange(newPos, newPos);
+        }
+      }, 0);
     }
     this.showMentionSuggestions.set(false);
+    this.mentionQuery.set('');
   }
 
   onCommentKeyDown(event: KeyboardEvent) {
