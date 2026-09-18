@@ -16,8 +16,8 @@ if not exist ".env" (
     notepad ".env"
 )
 
-if not exist "node_modules" (
-    echo [1/2] Dang cai dat thu vien Production dependencies...
+if not exist "node_modules\bullmq" (
+    echo [1/2] Dang cai dat day du thu vien Production dependencies (bullmq, prisma, ioredis...)...
     call npm install --omit=dev
     echo [2/2] Dang sinh ma Prisma Client...
     call npx prisma generate
