@@ -189,58 +189,66 @@ server {
 
 ---
 
-### Cách 2: Triển khai bằng Microsoft IIS
+### Cách 2: Triển khai bằng Microsoft IIS (Gắn Domain & Expose ra Internet)
 
-1. Mở **Server Manager** -> **Add Roles and Features** -> Cài đặt **Web Server (IIS)**.
-2. Tải và cài đặt 2 module bổ trợ bắt buộc cho IIS:
-   - **URL Rewrite Module**: [Tải tại Microsoft](https://www.iis.net/downloads/microsoft/url-rewrite)
-   - **Application Request Routing (ARR)**: [Tải tại Microsoft](https://www.iis.net/downloads/microsoft/application-request-routing)
-3. Bật tính năng Proxy trong ARR:
-   - Mở **IIS Manager** -> Click vào tên Server -> Click **Application Request Routing Cache** -> **Server Proxy Settings** (cột phải) -> Tick chọn **Enable proxy** -> Nhấn **Apply**.
-4. Tạo Website mới trong IIS:
-   - Chuột phải vào `Sites` -> **Add Website...**.
-   - Site name: `TN_EDU`.
-   - Physical path: Trỏ tới thư mục `deploy-package\frontend\dist`.
-   - Binding: Port `80` (hoặc domain của bạn).
-5. Tạo file `web.config` ngay trong thư mục `deploy-package\frontend\dist\` với nội dung sau:
+#### Bước 3.1: Cài đặt IIS và 2 Module cốt lõi bắt buộc
+1. Mở **Server Manager** -> **Add Roles and Features** -> Chọn **Web Server (IIS)**:
+   - Trong mục *Role Services*, tích chọn: `Common HTTP Features` (Default Document, Static Content, HTTP Redirection), `Performance` (Static/Dynamic Content Compression), `Security` (Request Filtering).
+2. Tải và cài đặt **2 Module bắt buộc của Microsoft**:
+   - **URL Rewrite Module 2.1**: [Tải tại Microsoft IIS URL Rewrite](https://www.iis.net/downloads/microsoft/url-rewrite)
+   - **Application Request Routing (ARR 3.0)**: [Tải tại Microsoft IIS ARR](https://www.iis.net/downloads/microsoft/application-request-routing)
+   *(Cài đặt xong khởi động lại IIS hoặc gõ lệnh `iisreset` trong CMD)*.
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<configuration>
-  <system.webServer>
-    <rewrite>
-      <rules>
-        <!-- Chuyển hướng /api sang Backend Node.js port 5000 -->
-        <rule name="ReverseProxyToAPI" stopProcessing="true">
-          <match url="^api/(.*)" />
-          <action type="Rewrite" url="http://127.0.0.1:5000/api/{R:1}" />
-        </rule>
-        
-        <!-- Chuyển hướng /uploads sang Backend -->
-        <rule name="ReverseProxyToUploads" stopProcessing="true">
-          <match url="^uploads/(.*)" />
-          <action type="Rewrite" url="http://127.0.0.1:5000/uploads/{R:1}" />
-        </rule>
+#### Bước 3.2: Bật tính năng Proxy trong ARR (BƯỚC BẮT BUỘC - NẾU BỎ QUA SẼ BỊ LỖI 500)
+1. Mở **Internet Information Services (IIS) Manager** (`inetmgr.exe`).
+2. Nhấp chuột trái vào **Tên máy chủ (Server Name)** ở cột ngoài cùng bên trái (cấp Root).
+3. Ở bảng điều khiển trung tâm, nhấp đúp chuột vào biểu tượng **Application Request Routing Cache**.
+4. Ở cột **Actions** bên phải ngoài cùng, bấm vào dòng **Server Proxy Settings...**.
+5. Đánh dấu tích vào ô vuông **`Enable proxy`**.
+6. (Tùy chọn) Bỏ tích ở ô *`Reverse rewrite host in response headers`*.
+7. Bấm **Apply** ở góc trên bên phải để lưu lại.
 
-        <!-- SPA Routing cho Angular -->
-        <rule name="AngularRoutes" stopProcessing="true">
-          <match url=".*" />
-          <conditions logicalGrouping="MatchAll">
-            <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
-            <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
-          </conditions>
-          <action type="Rewrite" url="/" />
-        </rule>
-      </rules>
-    </rewrite>
-    <httpProtocol>
-      <customHeaders>
-        <add name="X-Content-Type-Options" value="nosniff" />
-      </customHeaders>
-    </httpProtocol>
-  </system.webServer>
-</configuration>
-```
+#### Bước 3.3: Tạo Website mới và Gắn Domain trên IIS
+1. Đặt thư mục ứng dụng tại ổ đĩa máy chủ (ví dụ: `C:\TN_EDU\`).
+   - Sao chép toàn bộ thư mục `frontend\dist` vào `C:\TN_EDU\frontend\dist`.
+2. Mở **IIS Manager** -> Mở rộng cây thư mục -> Chuột phải vào mục **Sites** -> Chọn **Add Website...**:
+   - **Site name**: `TN_EDU` (hoặc tên miền của bạn).
+   - **Application pool**: `DefaultAppPool` (hoặc `No Managed Code`).
+   - **Physical path**: Trỏ tới thư mục `C:\TN_EDU\frontend\dist` (thư mục chứa `index.html` và file `web.config`).
+   - **Binding**:
+     - Type: `http`
+     - IP address: `All Unassigned`
+     - Port: `80`
+     - Host name: Nhập tên miền của bạn (ví dụ: `qlgd.school.edu.vn` hoặc `edu.tenmien.com`).
+   - Nhấn **OK**.
+3. **Phân quyền thư mục (Tránh lỗi 401/500 Access Denied)**:
+   - Chuột phải vào thư mục `C:\TN_EDU\frontend\dist` trên Windows Explorer -> Chọn **Properties** -> Tab **Security** -> Nhấn **Edit...** -> Nhấn **Add...** -> Nhập `IIS_IUSRS` -> Nhấn **Check Names** -> **OK** -> Cấp quyền `Read & execute` -> Nhấn **OK**.
+
+#### Bước 3.4: Tệp cấu hình `web.config` sẵn có
+File `web.config` đã được đóng gói sẵn trong `frontend/dist/web.config` với đầy đủ các tính năng:
+- Cho phép upload minh chứng, đính kèm lên tới **50MB** (`maxAllowedContentLength="52428800"`).
+- Khai báo MIME types cho `.woff`, `.woff2`, `.json`, `.svg`, `.webmanifest`.
+- Tự động Reverse Proxy toàn bộ `/api/*` và `/uploads/*` vào Backend Node.js chạy tại `http://127.0.0.1:5000`.
+- SPA HTML5 PushState routing cho ứng dụng Angular.
+
+#### Bước 3.5: Cài Chứng chỉ SSL / HTTPS Miễn phí tự động bằng `win-acme` (Let's Encrypt for IIS)
+1. Tải công cụ **win-acme** (chuẩn Let's Encrypt cho Windows IIS): [https://www.win-acme.com/](https://www.win-acme.com/) (Tải bản `win-acme.vX.X.X.x64.pluggable.zip`).
+2. Giải nén vào `C:\win-acme\`.
+3. Mở **Command Prompt (Administrator)** và gõ:
+   ```cmd
+   cd C:\win-acme
+   wacs.exe
+   ```
+4. Làm theo các bước trên màn hình tương tác:
+   - Chọn `N`: **Create certificate (default settings)**.
+   - Chọn số thứ tự của Website **TN_EDU** tương ứng.
+   - Chọn `A`: **All bindings**.
+   - Nhập địa chỉ Email của bạn (để nhận thông báo từ Let's Encrypt).
+   - Nhập `y` để đồng ý điều khoản dịch vụ.
+5. `win-acme` sẽ tự động:
+   - Tạo chứng chỉ SSL hợp lệ (Let's Encrypt) cho Domain của bạn.
+   - Tự cấu hình Binding HTTPS **Port 443** vào IIS.
+   - Tự tạo lịch trình trong **Windows Task Scheduler** để tự động gia hạn chứng chỉ trước khi hết hạn mỗi 60 ngày!
 
 ---
 
