@@ -17,6 +17,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { AttachmentService } from '../../../core/services/attachment.service';
 import { ContactCardService } from '../../../core/services/contact-card.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { ConfirmDialogService } from '../../../core/services/confirm-dialog.service';
 import {
   TaskItem,
   TaskStatus,
@@ -36,7 +37,7 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
   imports: [CommonModule, FormsModule, StatusBadgeComponent, FileDropzoneComponent],
   template: `
     @if (isOpen() && task()) {
-      <div class="task-modal-backdrop" (click)="close()">
+      <div class="task-modal-backdrop">
         <div class="task-modal-container" (click)="$event.stopPropagation()">
           <!-- MODAL HEADER -->
           <div class="modal-header">
@@ -698,7 +699,7 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
 
           <!-- EVALUATION MODAL DIALOG POPUP (TT 70, 89) -->
           @if (showEvalModal()) {
-            <div class="eval-modal-backdrop" (click)="showEvalModal.set(false)">
+            <div class="eval-modal-backdrop">
               <div class="eval-modal-box" (click)="$event.stopPropagation()">
                 <div class="eval-modal-header">
                   <div class="eval-modal-title">
@@ -2167,6 +2168,7 @@ export class TaskDetailModalComponent implements OnInit {
   private attachmentService = inject(AttachmentService);
   private contactCardService = inject(ContactCardService);
   private notificationService = inject(NotificationService);
+  private confirmDialog = inject(ConfirmDialogService);
 
   @Input() set taskId(id: string | null) {
     if (id) {
@@ -2327,8 +2329,14 @@ export class TaskDetailModalComponent implements OnInit {
     }
   }
 
-  deleteAttachment(id: string) {
-    if (!confirm('Bạn có chắc chắn muốn xóa tệp minh chứng này?')) return;
+  async deleteAttachment(id: string) {
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Xóa tệp minh chứng',
+      message: 'Bạn có chắc chắn muốn xóa tệp minh chứng này?',
+      confirmText: 'Xóa tệp',
+      type: 'danger',
+    });
+    if (!confirmed) return;
     this.attachmentService.deleteAttachment(id).subscribe({
       next: () => {
         const t = this.task();
@@ -2523,8 +2531,14 @@ export class TaskDetailModalComponent implements OnInit {
     });
   }
 
-  promptForReasonAndChange(status: TaskStatus, defaultNote: string) {
-    const reason = prompt('Nhập lý do / nội dung yêu cầu bổ sung:', defaultNote);
+  async promptForReasonAndChange(status: TaskStatus, defaultNote: string) {
+    const reason = await this.confirmDialog.prompt({
+      title: 'Yêu cầu bổ sung',
+      message: 'Nhập lý do / nội dung yêu cầu bổ sung minh chứng kết quả:',
+      defaultValue: defaultNote,
+      placeholder: 'Nội dung chi tiết yêu cầu...',
+      confirmText: 'Gửi yêu cầu',
+    });
     if (reason !== null && reason.trim()) {
       this.performStatusChange(status, reason.trim());
     }

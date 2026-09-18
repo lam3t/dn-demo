@@ -10,7 +10,7 @@ import { AuthService } from '../../core/services/auth.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="modal-backdrop" *ngIf="isOpen">
+    <div class="modal-backdrop">
       <div class="modal-card">
         <div class="modal-header">
           <div class="header-title-box">
@@ -517,35 +517,44 @@ export class KpiTaskDialogComponent implements OnInit {
   }
 
   ngOnInit() {
+    this.initForm();
     this.kpiService.getAxes().subscribe((axes) => this.allAxes.set(axes));
-    this.kpiService.getAllowedAxes().subscribe((axes) => this.allowedAxes.set(axes));
+    this.kpiService.getAllowedAxes().subscribe((axes) => {
+      this.allowedAxes.set(axes);
+      if (!this.formModel.primaryAxisId && axes.length > 0) {
+        this.formModel.primaryAxisId = axes[0].id;
+      }
+      this.checkWarnings();
+    });
   }
 
   ngOnChanges() {
-    if (this.isOpen) {
-      if (this.editingTask) {
-        this.formModel = {
-          ...this.editingTask,
-          secondaryAxisIds: (this.editingTask.secondaryAxes || []).map((a: any) => a.id),
-        };
-        this.dueDateStr = this.editingTask.dueDate ? this.editingTask.dueDate.slice(0, 10) : '';
-        this.evidenceList = this.editingTask.evidenceFiles || [];
-      } else {
-        this.formModel = {
-          title: '',
-          description: '',
-          periodId: this.currentPeriodId,
-          primaryAxisId: this.allowedAxes()[0]?.id || '',
-          taskSubtype: 'gv_bo_mon',
-          secondaryAxisIds: [],
-          weightScore: 10,
-          priority: 'TRUNG_BINH',
-        };
-        this.dueDateStr = '';
-        this.evidenceList = [];
-      }
-      this.checkWarnings();
+    this.initForm();
+  }
+
+  initForm() {
+    if (this.editingTask) {
+      this.formModel = {
+        ...this.editingTask,
+        secondaryAxisIds: (this.editingTask.secondaryAxes || []).map((a: any) => a.id),
+      };
+      this.dueDateStr = this.editingTask.dueDate ? this.editingTask.dueDate.slice(0, 10) : '';
+      this.evidenceList = this.editingTask.evidenceFiles || [];
+    } else {
+      this.formModel = {
+        title: '',
+        description: '',
+        periodId: this.currentPeriodId || this.formModel?.periodId || '',
+        primaryAxisId: this.formModel?.primaryAxisId || this.allowedAxes()[0]?.id || '',
+        taskSubtype: 'gv_bo_mon',
+        secondaryAxisIds: [],
+        weightScore: 10,
+        priority: 'TRUNG_BINH',
+      };
+      this.dueDateStr = '';
+      this.evidenceList = [];
     }
+    this.checkWarnings();
   }
 
   onPrimaryAxisChange() {

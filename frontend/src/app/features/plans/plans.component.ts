@@ -14,6 +14,7 @@ import { PlanService } from '../../core/services/plan.service';
 import { UserService } from '../../core/services/user.service';
 import { AuthService } from '../../core/services/auth.service';
 import { AcademicYearService } from '../../core/services/academic-year.service';
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
 import { PlanTreeNode, PlanItem, PlanLevel } from '../../core/models/plan.models';
 import { PlanTreeComponent } from '../../shared/components/plan-tree/plan-tree.component';
 import { TaskCreateWizardComponent } from '../../shared/components/task-create-wizard/task-create-wizard.component';
@@ -391,7 +392,7 @@ interface PaperPlanRow {
 
       <!-- MODAL: TẠO / SỬA KẾ HOẠCH -->
       @if (showPlanModal()) {
-        <div class="modal-backdrop" (click)="closePlanModal()">
+        <div class="modal-backdrop">
           <div class="modal-card" (click)="$event.stopPropagation()">
             <div class="modal-header">
               <div class="modal-header-titles">
@@ -506,7 +507,7 @@ interface PaperPlanRow {
 
       <!-- MODAL: SAO CHÉP KẾ HOẠCH (KỲ TRƯỚC) -->
       @if (showDuplicateModal()) {
-        <div class="modal-backdrop" (click)="closeDuplicateModal()">
+        <div class="modal-backdrop">
           <div class="modal-card" (click)="$event.stopPropagation()">
             <div class="modal-header">
               <div class="modal-header-titles">
@@ -592,7 +593,7 @@ interface PaperPlanRow {
 
       <!-- MODAL XEM LỊCH SỬ KẾ HOẠCH (TT 021) -->
       @if (isPlanLogsModalOpen()) {
-        <div class="modal-backdrop" (click)="closePlanLogsModal()">
+        <div class="modal-backdrop">
           <div class="modal-dialog-large" (click)="$event.stopPropagation()">
             <div class="modal-header">
               <div class="modal-header-icon">
@@ -1686,9 +1687,10 @@ interface PaperPlanRow {
   ],
 })
 export class PlansComponent implements OnInit, OnDestroy {
-  planService = inject(PlanService);
-  userService = inject(UserService);
+  private planService = inject(PlanService);
+  private userService = inject(UserService);
   authService = inject(AuthService);
+  private confirmDialog = inject(ConfirmDialogService);
   academicYearService = inject(AcademicYearService);
 
   @ViewChild('treeComponent') treeComponent?: PlanTreeComponent;
@@ -1902,11 +1904,17 @@ export class PlansComponent implements OnInit, OnDestroy {
     this.persistPaperRows();
   }
 
-  deletePaperRow(id: string) {
+  async deletePaperRow(id: string) {
     const row = this.paperRows().find((r) => r.id === id);
     if (!row) return;
 
-    if (confirm(`Bạn có chắc chắn muốn xóa dòng kế hoạch "${row.timeLabel}"?`)) {
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Xóa dòng kế hoạch',
+      message: `Bạn có chắc chắn muốn xóa dòng kế hoạch "${row.timeLabel}"?`,
+      confirmText: 'Xóa dòng',
+      type: 'danger',
+    });
+    if (confirmed) {
       if (row.planId) {
         this.planService.delete(row.planId).subscribe({
           next: () => {
@@ -2170,8 +2178,14 @@ export class PlansComponent implements OnInit, OnDestroy {
     }
   }
 
-  onDeletePlan(node: PlanTreeNode) {
-    if (confirm(`Bạn có chắc chắn muốn xóa kế hoạch "${node.title}"?`)) {
+  async onDeletePlan(node: PlanTreeNode) {
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Xóa kế hoạch',
+      message: `Bạn có chắc chắn muốn xóa kế hoạch "${node.title}"?`,
+      confirmText: 'Xóa kế hoạch',
+      type: 'danger',
+    });
+    if (confirmed) {
       this.planService.delete(node.id).subscribe({
         next: () => {
           this.showToast(`Đã xóa kế hoạch "${node.title}" thành công.`, 'success');
@@ -2185,11 +2199,17 @@ export class PlansComponent implements OnInit, OnDestroy {
     }
   }
 
-  deleteCurrentEditingPlan() {
+  async deleteCurrentEditingPlan() {
     const editId = this.editingPlanId();
     if (!editId) return;
 
-    if (confirm(`Bạn có chắc chắn muốn xóa kế hoạch "${this.planFormTitle}"?`)) {
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Xóa kế hoạch',
+      message: `Bạn có chắc chắn muốn xóa kế hoạch "${this.planFormTitle}"?`,
+      confirmText: 'Xóa kế hoạch',
+      type: 'danger',
+    });
+    if (confirmed) {
       this.isSubmittingPlan.set(true);
       this.planService.delete(editId).subscribe({
         next: () => {

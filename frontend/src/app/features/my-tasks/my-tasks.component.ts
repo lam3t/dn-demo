@@ -7,6 +7,7 @@ import { TaskService } from '../../core/services/task.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ContactCardService } from '../../core/services/contact-card.service';
 import { AcademicYearService } from '../../core/services/academic-year.service';
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { StatusTabsCounterComponent, StatusTabItem } from '../../shared/components/status-tabs-counter/status-tabs-counter.component';
 import { FileDropzoneComponent } from '../../shared/components/file-dropzone/file-dropzone.component';
@@ -590,7 +591,7 @@ type MyTaskGroupType = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'DUE_SOON' | 'OVERDUE' | 
 
       <!-- MODAL CẬP NHẬT NHANH (IN-PLACE QUICK UPDATE DRAWER / MODAL) -->
       @if (quickUpdatingTask(); as qTask) {
-        <div class="quick-modal-backdrop" (click)="closeQuickUpdate()">
+        <div class="quick-modal-backdrop">
           <div class="quick-modal-container" (click)="$event.stopPropagation()">
             <!-- MODAL HEADER -->
             <div class="quick-modal-header">
@@ -2099,6 +2100,7 @@ export class MyTasksComponent implements OnInit, OnDestroy {
   academicYearService = inject(AcademicYearService);
   private contactCardService = inject(ContactCardService);
   private router = inject(Router);
+  private confirmDialog = inject(ConfirmDialogService);
 
   isLoading = signal(true);
   isSaving = signal(false);
@@ -2396,9 +2398,15 @@ export class MyTasksComponent implements OnInit, OnDestroy {
     );
   }
 
-  quickApprove(task: TaskItem, event: MouseEvent) {
+  async quickApprove(task: TaskItem, event: MouseEvent) {
     event.stopPropagation();
-    if (!confirm(`Xác nhận nghiệm thu ĐẠT cho công việc "${task.title}"?`)) return;
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Nghiệm thu công việc',
+      message: `Xác nhận nghiệm thu ĐẠT cho công việc "${task.title}"?`,
+      confirmText: 'Nghiệm thu ĐẠT',
+      type: 'info',
+    });
+    if (!confirmed) return;
 
     this.taskService.updateStatus(task.id, 'HOAN_THANH', 'Nghiệm thu đạt yêu cầu qua nút duyệt nhanh').subscribe({
       next: () => {
@@ -2410,9 +2418,15 @@ export class MyTasksComponent implements OnInit, OnDestroy {
     });
   }
 
-  quickReject(task: TaskItem, event: MouseEvent) {
+  async quickReject(task: TaskItem, event: MouseEvent) {
     event.stopPropagation();
-    const reason = prompt(`Nhập yêu cầu bổ sung cho công việc "${task.title}":`, 'Cần bổ sung thêm ảnh minh chứng rõ nét hơn');
+    const reason = await this.confirmDialog.prompt({
+      title: 'Yêu cầu bổ sung',
+      message: `Nhập yêu cầu bổ sung cho công việc "${task.title}":`,
+      defaultValue: 'Cần bổ sung thêm ảnh minh chứng rõ nét hơn',
+      placeholder: 'Nội dung chi tiết yêu cầu...',
+      confirmText: 'Gửi yêu cầu',
+    });
     if (reason === null || !reason.trim()) return;
 
     this.taskService.updateStatus(task.id, 'BO_SUNG', reason.trim()).subscribe({

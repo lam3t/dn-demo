@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { AdminService } from '../../core/services/admin.service';
 import { UserService } from '../../core/services/user.service';
 import { AuthService } from '../../core/services/auth.service';
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
 import {
   AdminUserItem,
   PermissionMatrixItem,
@@ -1068,7 +1069,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
       <!-- MODAL 1: TẠO TÀI KHOẢN MỚI -->
       <!-- ======================================================= -->
       @if (showCreateUserModal()) {
-        <div class="modal-backdrop" (click)="closeModals()">
+        <div class="modal-backdrop">
           <div class="modal-dialog modal-lg" (click)="$event.stopPropagation()">
             <div class="modal-header">
               <h3>Tạo mới Tài khoản Nhân sự</h3>
@@ -1241,7 +1242,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
       <!-- MODAL 3: GÁN VAI TRÒ MỚI CHO USER -->
       <!-- ======================================================= -->
       @if (showAddRoleModal()) {
-        <div class="modal-backdrop" (click)="closeModals()">
+        <div class="modal-backdrop">
           <div class="modal-dialog" (click)="$event.stopPropagation()">
             <div class="modal-header">
               <h3>Gán vai trò mới cho {{ selectedRoleUser()?.fullName }}</h3>
@@ -1298,7 +1299,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
       <!-- MODAL 4: TẠO / SỬA ĐIỂM TRƯỜNG -->
       <!-- ======================================================= -->
       @if (showLocationModal()) {
-        <div class="modal-backdrop" (click)="closeModals()">
+        <div class="modal-backdrop">
           <div class="modal-dialog modal-lg" (click)="$event.stopPropagation()">
             <div class="modal-header">
               <h3>{{ editingLocationId ? 'Sửa Điểm trường' : 'Tạo mới Điểm trường' }}</h3>
@@ -1365,7 +1366,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
       <!-- MODAL TẠO / SỬA TỔ CHUYÊN MÔN -->
       <!-- ======================================================= -->
       @if (showOrgUnitModal()) {
-        <div class="modal-backdrop" (click)="closeModals()">
+        <div class="modal-backdrop">
           <div class="modal-dialog" (click)="$event.stopPropagation()">
             <div class="modal-header">
               <h3>{{ editingOrgUnitId ? 'Sửa Tổ Chuyên Môn / Phòng Ban' : 'Thêm Mới Tổ Chuyên Môn' }}</h3>
@@ -1433,7 +1434,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
 
       <!-- MODAL ĐIỀU CHUYỂN CƠ SỞ CÔNG TÁC -->
       @if (showTransferModal() && transferTeacherTarget()) {
-        <div class="modal-backdrop" (click)="closeModals()">
+        <div class="modal-backdrop">
           <div class="modal-dialog" (click)="$event.stopPropagation()">
             <div class="modal-header">
               <h3>Điều chuyển Cơ sở công tác</h3>
@@ -1472,7 +1473,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
       <!-- MODAL 5: TẠO VAI TRÒ TÙY BIẾN (CUSTOM ROLE) -->
       <!-- ======================================================= -->
       @if (showCustomRoleModal()) {
-        <div class="modal-backdrop" (click)="closeModals()">
+        <div class="modal-backdrop">
           <div class="modal-dialog modal-lg" (click)="$event.stopPropagation()">
             <div class="modal-header">
               <h3>Tạo Vai trò Tùy biến (Custom Role)</h3>
@@ -1596,7 +1597,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
       <!-- MODAL 7: TẠO / SỬA CHỈ SỐ KPI -->
       <!-- ======================================================= -->
       @if (showKPIModal()) {
-        <div class="modal-backdrop" (click)="closeModals()">
+        <div class="modal-backdrop">
           <div class="modal-dialog modal-lg" (click)="$event.stopPropagation()">
             <div class="modal-header">
               <h3>{{ editingKPIId ? 'Sửa Chỉ số KPI' : 'Thêm mới Chỉ số KPI' }}</h3>
@@ -1674,7 +1675,7 @@ export type AdminTab = 'accounts' | 'roles' | 'locations' | 'teachers-by-loc' | 
       <!-- MODAL 8: THÔNG BÁO TẠO USER THÀNH CÔNG -->
       <!-- ======================================================= -->
       @if (createdUserSuccessInfo()) {
-        <div class="modal-backdrop" (click)="createdUserSuccessInfo.set(null)">
+        <div class="modal-backdrop">
           <div class="modal-dialog" (click)="$event.stopPropagation()">
             <div class="modal-header success-header">
               <span class="material-symbols-outlined success-icon">check_circle</span>
@@ -3147,6 +3148,7 @@ export class AdminSettingsComponent implements OnInit {
   adminService = inject(AdminService);
   userService = inject(UserService);
   authService = inject(AuthService);
+  confirmDialog = inject(ConfirmDialogService);
 
   // STATE SIGNALS
   activeTab = signal<AdminTab>('accounts');
@@ -3539,9 +3541,15 @@ export class AdminSettingsComponent implements OnInit {
     });
   }
 
-  confirmToggleStatus(user: AdminUserItem) {
+  async confirmToggleStatus(user: AdminUserItem) {
     const actionName = user.isActive ? 'KHOÁ' : 'MỞ KHOÁ';
-    if (confirm(`Bạn có chắc chắn muốn ${actionName} tài khoản "${user.fullName}" (${user.email})?`)) {
+    const confirmed = await this.confirmDialog.confirm({
+      title: `${actionName} tài khoản`,
+      message: `Bạn có chắc chắn muốn ${actionName} tài khoản "${user.fullName}" (${user.email})?`,
+      confirmText: actionName,
+      type: user.isActive ? 'danger' : 'warning',
+    });
+    if (confirmed) {
       this.adminService.toggleUserStatus(user.id, !user.isActive).subscribe({
         next: (res) => {
           this.showAlert(res.isActive ? `Đã mở khoá tài khoản ${user.fullName}` : `Đã khoá tài khoản ${user.fullName}`);
@@ -3555,8 +3563,14 @@ export class AdminSettingsComponent implements OnInit {
     }
   }
 
-  confirmResetPassword(user: AdminUserItem) {
-    if (confirm(`Đặt lại mật khẩu của tài khoản "${user.fullName}" về mặc định "123456"?`)) {
+  async confirmResetPassword(user: AdminUserItem) {
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Đặt lại mật khẩu',
+      message: `Đặt lại mật khẩu của tài khoản "${user.fullName}" về mặc định "123456"?`,
+      confirmText: 'Đặt lại mật khẩu',
+      type: 'warning',
+    });
+    if (confirmed) {
       this.adminService.resetPassword(user.id).subscribe({
         next: (res) => {
           this.showAlert(res.message || `Đã đặt lại mật khẩu cho ${user.fullName} về mặc định: 123456`);
@@ -3682,8 +3696,14 @@ export class AdminSettingsComponent implements OnInit {
       });
   }
 
-  deleteCustomRole(role: RoleModelItem) {
-    if (confirm(`Xóa vai trò tùy biến [${role.name}]? Hành động này không thể hoàn tác.`)) {
+  async deleteCustomRole(role: RoleModelItem) {
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Xóa vai trò tùy biến',
+      message: `Xóa vai trò tùy biến [${role.name}]? Hành động này không thể hoàn tác.`,
+      confirmText: 'Xóa vai trò',
+      type: 'danger',
+    });
+    if (confirmed) {
       this.adminService.deleteRole(role.id).subscribe({
         next: () => {
           this.showAlert(`Đã xóa vai trò ${role.name}`);
@@ -3752,11 +3772,17 @@ export class AdminSettingsComponent implements OnInit {
       });
   }
 
-  confirmRemoveRole(roleItem: AdminUserRole) {
+  async confirmRemoveRole(roleItem: AdminUserRole) {
     const user = this.selectedRoleUser();
     if (!user) return;
 
-    if (confirm(`Bạn có chắc chắn muốn gỡ vai trò "${this.getRoleLabel(roleItem.role)}" khỏi ${user.fullName}?`)) {
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Gỡ vai trò',
+      message: `Bạn có chắc chắn muốn gỡ vai trò "${this.getRoleLabel(roleItem.role)}" khỏi ${user.fullName}?`,
+      confirmText: 'Gỡ vai trò',
+      type: 'warning',
+    });
+    if (confirmed) {
       this.adminService.removeUserRole(user.id, roleItem.id).subscribe({
         next: () => {
           this.showAlert(`Đã gỡ vai trò khỏi ${user.fullName}`);
@@ -3867,8 +3893,14 @@ export class AdminSettingsComponent implements OnInit {
     }
   }
 
-  confirmDeleteLocation(loc: LocationSummaryItem) {
-    if (confirm(`Bạn có chắc chắn muốn xóa điểm trường "${loc.name}"?`)) {
+  async confirmDeleteLocation(loc: LocationSummaryItem) {
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Xóa điểm trường',
+      message: `Bạn có chắc chắn muốn xóa điểm trường "${loc.name}"?`,
+      confirmText: 'Xóa điểm trường',
+      type: 'danger',
+    });
+    if (confirmed) {
       this.adminService.deleteLocation(loc.id).subscribe({
         next: () => {
           this.showAlert(`Đã xóa điểm trường ${loc.name}`);
@@ -3960,8 +3992,14 @@ export class AdminSettingsComponent implements OnInit {
     }
   }
 
-  confirmDeleteOrgUnit(org: OrgUnitItem) {
-    if (confirm(`Bạn có chắc chắn muốn xóa tổ chuyên môn [${org.name}]?`)) {
+  async confirmDeleteOrgUnit(org: OrgUnitItem) {
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Xóa tổ chuyên môn',
+      message: `Bạn có chắc chắn muốn xóa tổ chuyên môn [${org.name}]?`,
+      confirmText: 'Xóa tổ',
+      type: 'danger',
+    });
+    if (confirmed) {
       this.userService.deleteOrgUnit(org.id).subscribe({
         next: () => {
           this.showAlert(`Đã xóa tổ chuyên môn [${org.name}] thành công.`);
@@ -4121,8 +4159,14 @@ export class AdminSettingsComponent implements OnInit {
     }
   }
 
-  deleteCategory(cat: SharedCategoryItem) {
-    if (confirm(`Xóa danh mục [${cat.name}]?`)) {
+  async deleteCategory(cat: SharedCategoryItem) {
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Xóa danh mục',
+      message: `Xóa danh mục [${cat.name}]?`,
+      confirmText: 'Xóa danh mục',
+      type: 'danger',
+    });
+    if (confirmed) {
       this.adminService.deleteCategory(cat.id).subscribe({
         next: () => {
           this.showAlert(`Đã xóa danh mục ${cat.name}`);
@@ -4231,8 +4275,14 @@ export class AdminSettingsComponent implements OnInit {
     }
   }
 
-  deleteKPIDefinition(kpi: KPIDefinitionItem) {
-    if (confirm(`Xóa chỉ số KPI [${kpi.name}]?`)) {
+  async deleteKPIDefinition(kpi: KPIDefinitionItem) {
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Xóa chỉ số KPI',
+      message: `Xóa chỉ số KPI [${kpi.name}]?`,
+      confirmText: 'Xóa chỉ số',
+      type: 'danger',
+    });
+    if (confirmed) {
       this.adminService.deleteKPIDefinition(kpi.id).subscribe({
         next: () => {
           this.showAlert(`Đã xóa chỉ số KPI ${kpi.name}`);

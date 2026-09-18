@@ -14,6 +14,7 @@ import { TaskService } from '../../core/services/task.service';
 import { AuthService } from '../../core/services/auth.service';
 import { AttachmentService } from '../../core/services/attachment.service';
 import { ContactCardService } from '../../core/services/contact-card.service';
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
 import {
   TaskItem,
   TaskStatus,
@@ -832,7 +833,7 @@ import { FileDropzoneComponent } from '../../shared/components/file-dropzone/fil
 
         <!-- EVALUATION MODAL DIALOG POPUP (TT 70, 89) -->
         @if (showEvalModal()) {
-          <div class="eval-modal-backdrop" (click)="showEvalModal.set(false)">
+          <div class="eval-modal-backdrop">
             <div class="eval-modal-box" (click)="$event.stopPropagation()">
               <div class="eval-modal-header">
                 <div class="eval-modal-title">
@@ -2396,6 +2397,7 @@ export class TaskDetailComponent implements OnInit {
   private authService = inject(AuthService);
   private attachmentService = inject(AttachmentService);
   private contactCardService = inject(ContactCardService);
+  private confirmDialog = inject(ConfirmDialogService);
 
   isLoading = signal(true);
   task = signal<TaskItem | null>(null);
@@ -2694,8 +2696,14 @@ export class TaskDetailComponent implements OnInit {
     if (t) this.fetchTask(t.id);
   }
 
-  deleteAttachment(id: string) {
-    if (!confirm('Bạn có chắc muốn xóa tệp minh chứng này?')) return;
+  async deleteAttachment(id: string) {
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Xóa tệp minh chứng',
+      message: 'Bạn có chắc muốn xóa tệp minh chứng này?',
+      confirmText: 'Xóa tệp',
+      type: 'danger',
+    });
+    if (!confirmed) return;
     this.attachmentService.deleteAttachment(id).subscribe({
       next: () => {
         const t = this.task();
@@ -2770,8 +2778,14 @@ export class TaskDetailComponent implements OnInit {
     });
   }
 
-  promptReasonAndChange(status: TaskStatus) {
-    const reason = prompt('Nhập nội dung/lý do yêu cầu bổ sung:', 'Yêu cầu bổ sung thêm minh chứng kết quả');
+  async promptReasonAndChange(status: TaskStatus) {
+    const reason = await this.confirmDialog.prompt({
+      title: 'Yêu cầu bổ sung',
+      message: 'Nhập nội dung/lý do yêu cầu bổ sung minh chứng kết quả:',
+      defaultValue: 'Yêu cầu bổ sung thêm minh chứng kết quả',
+      placeholder: 'Nội dung chi tiết yêu cầu...',
+      confirmText: 'Gửi yêu cầu',
+    });
     if (reason !== null && reason.trim()) {
       this.performStatusChange(status, reason.trim());
     }

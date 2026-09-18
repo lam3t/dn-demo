@@ -29,8 +29,8 @@ import { NotificationService } from '../../../core/services/notification.service
   imports: [CommonModule, FormsModule, PeoplePickerComponent],
   template: `
     @if (isOpen()) {
-      <div class="wizard-backdrop" (click)="close()">
-        <div class="wizard-modal-container" (click)="$event.stopPropagation()">
+      <div class="wizard-backdrop">
+        <div class="wizard-modal-container">
           <!-- WIZARD TOP BAR -->
           <div class="wizard-header">
             <div class="wizard-header-titles">

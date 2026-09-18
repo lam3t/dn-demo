@@ -961,7 +961,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
       <!-- 5. PERSONAL PROFILE MODAL -->
       @if (isProfileModalOpen) {
         @if (authService.currentUser(); as user) {
-          <div class="layout-modal-backdrop" (click)="closeProfileModal()">
+          <div class="layout-modal-backdrop">
             <div class="layout-modal-dialog profile-modal-dialog" (click)="$event.stopPropagation()">
               <div class="modal-dialog-header">
                 <div class="modal-title-wrap">
@@ -1099,7 +1099,7 @@ import { UserPickerItem } from '../../../core/models/user.models';
 
       <!-- 6. CHANGE PASSWORD MODAL (TT 003) -->
       @if (isChangePasswordOpen) {
-        <div class="layout-modal-backdrop" (click)="closeChangePassword()">
+        <div class="layout-modal-backdrop">
           <div class="layout-modal-dialog" (click)="$event.stopPropagation()">
             <div class="modal-dialog-header">
               <div class="modal-title-wrap">

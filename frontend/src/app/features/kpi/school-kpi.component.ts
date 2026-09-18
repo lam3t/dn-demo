@@ -789,7 +789,7 @@ import {
 
       <!-- 6. MODAL: CHI TIẾT CÔNG VIỆC THEO TRỤC NHIỆM VỤ CỦA GIÁO VIÊN -->
       @if (selectedStaffForDetails) {
-        <div class="modal-backdrop" (click)="closeStaffTaskModal()">
+        <div class="modal-backdrop">
           <div class="modal-dialog staff-details-modal" (click)="$event.stopPropagation()">
             <!-- Modal Header -->
             <div class="modal-header">
@@ -2851,6 +2851,167 @@ export class SchoolKpiComponent implements OnInit {
   }
 
   exportExcel(): void {
-    alert('Đang kết xuất tệp tin Excel tổng hợp KPI toàn trường (.xlsx)...');
+    const isAnnual = this.isAnnualView();
+    const academicYear = this.academicYearService.currentAcademicYear();
+    const currentPeriod = this.periods().find((p) => p.id === this.selectedPeriodId());
+    const periodName = isAnnual
+      ? `Tổng kết Cả Năm (${academicYear})`
+      : currentPeriod?.name || 'Kỳ Đánh Giá KPI';
+
+    let tableHtml = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; }
+          .title-school { font-size: 13pt; font-weight: bold; color: #1F3864; }
+          .title-report { font-size: 16pt; font-weight: bold; color: #1F3864; text-align: center; margin: 10px 0 4px 0; }
+          .sub-report { font-size: 11pt; font-style: italic; text-align: center; color: #475569; margin-bottom: 15px; }
+          table { border-collapse: collapse; width: 100%; margin-top: 15px; }
+          th { background-color: #1F3864; color: #FFFFFF; font-weight: bold; text-align: center; border: 1px solid #94A3B8; padding: 8px 6px; }
+          td { border: 1px solid #CBD5E1; padding: 6px 8px; vertical-align: middle; }
+          .text-center { text-align: center; }
+          .text-right { text-align: right; }
+          .font-bold { font-weight: bold; }
+          .bg-total { background-color: #F1F5F9; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="title-school">TRƯỜNG TIỂU HỌC & TRUNG HỌC CƠ SỞ ĐÀ NẴNG</div>
+        <div class="title-report">BẢNG TỔNG HỢP ĐÁNH GIÁ & XẾP LOẠI KPI TOÀN TRƯỜNG</div>
+        <div class="sub-report">${periodName} • Năm học: ${academicYear} • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}</div>
+    `;
+
+    if (isAnnual) {
+      const list = this.filteredAnnualStaffList();
+      tableHtml += `
+        <table>
+          <thead>
+            <tr>
+              <th rowspan="2">STT</th>
+              <th rowspan="2">Mã / Email</th>
+              <th rowspan="2">Họ và tên</th>
+              <th rowspan="2">Tổ / Đơn vị</th>
+              <th rowspan="2">Chức danh / Vị trí</th>
+              <th colspan="4">Điểm Đánh Giá 4 Quý (Thang 100đ)</th>
+              <th rowspan="2">Điểm TB Cả Năm</th>
+              <th rowspan="2">Xếp loại Cả Năm</th>
+            </tr>
+            <tr>
+              <th>Quý 1 (Thu)</th>
+              <th>Quý 2 (Đông)</th>
+              <th>Quý 3 (Xuân)</th>
+              <th>Quý 4 (Hạ)</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      list.forEach((s, idx) => {
+        const q1 = s.q1Score !== null && s.q1Score !== undefined ? s.q1Score : '—';
+        const q2 = s.q2Score !== null && s.q2Score !== undefined ? s.q2Score : '—';
+        const q3 = s.q3Score !== null && s.q3Score !== undefined ? s.q3Score : '—';
+        const q4 = s.q4Score !== null && s.q4Score !== undefined ? s.q4Score : '—';
+
+        tableHtml += `
+          <tr>
+            <td class="text-center">${idx + 1}</td>
+            <td>${s.email || ''}</td>
+            <td class="font-bold">${s.fullName}</td>
+            <td>${s.orgUnitName || 'Tổ Chuyên môn'}</td>
+            <td>${s.title || 'Giáo viên'}</td>
+            <td class="text-center">${q1}</td>
+            <td class="text-center">${q2}</td>
+            <td class="text-center">${q3}</td>
+            <td class="text-center">${q4}</td>
+            <td class="text-center font-bold" style="color: #1F3864; font-size: 11pt;">${s.avgScore || 0}</td>
+            <td class="text-center font-bold">${this.getClassificationLabel(s.yearlyClassification)}</td>
+          </tr>
+        `;
+      });
+
+      tableHtml += `
+          </tbody>
+          <tfoot>
+            <tr class="bg-total">
+              <td colspan="5" class="text-center">TỔNG SỐ CÁN BỘ VIÊN CHỨC</td>
+              <td colspan="6" class="font-bold">${list.length} người</td>
+            </tr>
+          </tfoot>
+        </table>
+      `;
+    } else {
+      const list = this.filteredStaffList();
+      tableHtml += `
+        <table>
+          <thead>
+            <tr>
+              <th>STT</th>
+              <th>Mã / Email</th>
+              <th>Họ và tên</th>
+              <th>Tổ / Đơn vị</th>
+              <th>Chức danh / Vị trí</th>
+              <th>Số việc theo trục (Đạt/Tổng)</th>
+              <th>Tiêu chuẩn chung (Phần A / 30đ)</th>
+              <th>Trục kết quả (Phần B / 70đ)</th>
+              <th>Điểm thưởng (Phần C)</th>
+              <th>Tổng Điểm (Thang 100đ)</th>
+              <th>Xếp loại Chất lượng</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      list.forEach((s, idx) => {
+        tableHtml += `
+          <tr>
+            <td class="text-center">${idx + 1}</td>
+            <td>${s.email || ''}</td>
+            <td class="font-bold">${s.fullName}</td>
+            <td>${s.orgUnitName || 'Tổ Chuyên môn'}</td>
+            <td>${s.title || 'Giáo viên'}</td>
+            <td class="text-center">${s.completedTasks}/${s.totalTasks} việc (${this.getPct(s.completedTasks, s.totalTasks)}%)</td>
+            <td class="text-center">${s.scoreGeneral}</td>
+            <td class="text-center">${s.scoreTask}</td>
+            <td class="text-center">${s.scoreBonus > 0 ? '+' + s.scoreBonus : '0'}</td>
+            <td class="text-center font-bold" style="color: #1F3864; font-size: 11pt;">${s.scoreFinal}</td>
+            <td class="text-center font-bold">${this.getClassificationLabel(s.classification)}</td>
+          </tr>
+        `;
+      });
+
+      tableHtml += `
+          </tbody>
+          <tfoot>
+            <tr class="bg-total">
+              <td colspan="5" class="text-center">TỔNG SỐ CÁN BỘ VIÊN CHỨC</td>
+              <td colspan="6" class="font-bold">${list.length} người</td>
+            </tr>
+          </tfoot>
+        </table>
+      `;
+    }
+
+    tableHtml += `
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob(['\uFEFF' + tableHtml], {
+      type: 'application/vnd.ms-excel;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const fileName = isAnnual
+      ? `Tong_Ket_KPI_Ca_Nam_${academicYear.replace(/[^a-zA-Z0-9]/g, '_')}.xls`
+      : `Bang_Tong_Hop_KPI_${(currentPeriod?.code || 'Q').replace(/[^a-zA-Z0-9]/g, '_')}_${academicYear.replace(/[^a-zA-Z0-9]/g, '_')}.xls`;
+
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    this.showToast('Đã kết xuất tệp tin Excel KPI toàn trường thành công!');
   }
 }

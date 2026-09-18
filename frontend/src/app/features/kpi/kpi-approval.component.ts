@@ -390,7 +390,7 @@ import {
 
       <!-- REVIEW & APPROVE SCORE MODAL -->
       @if (selectedSheet()) {
-        <div class="modal-backdrop" (click)="selectedSheet.set(null)">
+        <div class="modal-backdrop">
           <div class="modal-dialog modal-lg" (click)="$event.stopPropagation()">
             <div class="modal-header">
               <div class="header-info">

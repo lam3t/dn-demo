@@ -529,7 +529,9 @@ import { KpiTaskDialogComponent } from './kpi-task-dialog.component';
           [task]="editingTask()"
           [periodId]="selectedPeriodId() === 'annual_rollup' ? (periods()[0]?.id || '') : selectedPeriodId()"
           (saved)="onTaskSaved($event)"
+          (taskSaved)="onTaskSaved($event)"
           (cancelled)="onTaskDialogCancelled()"
+          (closeDialog)="onTaskDialogCancelled()"
         ></app-kpi-task-dialog>
       }
     </div>
