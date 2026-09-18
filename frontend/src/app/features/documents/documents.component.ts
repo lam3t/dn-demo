@@ -351,8 +351,8 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                                     <span class="material-symbols-outlined">{{ getFileTypeIcon(file.mimeType, file.fileName || file.originalName) }}</span>
                                   </div>
                                   <div class="file-name-texts">
-                                    <span class="file-main-name" [title]="file.originalName || file.fileName">
-                                      {{ file.originalName || file.fileName }}
+                                    <span class="file-main-name" [title]="getDisplayFileName(file.originalName || file.fileName)">
+                                      {{ getDisplayFileName(file.originalName || file.fileName) }}
                                     </span>
                                     @if (file.description) {
                                       <span class="file-sub-desc">{{ file.description }}</span>
@@ -431,8 +431,8 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                           </div>
 
                           <div class="file-card-body">
-                            <h4 class="file-card-title" [title]="file.originalName || file.fileName">
-                              {{ file.originalName || file.fileName }}
+                            <h4 class="file-card-title" [title]="getDisplayFileName(file.originalName || file.fileName)">
+                              {{ getDisplayFileName(file.originalName || file.fileName) }}
                             </h4>
                             <div class="file-card-meta">
                               <span>{{ formatFileSize(file.fileSize) }}</span>
@@ -2478,6 +2478,25 @@ export class DocumentsComponent implements OnInit, OnDestroy {
   // ===================== TAB 2: EVIDENCE REPOSITORY STATE =====================
   isEvidenceLoading = signal<boolean>(false);
   evidenceList = signal<any[]>([]);
+
+  getDisplayFileName(name: string | undefined): string {
+    if (!name) return 'Tệp tài liệu';
+    let result = name;
+    for (let i = 0; i < 2; i++) {
+      try {
+        if (/[\u00C0-\u00FF]/.test(result)) {
+          const bytes = new Uint8Array([...result].map((c) => c.charCodeAt(0) & 0xff));
+          const decoded = new TextDecoder('utf-8').decode(bytes);
+          if (!decoded.includes('\ufffd') && decoded !== result) {
+            result = decoded;
+            continue;
+          }
+        }
+      } catch (_) {}
+      break;
+    }
+    return result;
+  }
   evidenceTotalItems = signal<number>(0);
   evidenceTotalPages = signal<number>(1);
   evidenceCurrentPage = signal<number>(1);

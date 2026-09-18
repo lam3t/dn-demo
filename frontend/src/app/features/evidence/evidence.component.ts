@@ -140,8 +140,8 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                           <span class="material-symbols-outlined">{{ getFileTypeIcon(item.mimeType) }}</span>
                         </div>
                         <div class="file-info-text">
-                          <span class="file-name-title" [title]="item.originalName || item.fileName">
-                            {{ item.originalName || item.fileName }}
+                          <span class="file-name-title" [title]="getDisplayFileName(item.originalName || item.fileName)">
+                            {{ getDisplayFileName(item.originalName || item.fileName) }}
                           </span>
                           <div class="file-sub-meta">
                             <span class="file-size-badge">{{ formatFileSize(item.fileSize) }}</span>
@@ -227,7 +227,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                         </button>
                         <a
                           [href]="item.fileUrl"
-                          [download]="item.originalName || item.fileName"
+                          [download]="getDisplayFileName(item.originalName || item.fileName)"
                           target="_blank"
                           class="btn-act btn-download"
                           title="Tải xuống tệp tin"
@@ -265,12 +265,12 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
             <div class="modal-header">
               <div class="modal-title-box">
                 <span class="material-symbols-outlined modal-icon">{{ getFileTypeIcon(previewItem()!.mimeType) }}</span>
-                <h3 class="modal-title">{{ previewItem()!.originalName || previewItem()!.fileName }}</h3>
+                <h3 class="modal-title">{{ getDisplayFileName(previewItem()!.originalName || previewItem()!.fileName) }}</h3>
               </div>
               <div class="modal-actions">
                 <a
                   [href]="previewItem()!.fileUrl"
-                  [download]="previewItem()!.originalName || previewItem()!.fileName"
+                  [download]="getDisplayFileName(previewItem()!.originalName || previewItem()!.fileName)"
                   target="_blank"
                   class="btn btn-sm btn-primary"
                 >
@@ -293,11 +293,11 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
               } @else {
                 <div class="other-format-box">
                   <span class="material-symbols-outlined large-doc-icon">{{ getFileTypeIcon(previewItem()!.mimeType) }}</span>
-                  <h4>{{ previewItem()!.originalName || previewItem()!.fileName }}</h4>
+                  <h4>{{ getDisplayFileName(previewItem()!.originalName || previewItem()!.fileName) }}</h4>
                   <p>Văn bản Microsoft Office (.docx, .xlsx). Vui lòng tải về máy để xem nội dung đầy đủ nhất.</p>
                   <a
                     [href]="previewItem()!.fileUrl"
-                    [download]="previewItem()!.originalName || previewItem()!.fileName"
+                    [download]="getDisplayFileName(previewItem()!.originalName || previewItem()!.fileName)"
                     class="btn btn-primary"
                   >
                     <span class="material-symbols-outlined">download</span>
@@ -863,6 +863,25 @@ export class EvidenceComponent implements OnInit, OnDestroy {
     });
   }
 
+  getDisplayFileName(name: string | undefined): string {
+    if (!name) return 'Tệp minh chứng';
+    let result = name;
+    for (let i = 0; i < 2; i++) {
+      try {
+        if (/[\u00C0-\u00FF]/.test(result)) {
+          const bytes = new Uint8Array([...result].map((c) => c.charCodeAt(0) & 0xff));
+          const decoded = new TextDecoder('utf-8').decode(bytes);
+          if (!decoded.includes('\ufffd') && decoded !== result) {
+            result = decoded;
+            continue;
+          }
+        }
+      } catch (_) {}
+      break;
+    }
+    return result;
+  }
+
   loadEvidence() {
     this.isLoading.set(true);
     this.attachmentService
@@ -876,7 +895,13 @@ export class EvidenceComponent implements OnInit, OnDestroy {
       })
       .subscribe({
         next: (res) => {
-          this.evidenceList.set(res?.items || []);
+          const rawItems = res?.items || [];
+          const sanitizedItems = rawItems.map((item: any) => ({
+            ...item,
+            originalName: this.getDisplayFileName(item.originalName || item.fileName),
+            fileName: this.getDisplayFileName(item.fileName || item.originalName),
+          }));
+          this.evidenceList.set(sanitizedItems);
           this.totalItems.set(res?.pagination?.total || 0);
           this.totalPages.set(res?.pagination?.totalPages || 1);
           this.isLoading.set(false);
