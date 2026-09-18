@@ -6,15 +6,14 @@ Tài liệu hướng dẫn chi tiết từng bước từ cài đặt môi trư�
 
 ## MỤC LỤC
 1. [Cấu trúc Gói Triển Khai](#1-cấu-trúc-gói-triển-khai)
-2. [Yêu cầu Môi trường & Phần mềm cần cài](#2-yêu-cầu-môi-trường--phần-mềm-cần-cài)
-3. [Bước 1: Cài đặt & Khởi tạo CSDL PostgreSQL](#bước-1-cài-đặt--khởi-tạo-csdl-postgresql)
-4. [Bước 2: Cấu hình & Khởi chạy Backend API](#bước-2-cấu-hình--khởi-chạy-backend-api)
-5. [Bước 3: Triển khai Frontend & Web Server (Nginx hoặc IIS)](#bước-3-triển-khai-frontend--web-server-nginx-hoặc-iis)
-   - [Cách 1: Triển khai bằng Nginx for Windows (Khuyên dùng)](#cách-1-triển-khai-bằng-nginx-for-windows-khuyên-dùng)
-   - [Cách 2: Triển khai bằng Microsoft IIS](#cách-2-triển-khai-bằng-microsoft-iis)
-6. [Bước 4: Mở Port trên Windows Defender Firewall](#bước-4-mở-port-trên-windows-defender-firewall)
-7. [Bước 5: Thiết lập Tự Động Sao Lưu Dữ Liệu (Backup)](#bước-5-thiết-lập-tự-động-sao-lưu-dữ-liệu-backup)
-8. [Thông tin Đăng nhập & Vận hành Ban đầu](#thông-tin-đăng-nhập--vận-hành-ban-đầu)
+2. [Tùy chọn A: Triển khai 1-Chạm bằng DOCKER (Khuyên dùng)](#tùy-chọn-a-triển-khai-1-chạm-bằng-docker-khuyên-dùng)
+3. [Tùy chọn B: Triển khai Trực tiếp trên Windows (Node.js + PostgreSQL)](#tùy-chọn-b-triển-khai-trực-tiếp-trên-windows-nodejs--postgresql)
+   - [Bước 1: Cài đặt & Khởi tạo CSDL PostgreSQL](#bước-1-cài-đặt--khởi-tạo-csdl-postgresql)
+   - [Bước 2: Cấu hình & Khởi chạy Backend API](#bước-2-cấu-hình--khởi-chạy-backend-api)
+   - [Bước 3: Triển khai Frontend & Web Server (Nginx hoặc IIS)](#bước-3-triển-khai-frontend--web-server-nginx-hoặc-iis)
+4. [Mở Port trên Windows Defender Firewall & Router Internet](#bước-4-mở-port-trên-windows-defender-firewall)
+5. [Thiết lập Tự Động Sao Lưu Dữ Liệu (Backup)](#bước-5-thiết-lập-tự-động-sao-lưu-dữ-liệu-backup)
+6. [Thông tin Đăng nhập & Vận hành Ban đầu](#thông-tin-đăng-nhập--vận-hành-ban-đầu)
 
 ---
 
@@ -45,19 +44,46 @@ deploy-package/
 
 ---
 
-## 2. Yêu cầu Môi trường & Phần mềm cần cài
+## Tùy chọn A: Triển khai 1-Chạm bằng DOCKER (Khuyên dùng)
 
+Triển khai bằng Docker là giải pháp nhanh nhất, tự động 100%, cô lập môi trường hoàn hảo, không lo xung đột phiên bản Node.js hay PostgreSQL trên máy chủ.
+
+### 1. Chuẩn bị môi trường Docker
+- Cài đặt **Docker Desktop for Windows**: [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/) (hoặc Docker Engine nếu dùng Windows Server bản Core).
+- Đảm bảo Docker đang chạy (biểu tượng cá voi màu xanh góc taskbar).
+
+### 2. Khởi chạy toàn bộ hệ thống (1-Chạm)
+1. Giải nén gói `deploy-package`.
+2. Chạy file **`scripts\start-docker.bat`** (hoặc mở CMD tại thư mục `deploy-package` và gõ `docker compose up -d --build`).
+3. Hệ thống sẽ tự động build và khởi chạy 3 container:
+   - **`tn_edu_postgres`**: Cơ sở dữ liệu PostgreSQL 16, **tự động nạp sẵn toàn bộ Schema và Seed System Admin** từ file `tn_edu_complete_init.sql`.
+   - **`tn_edu_backend`**: Backend API Node.js/Prisma lắng nghe tại port 5000.
+   - **`tn_edu_frontend`**: Nginx Web Server lắng nghe tại port 80, tự động phục vụ Angular SPA và Reverse Proxy `/api/` vào backend container.
+
+### 3. Các lệnh quản lý Docker thường dùng:
+```bash
+# Xem trạng thái các container đang chạy
+docker compose ps
+
+# Xem log thời gian thực của backend
+docker compose logs -f backend
+
+# Dừng toàn bộ hệ thống
+docker compose down (hoặc chạy file scripts\stop-docker.bat)
+
+# Khởi động lại hệ thống
+docker compose restart
+```
+
+---
+
+## Tùy chọn B: Triển khai Trực tiếp trên Windows (Node.js + PostgreSQL)
+
+### Yêu cầu Môi trường & Phần mềm cần cài:
 Tải và cài đặt các phần mềm sau trên Windows Server:
-
-1. **Node.js LTS (v20.x hoặc v22.x)**: 
-   - Tải file `.msi` tại: [https://nodejs.org/](https://nodejs.org/)
-   - Khi cài đặt, tick chọn *"Automatically install the necessary tools"*.
-2. **PostgreSQL (v15.x hoặc v16.x)**:
-   - Tải file cài đặt tại: [https://www.enterprisedb.com/downloads/postgres-postgresql-downloads](https://www.enterprisedb.com/downloads/postgres-postgresql-downloads)
-   - Lưu lại **Mật khẩu của tài khoản `postgres`** (ví dụ: `Password123@`).
-   - Cổng mặc định: `5432`.
-3. **PM2 (Quản lý tiến trình Backend chạy ngầm)**:
-   - Mở **PowerShell (Administrator)** và chạy lệnh:
+1. **Node.js LTS (v20.x hoặc v22.x)**: Tải file `.msi` tại [https://nodejs.org/](https://nodejs.org/).
+2. **PostgreSQL (v15.x hoặc v16.x)**: Tải tại [EnterpriseDB](https://www.enterprisedb.com/downloads/postgres-postgresql-downloads).
+3. **PM2**: `npm install -g pm2 pm2-windows-service`.
      ```powershell
      npm install -g pm2 pm2-windows-service
      ```
