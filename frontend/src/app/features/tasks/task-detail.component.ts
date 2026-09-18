@@ -27,11 +27,14 @@ import {
 } from '../../core/models/task.models';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { FileDropzoneComponent } from '../../shared/components/file-dropzone/file-dropzone.component';
+import { PeoplePickerComponent } from '../../shared/components/people-picker/people-picker.component';
+import { NotificationService } from '../../core/services/notification.service';
+import { UserPickerItem } from '../../core/models/user.models';
 
 @Component({
   selector: 'app-task-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, StatusBadgeComponent, FileDropzoneComponent],
+  imports: [CommonModule, FormsModule, RouterModule, StatusBadgeComponent, FileDropzoneComponent, PeoplePickerComponent],
   template: `
     <div class="task-detail-page">
       <!-- TOP NAVIGATION BREADCRUMB & BACK BUTTON -->
@@ -644,10 +647,18 @@ import { FileDropzoneComponent } from '../../shared/components/file-dropzone/fil
 
             <!-- 2. RACI TEAM CARD (CLICK-TO-CALL TỨC THÌ) -->
             <section class="card-box raci-card">
-              <h3 class="side-card-title">
-                <span class="material-symbols-outlined">group</span>
-                <span>Những người liên quan (RACI)</span>
-              </h3>
+              <div class="raci-card-header">
+                <h3 class="side-card-title">
+                  <span class="material-symbols-outlined">group</span>
+                  <span>Những người liên quan (RACI)</span>
+                </h3>
+                @if (canEditAssignments()) {
+                  <button type="button" class="btn-edit-raci-trigger tap-target" (click)="openEditRaciModal()" title="Thay đổi / Bổ sung người chủ trì, phối hợp, kiểm tra">
+                    <span class="material-symbols-outlined">edit_square</span>
+                    <span>Sửa phân công</span>
+                  </button>
+                }
+              </div>
 
               <!-- CHỦ TRÌ (CHÍNH) -->
               <div class="raci-role-section">
@@ -918,6 +929,104 @@ import { FileDropzoneComponent } from '../../shared/components/file-dropzone/fil
                   } @else {
                     <span class="material-symbols-outlined">save</span>
                     <span>Lưu đánh giá kết quả</span>
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- EDIT RACI ASSIGNMENTS MODAL DIALOG POPUP -->
+        @if (showEditRaciModal()) {
+          <div class="raci-modal-backdrop">
+            <div class="raci-modal-box" (click)="$event.stopPropagation()">
+              <div class="raci-modal-header">
+                <div class="raci-modal-title">
+                  <span class="material-symbols-outlined">manage_accounts</span>
+                  <h3>Điều chỉnh phân công trách nhiệm (RACI)</h3>
+                </div>
+                <button type="button" class="btn-raci-close tap-target" (click)="closeEditRaciModal()" title="Đóng">
+                  <span class="material-symbols-outlined">close</span>
+                </button>
+              </div>
+
+              <div class="raci-modal-body">
+                <p class="raci-task-banner">Công việc: <strong>{{ task()!.title }}</strong></p>
+
+                @if (raciError()) {
+                  <div class="raci-error-box">
+                    <span class="material-symbols-outlined">error</span>
+                    <span>{{ raciError() }}</span>
+                  </div>
+                }
+
+                <!-- 1. CHỦ TRÌ (CHÍNH) -->
+                <div class="raci-field-group">
+                  <div class="field-label-row">
+                    <label class="raci-field-label">
+                      <span class="role-dot dot-chutri"></span>
+                      <strong class="role-text-chutri">1. Người Chủ trì chính</strong>
+                      <span class="required-badge">* Bắt buộc đúng 1 người</span>
+                    </label>
+                  </div>
+                  <app-people-picker
+                    mode="single"
+                    placeholder="Tìm và chọn giáo viên chủ trì chính..."
+                    [required]="true"
+                    [selectedUserIds]="editRaciChuTriIds"
+                    (selectedUsersChange)="onEditChuTriChange($event)"
+                  ></app-people-picker>
+                </div>
+
+                <!-- 2. PHỐI HỢP (NHIỀU NGƯỜI) -->
+                <div class="raci-field-group">
+                  <div class="field-label-row">
+                    <label class="raci-field-label">
+                      <span class="role-dot dot-phoihop"></span>
+                      <strong class="role-text-phoihop">2. Cán bộ Phối hợp thực hiện</strong>
+                      <span class="optional-text">(Có thể chọn nhiều cán bộ giáo viên)</span>
+                    </label>
+                  </div>
+                  <app-people-picker
+                    mode="multi"
+                    placeholder="Tìm và thêm cán bộ giáo viên phối hợp..."
+                    [selectedUserIds]="editRaciPhoiHopIds"
+                    (selectedUsersChange)="onEditPhoiHopChange($event)"
+                  ></app-people-picker>
+                </div>
+
+                <!-- 3. KIỂM TRA (1 NGƯỜI) -->
+                <div class="raci-field-group">
+                  <div class="field-label-row">
+                    <label class="raci-field-label">
+                      <span class="role-dot dot-kiemtra"></span>
+                      <strong class="role-text-kiemtra">3. Người Kiểm tra / Nghiệm thu kết quả</strong>
+                      <span class="optional-text">(Tùy chọn - Ban Giám hiệu hoặc Tổ trưởng)</span>
+                    </label>
+                  </div>
+                  <app-people-picker
+                    mode="single"
+                    placeholder="Chọn cán bộ kiểm tra/nghiệm thu..."
+                    [selectedUserIds]="editRaciKiemTraIds"
+                    (selectedUsersChange)="onEditKiemTraChange($event)"
+                  ></app-people-picker>
+                </div>
+              </div>
+
+              <div class="raci-modal-footer">
+                <button type="button" class="btn-raci-cancel tap-target" (click)="closeEditRaciModal()">Hủy</button>
+                <button
+                  type="button"
+                  class="btn-raci-save tap-target"
+                  (click)="saveRaciAssignments()"
+                  [disabled]="isSavingRaci() || !editRaciChuTri"
+                >
+                  @if (isSavingRaci()) {
+                    <span class="material-symbols-outlined spin">progress_activity</span>
+                    <span>Đang lưu...</span>
+                  } @else {
+                    <span class="material-symbols-outlined">how_to_reg</span>
+                    <span>Lưu thay đổi phân công</span>
                   }
                 </button>
               </div>
@@ -1254,7 +1363,6 @@ import { FileDropzoneComponent } from '../../shared/components/file-dropzone/fil
         gap: 18px;
         min-width: 0;
         width: 100%;
-        overflow: hidden;
         box-sizing: border-box;
       }
 
@@ -1888,6 +1996,43 @@ import { FileDropzoneComponent } from '../../shared/components/file-dropzone/fil
       }
 
       .raci-card {
+        .raci-card-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 14px;
+          gap: 8px;
+
+          .side-card-title {
+            margin: 0;
+          }
+
+          .btn-edit-raci-trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background: #EEF4FC;
+            border: 1px solid #BFDBFE;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #1F3864;
+            cursor: pointer;
+            transition: all 0.15s ease;
+
+            .material-symbols-outlined {
+              font-size: 15px;
+            }
+
+            &:hover {
+              background: #1F3864;
+              border-color: #1F3864;
+              color: #FFFFFF;
+            }
+          }
+        }
+
         .raci-role-section {
           display: flex;
           flex-direction: column;
@@ -2383,6 +2528,205 @@ import { FileDropzoneComponent } from '../../shared/components/file-dropzone/fil
         }
       }
 
+      /* RACI EDIT MODAL DIALOG */
+      .raci-modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(4px);
+        z-index: 2400;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        animation: fadeIn 0.15s ease-out;
+      }
+
+      .raci-modal-box {
+        width: 100%;
+        max-width: 600px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        background: #FFFFFF;
+        border-radius: 16px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+        animation: scaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .raci-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        background: #F8FAFC;
+        border-bottom: 1px solid #E2E8F0;
+        flex-shrink: 0;
+
+        .raci-modal-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+
+          .material-symbols-outlined {
+            color: #1F3864;
+            font-size: 22px;
+          }
+
+          h3 {
+            margin: 0;
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: #1E293B;
+          }
+        }
+
+        .btn-raci-close {
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          border: none;
+          background: #EEF4FC;
+          color: #1F3864;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+        }
+      }
+
+      .raci-modal-body {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        overflow-y: auto;
+        flex: 1;
+
+        .raci-task-banner {
+          margin: 0;
+          font-size: 0.88rem;
+          color: #475569;
+          padding: 8px 12px;
+          background: #F8FAFC;
+          border-radius: 8px;
+          border-left: 3px solid #1F3864;
+        }
+
+        .raci-error-box {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 12px;
+          background: #FEE2E2;
+          border: 1px solid #FCA5A5;
+          border-radius: 8px;
+          color: #B91C1C;
+          font-size: 0.82rem;
+          font-weight: 600;
+        }
+
+        .raci-field-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+
+          .field-label-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            .raci-field-label {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              font-size: 0.82rem;
+              margin: 0;
+
+              .role-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+
+                &.dot-chutri { background: #1E40AF; }
+                &.dot-phoihop { background: #6B21A8; }
+                &.dot-kiemtra { background: #D97706; }
+              }
+
+              .role-text-chutri { color: #1E40AF; }
+              .role-text-phoihop { color: #6B21A8; }
+              .role-text-kiemtra { color: #92400E; }
+
+              .required-badge {
+                font-size: 0.7rem;
+                color: #DC2626;
+                font-weight: 700;
+              }
+
+              .optional-text {
+                font-size: 0.72rem;
+                color: #64748B;
+                font-weight: normal;
+              }
+            }
+          }
+        }
+      }
+
+      .raci-modal-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 14px 20px;
+        background: #F8FAFC;
+        border-top: 1px solid #E2E8F0;
+        flex-shrink: 0;
+
+        .btn-raci-cancel {
+          padding: 8px 16px;
+          background: #FFFFFF;
+          border: 1px solid #CBD5E1;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: #475569;
+          cursor: pointer;
+          &:hover { background: #F1F5F9; }
+        }
+
+        .btn-raci-save {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 18px;
+          background: #1F3864;
+          color: #FFFFFF;
+          border: none;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          font-weight: 700;
+          cursor: pointer;
+          &:hover:not(:disabled) { background: #152744; }
+          &:disabled { background: #CBD5E1; cursor: not-allowed; }
+          .spin { animation: spin 1s linear infinite; }
+        }
+      }
+
+      @keyframes scaleUp {
+        from { opacity: 0; transform: scale(0.96); }
+        to { opacity: 1; transform: scale(1); }
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
       @keyframes spin {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
@@ -2397,6 +2741,7 @@ export class TaskDetailComponent implements OnInit {
   private authService = inject(AuthService);
   private attachmentService = inject(AttachmentService);
   private contactCardService = inject(ContactCardService);
+  private notificationService = inject(NotificationService);
   private confirmDialog = inject(ConfirmDialogService);
 
   isLoading = signal(true);
@@ -2406,6 +2751,17 @@ export class TaskDetailComponent implements OnInit {
   tempProgress = signal(0);
   progressNote = '';
   isUpdatingProgress = signal(false);
+
+  // RACI edit modal state
+  showEditRaciModal = signal(false);
+  isSavingRaci = signal(false);
+  raciError = signal<string | null>(null);
+  editRaciChuTri: UserPickerItem | null = null;
+  editRaciPhoiHop: UserPickerItem[] = [];
+  editRaciKiemTra: UserPickerItem | null = null;
+  editRaciChuTriIds: string[] = [];
+  editRaciPhoiHopIds: string[] = [];
+  editRaciKiemTraIds: string[] = [];
 
   // Comment state
   commentText = '';
@@ -2489,6 +2845,133 @@ export class TaskDetailComponent implements OnInit {
   kiemTraAssignment = computed(() => {
     return this.task()?.assignments?.find((a) => a.role === 'KIEM_TRA') || null;
   });
+
+  canEditAssignments(): boolean {
+    const t = this.task();
+    if (!t) return false;
+    if (t.status === 'DONG') return false;
+    const currentUserId = this.authService.currentUser()?.id;
+    const isBGH = this.authService.isBGH() || this.authService.isAdmin() || this.authService.isHieuTruong();
+    const isCreator = t.createdById === currentUserId;
+    return isCreator || isBGH;
+  }
+
+  openEditRaciModal() {
+    const t = this.task();
+    if (!t) return;
+
+    const chuTri = t.assignments?.find((a) => a.role === 'CHU_TRI')?.user;
+    const phoiHops = t.assignments?.filter((a) => a.role === 'PHOI_HOP').map((a) => a.user) || [];
+    const kiemTra = t.assignments?.find((a) => a.role === 'KIEM_TRA' || a.role === 'PHE_DUYET')?.user;
+
+    this.editRaciChuTri = chuTri ? this.mapUserToPickerItem(chuTri) : null;
+    this.editRaciPhoiHop = phoiHops.map((u) => this.mapUserToPickerItem(u));
+    this.editRaciKiemTra = kiemTra ? this.mapUserToPickerItem(kiemTra) : null;
+
+    this.editRaciChuTriIds = this.editRaciChuTri ? [this.editRaciChuTri.id] : [];
+    this.editRaciPhoiHopIds = this.editRaciPhoiHop.map((u) => u.id);
+    this.editRaciKiemTraIds = this.editRaciKiemTra ? [this.editRaciKiemTra.id] : [];
+
+    this.raciError.set(null);
+    this.showEditRaciModal.set(true);
+  }
+
+  closeEditRaciModal() {
+    this.showEditRaciModal.set(false);
+    this.raciError.set(null);
+  }
+
+  onEditChuTriChange(users: UserPickerItem[]) {
+    this.editRaciChuTri = users.length > 0 ? users[0] : null;
+    this.editRaciChuTriIds = users.map((u) => u.id);
+    if (this.editRaciChuTri) {
+      this.raciError.set(null);
+    }
+  }
+
+  onEditPhoiHopChange(users: UserPickerItem[]) {
+    this.editRaciPhoiHop = users;
+    this.editRaciPhoiHopIds = users.map((u) => u.id);
+  }
+
+  onEditKiemTraChange(users: UserPickerItem[]) {
+    this.editRaciKiemTra = users.length > 0 ? users[0] : null;
+    this.editRaciKiemTraIds = users.map((u) => u.id);
+  }
+
+  saveRaciAssignments() {
+    const t = this.task();
+    if (!t) return;
+
+    if (!this.editRaciChuTri) {
+      this.raciError.set('Bắt buộc phải chọn đúng 1 người Chủ trì chính cho công việc.');
+      return;
+    }
+
+    this.isSavingRaci.set(true);
+    this.raciError.set(null);
+
+    const assignments: Array<{ userId: string; role: TaskAssignmentRole; note?: string }> = [];
+
+    // 1. CHỦ TRÌ
+    assignments.push({
+      userId: this.editRaciChuTri.id,
+      role: 'CHU_TRI',
+    });
+
+    // 2. PHỐI HỢP
+    for (const u of this.editRaciPhoiHop) {
+      if (u.id !== this.editRaciChuTri.id) {
+        assignments.push({
+          userId: u.id,
+          role: 'PHOI_HOP',
+        });
+      }
+    }
+
+    // 3. KIỂM TRA
+    if (this.editRaciKiemTra && this.editRaciKiemTra.id !== this.editRaciChuTri.id) {
+      assignments.push({
+        userId: this.editRaciKiemTra.id,
+        role: 'KIEM_TRA',
+      });
+    }
+
+    this.taskService.updateAssignments(t.id, assignments).subscribe({
+      next: () => {
+        this.isSavingRaci.set(false);
+        this.showEditRaciModal.set(false);
+        this.fetchTask(t.id);
+
+        const currentUser = this.authService.currentUser();
+        this.notificationService.emitNotification({
+          title: 'Điều chỉnh phân công công việc',
+          content: `${currentUser?.fullName || 'Người giao việc'} đã cập nhật danh sách phân công (Chủ trì, Phối hợp, Kiểm tra) cho công việc "${t.title}".`,
+          type: 'NHAC_VIEC',
+          taskId: t.id,
+          taskCode: t.code,
+          senderName: currentUser?.fullName,
+          senderAvatar: currentUser?.avatarUrl,
+        });
+      },
+      error: (err) => {
+        this.isSavingRaci.set(false);
+        this.raciError.set(err.error?.message || 'Không thể cập nhật phân công RACI.');
+      },
+    });
+  }
+
+  private mapUserToPickerItem(u: any): UserPickerItem {
+    return {
+      id: u.id,
+      fullName: u.fullName || '',
+      title: u.title || '',
+      phone: u.phone || '',
+      avatarUrl: u.avatarUrl || null,
+      primaryLocation: u.primaryLocation || null,
+      primaryOrgUnit: u.primaryOrgUnit || null,
+    } as UserPickerItem;
+  }
 
   filteredMentionUsers = computed(() => {
     const t = this.task();
