@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # ========================================================
+  # 1. CƠ SỞ DỮ LIỆU POSTGRESQL 16
+  # ========================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: tn_edu_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Admin@123456
+      POSTGRES_DB: tn_edu
+    ports:
+      - "5432:5432"
+    volumes:
+      - tn_edu_db_data:/var/lib/postgresql/data
+      # Tự động nạp toàn bộ Schema và Seed System Admin khi khởi chạy lần đầu
+      - ./database/tn_edu_complete_init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    networks:
+      - tn_edu_network
+
+  # ========================================================
+  # 2. BACKEND API SERVICE (NODE.JS / EXPRESS / PRISMA)
+  # ========================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tn_edu_backend
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: "postgresql://postgres:Admin@123456@postgres:5432/tn_edu?schema=public&connection_limit=20"
+      DIRECT_URL: "postgresql://postgres:Admin@123456@postgres:5432/tn_edu?schema=public"
+      JWT_SECRET: "tn_edu_prod_super_secret_jwt_access_key_2026"
+      JWT_REFRESH_SECRET: "tn_edu_prod_super_secret_jwt_refresh_key_2026"
+      JWT_ACCESS_EXPIRES_IN: "7d"
+      JWT_REFRESH_EXPIRES_IN: "30d"
+      CORS_ORIGIN: "http://localhost,http://127.0.0.1,http://localhost:80"
+    volumes:
+      - tn_edu_uploads:/app/uploads
+    depends_on:
+      - postgres
+    networks:
+      - tn_edu_network
+
+  # ========================================================
+  # 3. FRONTEND WEB SERVER (ANGULAR SPA + NGINX PROXY)
+  # ========================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tn_edu_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - tn_edu_network
+
+volumes:
+  tn_edu_db_data:
+    driver: local
+  tn_edu_uploads:
+    driver: local
+
+networks:
+  tn_edu_network:
+    driver: bridge
