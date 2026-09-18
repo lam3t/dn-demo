@@ -892,7 +892,7 @@ import { PaginationComponent } from '../../shared/components/pagination/paginati
                 />
                 <span class="material-symbols-outlined dropzone-icon">upload_file</span>
                 <h4>Kéo thả tệp vào đây hoặc nhấn để duyệt</h4>
-                <p>Hỗ trợ mọi định dạng tệp (Excel, Word, PDF, Hình ảnh, Tối đa 50MB/tệp)</p>
+                <p>Hỗ trợ mọi định dạng tệp (Excel, Word, PDF, Hình ảnh, Tối đa 20MB/tệp)</p>
               </div>
 
               <!-- Selected Files List -->
@@ -2860,7 +2860,14 @@ export class DocumentsComponent implements OnInit, OnDestroy {
     this.isDragOver = false;
     if (e.dataTransfer?.files) {
       const files = Array.from(e.dataTransfer.files);
-      this.pendingFiles.push(...files);
+      const MAX_SIZE = 20 * 1024 * 1024;
+      for (const f of files) {
+        if (f.size > MAX_SIZE) {
+          alert(`Tệp "${f.name}" vượt quá dung lượng giới hạn cho phép (20MB).`);
+        } else {
+          this.pendingFiles.push(f);
+        }
+      }
     }
   }
 
@@ -2868,7 +2875,15 @@ export class DocumentsComponent implements OnInit, OnDestroy {
     const input = e.target as HTMLInputElement;
     if (input.files) {
       const files = Array.from(input.files);
-      this.pendingFiles.push(...files);
+      const MAX_SIZE = 20 * 1024 * 1024;
+      for (const f of files) {
+        if (f.size > MAX_SIZE) {
+          alert(`Tệp "${f.name}" vượt quá dung lượng giới hạn cho phép (20MB).`);
+        } else {
+          this.pendingFiles.push(f);
+        }
+      }
+      input.value = '';
     }
   }
 

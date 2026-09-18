@@ -19,8 +19,16 @@ export const errorHandler = (
   res: Response,
   next: NextFunction
 ) => {
-  const statusCode = err.statusCode || 500;
-  const message = err.message || 'Đã có lỗi xảy ra phía máy chủ.';
+  let statusCode = err.statusCode || 500;
+  let message = err.message || 'Đã có lỗi xảy ra phía máy chủ.';
+
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    statusCode = 400;
+    message = 'Dung lượng tệp tải lên vượt quá giới hạn tối đa cho phép (20MB/tệp). Vui lòng nén hoặc chọn tệp nhỏ hơn.';
+  } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+    statusCode = 400;
+    message = 'Số lượng tệp tải lên vượt quá số lượng cho phép trong một lần gửi.';
+  }
 
   console.error(`[Lỗi] ${req.method} ${req.originalUrl}:`, err);
 

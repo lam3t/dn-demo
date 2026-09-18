@@ -25,8 +25,8 @@ const storage = multer.memoryStorage();
 export const uploadAttachment = multer({
   storage,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB
-    fieldSize: 50 * 1024 * 1024, // 50MB
+    fileSize: 20 * 1024 * 1024, // 20MB tối đa mỗi tệp
+    fieldSize: 20 * 1024 * 1024, // 20MB
   },
   fileFilter: (req, file, cb) => {
     const mime = (file.mimetype || '').toLowerCase();
