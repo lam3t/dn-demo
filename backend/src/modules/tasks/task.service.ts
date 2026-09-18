@@ -1394,7 +1394,7 @@ export class TaskService {
     id: string,
     tenantId?: string,
     userId?: string,
-    userRoles?: string[],
+    userRoles?: any[],
     isSystemAdmin?: boolean
   ) {
     const where: any = { id };
