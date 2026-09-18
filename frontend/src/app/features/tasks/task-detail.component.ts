@@ -1234,19 +1234,32 @@ import { FileDropzoneComponent } from '../../shared/components/file-dropzone/fil
       /* 2. GRID LAYOUT */
       .task-detail-grid {
         display: grid;
-        grid-template-columns: 1fr 340px;
+        grid-template-columns: minmax(0, 1fr) 340px;
         gap: 18px;
+        box-sizing: border-box;
 
         @media (max-width: 900px) {
           grid-template-columns: 1fr;
         }
       }
 
-      .grid-main-col,
+      .grid-main-col {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        min-width: 0;
+        width: 100%;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+
       .grid-side-col {
         display: flex;
         flex-direction: column;
         gap: 18px;
+        min-width: 0;
+        width: 100%;
+        box-sizing: border-box;
       }
 
       /* CARDS */
@@ -1256,6 +1269,9 @@ import { FileDropzoneComponent } from '../../shared/components/file-dropzone/fil
         border-radius: 16px;
         padding: 20px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        min-width: 0;
+        width: 100%;
+        box-sizing: border-box;
       }
 
       .card-header-bar {

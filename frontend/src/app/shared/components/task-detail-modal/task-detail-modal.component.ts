@@ -951,21 +951,35 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
       /* BODY LAYOUT GRID */
       .modal-body-layout {
         display: grid;
-        grid-template-columns: 1fr 320px;
+        grid-template-columns: minmax(0, 1fr) 320px;
         gap: 16px;
         padding: 20px 24px;
         overflow-y: auto;
+        overflow-x: hidden;
+        box-sizing: border-box;
 
-        @media (max-width: 840px) {
+        @media (max-width: 880px) {
           grid-template-columns: 1fr;
         }
       }
 
-      .body-main-col,
+      .body-main-col {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-width: 0;
+        width: 100%;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+
       .body-side-col {
         display: flex;
         flex-direction: column;
         gap: 16px;
+        min-width: 0;
+        width: 100%;
+        box-sizing: border-box;
       }
 
       /* SECTION CARDS */
@@ -976,6 +990,9 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
         border-radius: 14px;
         padding: 16px;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+        min-width: 0;
+        width: 100%;
+        box-sizing: border-box;
       }
 
       .section-title,
@@ -1068,15 +1085,21 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
 
         .progress-note-box {
           display: flex;
+          align-items: center;
           gap: 8px;
           margin-top: 12px;
+          min-width: 0;
+          width: 100%;
+          box-sizing: border-box;
 
           .prog-note-input {
             flex: 1;
+            min-width: 0;
             padding: 8px 12px;
             border: 1px solid #CBD5E1;
             border-radius: 8px;
             font-size: 0.85rem;
+            box-sizing: border-box;
 
             &:focus {
               border-color: #1F3864;
@@ -1087,6 +1110,7 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
           .btn-save-prog {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 4px;
             padding: 8px 14px;
             background: #1F3864;
@@ -1096,6 +1120,8 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
             font-size: 0.82rem;
             font-weight: 700;
             cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
 
             &:disabled {
               background: #CBD5E1;
@@ -1121,6 +1147,9 @@ import { FileDropzoneComponent } from '../file-dropzone/file-dropzone.component'
             background: #F8FAFC;
             border: 1px solid #E2E8F0;
             border-radius: 8px;
+            min-width: 0;
+            width: 100%;
+            box-sizing: border-box;
 
             .file-icon-box {
               color: #1F3864;
